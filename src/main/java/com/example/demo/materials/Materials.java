@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @Table(name = "materials")
 @Data // Lombok 自動幫你生成 Getter/Setter/ToString
 public class Materials {
-
+///測試測試
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
