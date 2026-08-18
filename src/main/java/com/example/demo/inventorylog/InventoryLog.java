@@ -3,6 +3,7 @@ package com.example.demo.inventorylog;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import com.example.demo.materials.Materials;
@@ -35,11 +36,11 @@ public class InventoryLog {
 
     // 對應你的 timestamp，在 Java 中使用 LocalDateTime 最為標準
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     // 在資料寫入資料庫前，自動幫你塞入當前系統時間
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+    	this.createdAt = Instant.now();
     }
 }
