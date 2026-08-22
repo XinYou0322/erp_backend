@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
 
-import com.example.demo.materials.Materials;
+import com.example.demo.materials.Material;
 import com.example.demo.products.Products;
 
 @Entity
@@ -24,7 +24,7 @@ public class Bom {
     // 多筆配方紀錄可以對應到同一個原物料（對應你的 material_id）
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "material_id")
-    private Materials material;
+    private Material material;
 
     // 對應你的 quantity，使用 BigDecimal 確保高精度的公克或毫升數
     @Column(precision = 18, scale = 4)
