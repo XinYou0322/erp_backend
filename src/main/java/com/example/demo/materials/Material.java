@@ -7,11 +7,11 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "materials")
 @Data // Lombok 自動幫你生成 Getter/Setter/ToString
-public class Materials {
+public class Material {
 ///測試測試
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false, unique = true, length = 50)
     private String code;
