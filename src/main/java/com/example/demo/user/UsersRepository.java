@@ -1,11 +1,9 @@
-package com.example.demo.inventories;
+package com.example.demo.user;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import com.example.demo.bom.User;
 
 public interface UsersRepository extends JpaRepository<User, Long> {
 
