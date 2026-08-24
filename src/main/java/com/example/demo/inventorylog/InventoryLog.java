@@ -3,9 +3,11 @@ package com.example.demo.inventorylog;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
-import com.example.demo.materials.Materials;
+import com.example.demo.materials.Material;
+
 
 @Entity
 @Table(name = "inventory_logs")
@@ -19,7 +21,7 @@ public class InventoryLog {
     // 歷史紀錄會有多筆對應到同一個原物料 (對應你的 material_id)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "material_id")
-    private Materials material;
+    private Material material;
 
     // 本次異動數量 (進貨存正數如 50.00，銷售存負數如 -0.05)
     @Column(precision = 18, scale = 4)
@@ -35,11 +37,11 @@ public class InventoryLog {
 
     // 對應你的 timestamp，在 Java 中使用 LocalDateTime 最為標準
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     // 在資料寫入資料庫前，自動幫你塞入當前系統時間
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+    	this.createdAt = Instant.now();
     }
 }
