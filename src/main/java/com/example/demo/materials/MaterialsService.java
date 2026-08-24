@@ -6,7 +6,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
-import com.example.demo.inventories.Inventories;
+import com.example.demo.inventories.Inventory;
 import com.example.demo.inventories.InventoryRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class MaterialsService {
 		  Material savedMaterial = MaterialRepo.save(material);
 
 	        // 2. 建立對應的庫存
-	        Inventories inventory = new Inventories();
+	        Inventory inventory = new Inventory();
 
 	        inventory.setMaterial(savedMaterial);
 
@@ -60,6 +60,21 @@ public class MaterialsService {
 
 	        return MaterialRepo.save(material);
 	    }
+	  public void delete(Long id) {
 
+	        Material material = findById(id);
+
+	        // 先刪除庫存
+	        Inventory inventory = InventoryRepo
+	                .findByMaterialId(material.getId()).get();
+	               
+
+	        if (inventory != null) {
+	        	InventoryRepo.delete(inventory);
+	        }
+
+	        // 再刪除原物料
+	        MaterialRepo.delete(material);
+	    }
 
 }

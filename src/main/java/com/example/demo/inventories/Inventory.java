@@ -9,7 +9,7 @@ import com.example.demo.materials.Material;
 @Entity
 @Table(name = "inventories")
 @Data
-public class Inventories {
+public class Inventory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
