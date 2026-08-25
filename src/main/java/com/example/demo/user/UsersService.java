@@ -40,7 +40,7 @@ public class UsersService {
         // 負責的 RBAC 與組織架構欄位
         users.setName(name);
         users.setEmail(email);
-        users.setRoleId(roleId);
+        // users.setRoleId(roleId);
         users.setDepartmentId(departmentId);
         users.setStatus("ACTIVE");// 預設帳號啟用
 
@@ -92,7 +92,7 @@ public class UsersService {
         User dbUser = op.get();
         dbUser.setName(updateDetails.getName());
         dbUser.setEmail(updateDetails.getEmail());
-        dbUser.setRoleId(updateDetails.getRoleId());
+        // dbUser.setRoleId(updateDetails.getRoleId());
         dbUser.setDepartmentId(updateDetails.getDepartmentId());
         dbUser.setStatus(updateDetails.getStatus());
 
