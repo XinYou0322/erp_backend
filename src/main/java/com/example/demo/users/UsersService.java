@@ -1,4 +1,4 @@
-package com.example.demo.user;
+package com.example.demo.users;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +33,7 @@ public class UsersService {
             return false;
         }
 
-        User users = new User();
+        Users users = new Users();
         users.setUsername(username);
         users.setPassword(pwdEncoder1.encode(password));
 
@@ -50,15 +50,15 @@ public class UsersService {
     }
 
     // 3. 登入檢查
-    public User checkLogin(String inputUsername, String inputPassword) {
+    public Users checkLogin(String inputUsername, String inputPassword) {
         boolean exist = checkUsernameExist(inputUsername);
 
         if (!exist) {
             return null;
         }
 
-        Optional<User> op = usersRepo.findByUsername(inputUsername);
-        User dbUsers = op.get();
+        Optional<Users> op = usersRepo.findByUsername(inputUsername);
+        Users dbUsers = op.get();
 
         // 帳號狀態防禦：若被後台停用則拒絕登入
         if ("INACTIVE".equals(dbUsers.getStatus())) {
@@ -76,20 +76,20 @@ public class UsersService {
     }
 
     // 4. 依據 ID 查詢單一使用者 (中介層驗證/個人資料 API 常用)
-    public User findById(Long id) {
-        Optional<User> op = usersRepo.findById(id);
+    public Users findById(Long id) {
+        Optional<Users> op = usersRepo.findById(id);
         return op.orElse(null);
     }
 
     // 6. 後台修改員工組織與權限資料
-    public boolean updateUser(Long id, User updateDetails) {
-        Optional<User> op = usersRepo.findById(id);
+    public boolean updateUser(Long id, Users updateDetails) {
+        Optional<Users> op = usersRepo.findById(id);
 
         if (!op.isPresent()) {
             return false;
         }
 
-        User dbUser = op.get();
+        Users dbUser = op.get();
         dbUser.setName(updateDetails.getName());
         dbUser.setEmail(updateDetails.getEmail());
         // dbUser.setRoleId(updateDetails.getRoleId());
@@ -102,13 +102,13 @@ public class UsersService {
 
     // 7. 凍結或啟用帳號 (軟刪除)
     public boolean updateStatus(Long id, String status) {
-        Optional<User> op = usersRepo.findById(id);
+        Optional<Users> op = usersRepo.findById(id);
 
         if (!op.isPresent()) {
             return false;
         }
 
-        User dbUser = op.get();
+        Users dbUser = op.get();
         dbUser.setStatus(status);
 
         usersRepo.save(dbUser);

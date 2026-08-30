@@ -1,4 +1,4 @@
-package com.example.demo.user;
+package com.example.demo.users;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Getter
 @Setter
 @NoArgsConstructor
-public class User {
+public class Users {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,9 +40,9 @@ public class User {
     @Column(nullable = false, length = 50)
     private String email;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "role_id", nullable = false)
-//    private Long roleId;
+    // @ManyToOne(fetch = FetchType.LAZY)
+    // @JoinColumn(name = "role_id", nullable = false)
+    // private Long roleId;
 
     @Column(name = "department_id", nullable = false)
     private Long departmentId;
