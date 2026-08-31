@@ -15,13 +15,13 @@ public class Products {
     private Long id;
 
     @Column(unique = true, length = 50)
-    private String sku;
+    private String sku;//樣式大小
 
     @Column(length = 50)
     private String name;
 
     @Column(length = 50)
-    private String category;
+    private String category;  //類別
 
     @Column(name = "selling_price", precision = 18, scale = 2) 
     private BigDecimal sellingPrice; // 對應你的 selling_price
@@ -30,8 +30,8 @@ public class Products {
     private BigDecimal costPrice; // 對應你的 cost_price
 
     @Column(length = 50)
-    private String unit;
+    private String unit; //單位
 
     @Column(length = 50)
-    private String status;
+    private String status;//狀態
 }
