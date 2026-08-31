@@ -56,7 +56,7 @@ public class PurchaseOrders {
 	private LocalDateTime createdAt;
 	
 	// 一張採購單有多筆採購明細
-    @OneToMany(mappedBy = "purchaseOrderId")
+    @OneToMany(mappedBy = "purchaseOrder")
     private List<PurchaseOrderItems> items = new LinkedList<>();
 
 	@PrePersist

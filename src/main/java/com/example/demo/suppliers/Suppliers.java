@@ -31,6 +31,7 @@ public class Suppliers {
 	@Column(length = 50)
 	private String name;
 	
+	//json測試 不能0開頭
 	@Column(length = 50)
 	private Integer phone;
 	
