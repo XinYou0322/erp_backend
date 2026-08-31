@@ -4,115 +4,95 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @RequiredArgsConstructor
 public class UsersService {
 
-    private final PasswordEncoder pwdEncoder1;
+    private final PasswordEncoder passwordEncoder;
 
-    private final UsersRepository usersRepo;
+    private final UsersRepository userRepository;
 
-    private final PasswordEncoder pwdEncoder;
+    private final RoleRepository roleRepository;
 
     // 1. 檢查帳號是否存在
     public boolean checkUsernameExist(String username) {
-        return usersRepo.findByUsername(username).isPresent();
+        return userRepository.existsByUsername(username);
     }
 
     // 2. 註冊 / 新增員工
-    public boolean register(String username,
-            String password,
-            String name, String email,
-            Long roleId, Long departmentId, Long storeId) {
-        boolean exist = checkUsernameExist(username);
-
-        if (exist) {
-            return false;
+    @Transactional
+    public User register(String username, String password, String name, String email, Long roleId, Long departmentId) {
+        if (checkUsernameExist(username)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "帳號已存在");
         }
 
-        Users users = new Users();
-        users.setUsername(username);
-        users.setPassword(pwdEncoder1.encode(password));
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到指定角色"));
 
-        // 負責的 RBAC 與組織架構欄位
-        users.setName(name);
-        users.setEmail(email);
-        // users.setRoleId(roleId);
-        users.setDepartmentId(departmentId);
-        users.setStatus("ACTIVE");// 預設帳號啟用
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setName(name);
+        user.setEmail(email);
+        user.setRole(role);
+        user.setDepartmentId(departmentId);
+        user.setStatus(UserStatus.ACTIVE);
 
-        usersRepo.save(users);
-
-        return true;
+        return userRepository.save(user);
     }
 
     // 3. 登入檢查
-    public Users checkLogin(String inputUsername, String inputPassword) {
-        boolean exist = checkUsernameExist(inputUsername);
+    public Optional<User> checkLogin(String inputUsername, String inputPassword) {
+        return userRepository.findByUsername(inputUsername)
+                .filter(user -> {
+                    // 檢查狀態是否為啟用
+                    if (UserStatus.INACTIVE.equals(user.getStatus())) {
+                        return false;
+                    }
+                    // 檢查密碼是否匹配
+                    return passwordEncoder.matches(inputPassword, user.getPassword());
+                });
 
-        if (!exist) {
-            return null;
-        }
-
-        Optional<Users> op = usersRepo.findByUsername(inputUsername);
-        Users dbUsers = op.get();
-
-        // 帳號狀態防禦：若被後台停用則拒絕登入
-        if ("INACTIVE".equals(dbUsers.getStatus())) {
-            return null;
-        }
-
-        String dbPassword = dbUsers.getPassword();
-        boolean result = pwdEncoder1.matches(inputPassword, dbPassword);
-
-        if (result) {
-            return dbUsers;
-        }
-
-        return null;
     }
 
     // 4. 依據 ID 查詢單一使用者 (中介層驗證/個人資料 API 常用)
-    public Users findById(Long id) {
-        Optional<Users> op = usersRepo.findById(id);
-        return op.orElse(null);
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
     }
 
-    // 6. 後台修改員工組織與權限資料
-    public boolean updateUser(Long id, Users updateDetails) {
-        Optional<Users> op = usersRepo.findById(id);
+    // 5. 後台修改員工資料
+    @Transactional
+    public User updateUser(Long id, User updateDetails) {
+        User dbUser = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到使用者"));
 
-        if (!op.isPresent()) {
-            return false;
-        }
-
-        Users dbUser = op.get();
         dbUser.setName(updateDetails.getName());
         dbUser.setEmail(updateDetails.getEmail());
-        // dbUser.setRoleId(updateDetails.getRoleId());
         dbUser.setDepartmentId(updateDetails.getDepartmentId());
         dbUser.setStatus(updateDetails.getStatus());
 
-        usersRepo.save(dbUser);
-        return true;
+        if (updateDetails.getRole() != null) {
+            dbUser.setRole(updateDetails.getRole());
+        }
+        return userRepository.save(dbUser);
     }
 
-    // 7. 凍結或啟用帳號 (軟刪除)
-    public boolean updateStatus(Long id, String status) {
-        Optional<Users> op = usersRepo.findById(id);
+    // 6. 凍結或啟用帳號
+    @Transactional
+    public void updateStatus(Long id, UserStatus status) {
+        User dbUser = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到使用者"));
 
-        if (!op.isPresent()) {
-            return false;
-        }
-
-        Users dbUser = op.get();
         dbUser.setStatus(status);
-
-        usersRepo.save(dbUser);
-        return true;
+        userRepository.save(dbUser);
     }
 
 }
