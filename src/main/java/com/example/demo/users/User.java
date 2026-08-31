@@ -1,10 +1,12 @@
-package com.example.demo.user;
+package com.example.demo.users;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -31,7 +33,7 @@ public class User {
     private String username;
 
     @JsonIgnore // 轉 JSON 時隱藏密碼
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 60)
     private String password;
 
     @Column(nullable = false, length = 50)
@@ -40,15 +42,16 @@ public class User {
     @Column(nullable = false, length = 50)
     private String email;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "role_id", nullable = false)
-//    private Long roleId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
     @Column(name = "department_id", nullable = false)
     private Long departmentId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String status;
+    private UserStatus status;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
