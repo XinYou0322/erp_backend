@@ -1,6 +1,6 @@
 package com.example.demo.workflow.enums;
 
-public enum ActionStatus {
+public enum WorkflowStatus {
     PENDING,
     APPROVED,
     REJECTED

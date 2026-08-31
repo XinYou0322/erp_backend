@@ -1,10 +1,15 @@
 package com.example.demo.leave;
 
 import java.time.LocalDateTime;
-//匯入user
-//import com.example.demo.User;
+import com.example.demo.user.User;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 @Table(name = "leave_requests")
 public class LeaveRequest {
@@ -14,8 +19,7 @@ public class LeaveRequest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "users_id", nullable = false)
-    private Long user;
-    //private User user;
+    private User user;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String remark;
@@ -23,6 +27,4 @@ public class LeaveRequest {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-
-    // Getter & Setter
 }

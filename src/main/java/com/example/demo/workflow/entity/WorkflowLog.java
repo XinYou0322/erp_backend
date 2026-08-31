@@ -1,11 +1,17 @@
 package com.example.demo.workflow.entity;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
-import com.example.demo.workflow.enums.ActionStatus;
-//匯入user
-//import com.example.demo.User;
+import com.example.demo.workflow.enums.WorkflowAction;
+import com.example.demo.user.User;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
 @Table(name = "workflow_logs")
 public class WorkflowLog {
@@ -18,21 +24,24 @@ public class WorkflowLog {
     @JoinColumn(name = "workflow_id", nullable = false)
     private Workflow workflow;
 
-   @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ActionStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "action", nullable = false)
+    private WorkflowAction action;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "operator", nullable = false)
-    private Long operator;
-    //private User operator;
+    @JoinColumn(name = "operator_id", nullable = false)
+    private User operator;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "remark", columnDefinition = "TEXT")
     private String remark;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createAt;
 
-    public WorkflowLog() {}
+    @PrePersist
+    public void onCreate() {
+        if (createAt == null) {
+            createAt = Instant.now();
+        }
+    }
 
 }
