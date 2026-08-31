@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import com.example.demo.workflow.enums.DocumentType;
 import com.example.demo.workflow.enums.WorkflowStatus;
-import com.example.demo.user.User;
+import com.example.demo.users.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

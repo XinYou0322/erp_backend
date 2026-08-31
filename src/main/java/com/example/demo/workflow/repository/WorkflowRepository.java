@@ -8,7 +8,7 @@ import com.example.demo.workflow.enums.WorkflowStatus;
 import java.util.List;
 import java.util.Optional;
 
-import com.example.demo.user.User;
+import com.example.demo.users.User;
 import com.example.demo.workflow.enums.DocumentType;
 
 public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
