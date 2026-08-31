@@ -53,7 +53,7 @@ public class MaterialsService {
 		  
 	        Material material =m.get();
 
-	        material.setCode(newMaterial.getCode());
+
 	        material.setName(newMaterial.getName());
 	        material.setUnit(newMaterial.getUnit());
 	        material.setCost(newMaterial.getCost());
