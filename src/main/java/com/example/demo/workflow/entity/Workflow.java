@@ -40,13 +40,12 @@ public class Workflow {
     @JoinColumn(name = "approver_id", nullable = false)
     private User approver;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    private Instant createAt;
 
     @PrePersist
     public void onCreate() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
+        if (createAt == null) {
+            createAt = Instant.now();
         }
     }
 
