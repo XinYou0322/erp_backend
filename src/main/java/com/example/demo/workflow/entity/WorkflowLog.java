@@ -35,12 +35,13 @@ public class WorkflowLog {
     @Column(name = "remark", columnDefinition = "TEXT")
     private String remark;
 
-    private Instant createAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
     @PrePersist
     public void onCreate() {
-        if (createAt == null) {
-            createAt = Instant.now();
+        if (createdAt == null) {
+            createdAt = Instant.now();
         }
     }
 
