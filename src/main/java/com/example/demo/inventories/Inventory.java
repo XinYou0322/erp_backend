@@ -27,7 +27,7 @@ public class Inventory {
     @Column(precision = 18, scale = 4)
     private BigDecimal quantity;
 
-    private LocalDate expiryDate;
+    private LocalDate expiryDate;	
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
