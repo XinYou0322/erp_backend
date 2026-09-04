@@ -1,6 +1,7 @@
 package com.example.demo.purchase;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,7 +45,7 @@ public class PurchaseOrders {
 	//@mapping到 ????
 	private String createdBy;
 	
-	@Column(nullable = false, name="approved_by",length = 50)
+	@Column( name="approved_by",length = 50)
 	//@mapping到 ????
 	private String approvedBy;
 	
@@ -54,6 +55,10 @@ public class PurchaseOrders {
 	
 	@Column(name = "created_at", updatable = false)
 	private LocalDateTime createdAt;
+
+	//預計到貨日
+	@Column(name = "expected_delivery_date")
+	private LocalDate expectedDeliveryDate;
 	
 	// 一張採購單有多筆採購明細
     @OneToMany(mappedBy = "purchaseOrder")
