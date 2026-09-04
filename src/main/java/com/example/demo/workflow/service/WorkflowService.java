@@ -1,6 +1,7 @@
 package com.example.demo.workflow.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,9 +42,9 @@ public class WorkflowService {
         workflow.setApprover(approver);
         workflow.setStatus(WorkflowStatus.PENDING);
         Workflow savedWorkflow = worksRepo.save(workflow);
-        saveLog(savedWorkflow, applicant, WorkflowAction.SUBMIT, "建立流程");
+        saveLog(savedWorkflow, applicant, WorkflowAction.SUBMIT, request.getRemark());
 
-        return workflow;
+        return savedWorkflow;
 
     }
 
@@ -62,5 +63,26 @@ public class WorkflowService {
         return worksRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 workflow: " + id));
     }
+
+    public List<WorkflowResponse> getPendingByApprover(Long approverId) {
+        User approver = userRepo.findById(approverId)
+                .orElseThrow(() -> new RuntimeException("找不到使用者: " + approverId));
+        List<Workflow> workflows = worksRepo.findByApproverAndStatus(approver, WorkflowStatus.PENDING);
+
+        return workflows.stream().map(workflow -> {
+
+            WorkflowResponse res = WorkflowResponse.from(workflow);
+
+            worklogRespo.findFirstByWorkflowAndActionOrderByCreatedAtAsc(workflow, WorkflowAction.SUBMIT)
+                    .ifPresent(log -> res.setRemark(log.getRemark()));
+
+            return res;
+
+        }).toList();
+    }
+
+    // public Workflow approve(Long workflowId, ApproveWorkflowRequest request)
+
+    // public Workflow reject(Long workflowId, ApproveWorkflowRequest request)
 
 }

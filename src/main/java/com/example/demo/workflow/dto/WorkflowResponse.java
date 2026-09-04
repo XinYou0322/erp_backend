@@ -18,6 +18,8 @@ public class WorkflowResponse {
     private String applicantName;
     private Long approverId;
     private String approverName;
+    private LocalDateTime createdAt;
+    private String remark;
 
     public static WorkflowResponse from(Workflow w) {
         WorkflowResponse res = new WorkflowResponse();
@@ -30,6 +32,9 @@ public class WorkflowResponse {
 
         res.approverId = w.getApprover().getId();
         res.approverName = w.getApprover().getName();
+
+        res.createdAt = LocalDateTime.ofInstant(w.getCreatedAt(), java.time.ZoneId.systemDefault());
+
         return res;
     }
 }
