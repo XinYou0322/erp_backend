@@ -44,7 +44,7 @@ public class UsersService {
         user.setName(name);
         user.setEmail(email);
         user.setRole(role);
-        user.setDepartmentId(departmentId);
+        // user.setDepartmentId(departmentId);
         user.setStatus(UserStatus.ACTIVE);
 
         return userRepository.save(user);
@@ -78,7 +78,7 @@ public class UsersService {
 
         dbUser.setName(updateDetails.getName());
         dbUser.setEmail(updateDetails.getEmail());
-        dbUser.setDepartmentId(updateDetails.getDepartmentId());
+        //  dbUser.setDepartmentId(updateDetails.getDepartmentId());
         dbUser.setStatus(updateDetails.getStatus());
 
         if (updateDetails.getRole() != null) {
