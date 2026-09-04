@@ -35,15 +35,7 @@ public class MaterialsService {
 	        // 1. 儲存原物料
 		  Material savedMaterial = MaterialRepo.save(material);
 
-	        // 2. 建立對應的庫存
-	        Inventory inventory = new Inventory();
-
-	        inventory.setMaterial(savedMaterial);
-
-	        // 初始庫存 = 0
-	        inventory.setQuantity(BigDecimal.ZERO);
-
-	        InventoryRepo.save(inventory);
+	   
 
 	        // 3. 回傳建立好的原物料
 	        return savedMaterial;
@@ -65,13 +57,8 @@ public class MaterialsService {
 	        Material material = findById(id);
 
 	        // 先刪除庫存
-	        Inventory inventory = InventoryRepo
-	                .findByMaterialId(material.getId()).get();
-	               
-
-	        if (inventory != null) {
-	        	InventoryRepo.delete(inventory);
-	        }
+	      
+	     
 
 	        // 再刪除原物料
 	        MaterialRepo.delete(material);
