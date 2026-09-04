@@ -14,6 +14,6 @@ public interface UsersRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
 
     // 依據部門查詢員工
-    List<User> findByDepartmentId(Long departmentId);
+    // List<User> findByDepartmentId(Long departmentId);
 
 }

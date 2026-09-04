@@ -1,5 +1,7 @@
 package com.example.demo.materials;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -16,6 +18,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MaterialController {
 public final MaterialsService MtSerivce;
+
+
+
+@GetMapping("/api/material")//新增原料
+public  ResponseEntity<?> all() {
+    
+	
+	
+	List<Material> m=  MtSerivce.getAllMaterials();
+	
+	return new ResponseEntity<>(m,HttpStatus.OK);
+}
+
 
 @PostMapping("/api/material/add")//新增原料
 public  ResponseEntity<?> create(@RequestBody Material material) {
