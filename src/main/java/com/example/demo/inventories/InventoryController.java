@@ -21,7 +21,7 @@ public class InventoryController {
 
     public final InventoryService inventoryService;
 
-    @PostMapping(" ") // 新增一批（進貨）
+    @PostMapping("/api/inventory") // 新增一批（進貨）
     public ResponseEntity<?> create(@RequestBody Inventory inventory) {
 
         Inventory saved = inventoryService.create(inventory);
@@ -62,4 +62,18 @@ public class InventoryController {
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
+    
+    @GetMapping("/api/inventory/summary")
+    public ResponseEntity<List<InventorySummaryDTO>> getInventorySummary() {
+
+        List<InventorySummaryDTO> list =
+                inventoryService.getInventorySummary();
+
+        return ResponseEntity.ok(list);
+ 
+    }
+    
+    
+    
 }
+
