@@ -42,7 +42,7 @@ public class User {
     private String name;
 
     @Setter
-    @Column(nullable = false, length = 50)
+    @Column(unique = true, nullable = false, length = 50)
     private String email;
 
     @Setter
@@ -50,10 +50,9 @@ public class User {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @Column(name = "department_id", nullable = false)
-    private Long departmentId;
+    // @Setter
+    // @Column(name = "department_id", nullable = false)
+    // private Long departmentId;
 
     @Setter
     @Enumerated(EnumType.STRING)
@@ -76,11 +75,10 @@ public class User {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof User other)) {
             return false;
         }
-        User user = (User) o;
-        return id != null && id.equals(user.id);
+        return id != null && id.equals(other.getId());
     }
 
     @Override

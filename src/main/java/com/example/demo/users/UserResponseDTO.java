@@ -14,7 +14,7 @@ public class UserResponseDTO {
     private String name;
     private String email;
     private String status;
-    private Instant creatrdAt;
+    private Instant createdAt;
 
     // 透過DTO只曝露前端需要的關聯資訊，避免直接曝露整個Role/Department
     private RoleInfo role;
@@ -25,7 +25,7 @@ public class UserResponseDTO {
     public static class RoleInfo {
         private Long id;
         private String name;
-        private String code;
+        private String description;
     }
 
     @Getter
