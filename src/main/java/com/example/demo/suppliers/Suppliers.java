@@ -5,6 +5,8 @@ import com.example.demo.purchase.PurchaseOrders;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.hibernate.annotations.Nationalized;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -28,6 +30,7 @@ public class Suppliers {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
+	@Nationalized //讓資料庫支持中文
 	@Column(length = 50)
 	private String name;
 	
@@ -35,6 +38,7 @@ public class Suppliers {
 	@Column(length = 50)
 	private String phone;
 	
+	@Nationalized //讓資料庫支持中文
 	@Column(length = 50)
 	private String address;
 	
