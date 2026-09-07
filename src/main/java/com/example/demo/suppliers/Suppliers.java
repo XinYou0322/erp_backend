@@ -31,19 +31,19 @@ public class Suppliers {
 	private Long id;
 	
 	@Nationalized //讓資料庫支持中文
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String name;
 	
 	
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String phone;
 	
 	@Nationalized //讓資料庫支持中文
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String address;
 	
 	//資料庫還沒有 email 欄位
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String email;
 	
 	@OneToMany(mappedBy = "supplier")
