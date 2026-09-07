@@ -2,6 +2,9 @@ package com.example.demo.materials;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -11,15 +14,26 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 public class MaterialController {
 public final MaterialsService MtSerivce;
 
+@GetMapping("/api/material/page")
+public Page<Material> getMaterials(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "6") int size) {
 
+    Pageable pageable =
+        PageRequest.of(page, size);
+
+    return MtSerivce.getMaterials(pageable);
+}
 
 @GetMapping("/api/material")//新增原料
 public  ResponseEntity<?> all() {
@@ -49,6 +63,17 @@ public ResponseEntity<?> update(
 	Material m=MtSerivce.update(id, material);
     return new ResponseEntity<>(m,HttpStatus.OK);
 }
+//原物料總結
+@GetMapping("/api/material/summary")
+public ResponseEntity<MaterialSummaryDTO> getMaterialSummary() {
+
+    MaterialSummaryDTO summary =
+    		MtSerivce.getMaterialSummary();
+
+    return ResponseEntity.ok(summary);
+}
+
+
 // 根據 ID 查詢
 @GetMapping("/api/materialfind/{id}")
 public ResponseEntity<?> findById(@PathVariable Long id) {

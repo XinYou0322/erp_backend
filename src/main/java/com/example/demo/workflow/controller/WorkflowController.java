@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.workflow.dto.CreateWorkflowRequest;
+import com.example.demo.workflow.dto.WorkflowLogResponse;
 import com.example.demo.workflow.dto.WorkflowResponse;
 import com.example.demo.workflow.entity.Workflow;
 import com.example.demo.workflow.entity.WorkflowLog;
@@ -50,8 +51,11 @@ public class WorkflowController {
     }
 
     @GetMapping("/{id}/logs")
-    public List<WorkflowLog> getLogs(@PathVariable Long id) {
-        return worklogRespo.findByWorkflowIdOrderByCreatedAtAsc(id);
+    public List<WorkflowLogResponse> getLogs(@PathVariable Long id) {
+        return workflowService.getLogs(id)
+                .stream()
+                .map(WorkflowLogResponse::from)
+                .collect(Collectors.toList());
     }
 
 }

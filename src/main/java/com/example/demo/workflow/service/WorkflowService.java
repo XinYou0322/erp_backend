@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
@@ -79,6 +81,10 @@ public class WorkflowService {
             return res;
 
         }).toList();
+    }
+
+    public List<WorkflowLog> getLogs(long workflowId) {
+        return worklogRespo.findByWorkflowIdOrderByCreatedAtAsc(workflowId);
     }
 
     // public Workflow approve(Long workflowId, ApproveWorkflowRequest request)

@@ -1,26 +1,25 @@
 package com.example.demo.products;
 
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
-import com.example.demo.inventories.Inventory;
-import com.example.demo.materials.Material;
-import com.example.demo.materials.MaterialRepository;
+
 
 import lombok.RequiredArgsConstructor;
 
 	@RequiredArgsConstructor
 @Service
 public class ProductService {
-private final MaterialRepository MaterialRepo;
-private final ProductdRepository ProductdRepo;
-public Products create(Products products) {
 
+private final ProductRepository productdRepo;
+public Products create(Products products) {
+	   products.setCostPrice(BigDecimal.ZERO);
     // 1. 儲存原物料
-	Products savedProductsl = ProductdRepo.save(products);
+	Products savedProductsl = productdRepo.save(products);
 
  
 
@@ -28,21 +27,21 @@ public Products create(Products products) {
     return savedProductsl;
 }
 public Products findById(Long id) {
-	  Optional<Products> p = ProductdRepo.findById(id);
-	  
-      return p.get();
-             
+	  Optional<Products> p = productdRepo.findById(id);
+	  return productdRepo
+	            .findById(id)
+	            .orElseThrow();
   }
 public List<Products> findAll() {
 	  
 	  
-    return ProductdRepo.findAll();
+    return productdRepo.findAll();
            
 }
 
 
 public  Products update(Long id, Products newProducts) {
-	  Optional<Products> p = ProductdRepo.findById(id);
+	  Optional<Products> p = productdRepo.findById(id);
 	  Products products = p.get();
 	  products.setSku(newProducts.getSku());
 	  products.setName(newProducts.getName());
@@ -55,13 +54,13 @@ public  Products update(Long id, Products newProducts) {
 	  
 	  
 
-      return ProductdRepo.save(products);
+      return productdRepo.save(products);
   }
 
 
 public void delete(Long id) {
 	
-	 ProductdRepo.deleteById(id);
+	 productdRepo.deleteById(id);
 	
 }
 

@@ -1,8 +1,8 @@
 package com.example.demo.products;
 
-
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -14,24 +14,48 @@ public class Products {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, length = 50)
-    private String sku;//樣式大小
 
-    @Column(length = 50)
+    // 商品代碼
+    @Column(nullable = false, unique = true, length = 50)
+    private String sku;
+
+
+    // 商品名稱
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(length = 50)
-    private String category;  //類別
 
-    @Column(name = "selling_price", precision = 18, scale = 2) 
-    private BigDecimal sellingPrice; // 對應你的 selling_price
+    // 商品分類
+    @Column(nullable = false, length = 50)
+    private String category;
 
-    @Column(name = "cost_price", precision = 18, scale = 2)
-    private BigDecimal costPrice; // 對應你的 cost_price
 
-    @Column(length = 50)
-    private String unit; //單位
+    // 商品售價
+    @Column(
+        name = "selling_price",
+        nullable = false,
+        precision = 18,
+        scale = 2
+    )
+    private BigDecimal sellingPrice;
 
-    @Column(length = 50)
-    private String status;//狀態
+
+    // 單杯成本
+    // 未來由 BOM 原物料成本計算
+    @Column(
+        name = "cost_price",
+        precision = 18,
+        scale = 2
+    )
+    private BigDecimal costPrice;
+
+
+    // 銷售單位，例如：杯
+    @Column(nullable = false, length = 50)
+    private String unit;
+
+
+    // 商品狀態，例如 ACTIVE / INACTIVE
+    @Column(nullable = false, length = 50)
+    private String status;
 }

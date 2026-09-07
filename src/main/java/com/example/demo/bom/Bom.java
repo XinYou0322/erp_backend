@@ -2,6 +2,7 @@ package com.example.demo.bom;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.math.BigDecimal;
 
 import com.example.demo.materials.Material;
@@ -16,17 +17,30 @@ public class Bom {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 多筆配方紀錄可以對應到同一個商品（對應你的 product_id）
+
+    // 此配方屬於哪個產品
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
+    @JoinColumn(
+        name = "product_id",
+        nullable = false
+    )
     private Products product;
 
-    // 多筆配方紀錄可以對應到同一個原物料（對應你的 material_id）
+
+    // 此配方使用哪個原物料
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "material_id")
+    @JoinColumn(
+        name = "material_id",
+        nullable = false
+    )
     private Material material;
 
-    // 對應你的 quantity，使用 BigDecimal 確保高精度的公克或毫升數
-    @Column(precision = 18, scale = 4)
+
+    // 製作一個產品需要使用多少原物料
+    @Column(
+        nullable = false,
+        precision = 18,
+        scale = 4
+    )
     private BigDecimal quantity;
 }
