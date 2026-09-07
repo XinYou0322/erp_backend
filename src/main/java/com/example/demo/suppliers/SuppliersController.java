@@ -70,11 +70,11 @@ public class SuppliersController {
 }
 
     //多筆
-    @GetMapping("/api/supplier/list")
-    public List<Suppliers> getSuppliersByIds(@RequestBody List<Long> ids) {
-        List<Suppliers> suppliersList = suppliersService.findSuppliersById(ids);
-        return suppliersList;
-    }
+    // @GetMapping("/api/supplier/list")
+    // public List<Suppliers> getSuppliersByIds(@RequestBody List<Long> ids) {
+    //     List<Suppliers> suppliersList = suppliersService.findSuppliersById(ids);
+    //     return suppliersList;
+    // }
 
      
     //所有供應商
