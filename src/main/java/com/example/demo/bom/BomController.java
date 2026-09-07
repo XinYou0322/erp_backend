@@ -4,53 +4,70 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
 public class BomController {
 
-    public final BomService bomService;
+    private final BomService bomService;
 
-    @PostMapping("/api/bom/add") // 新增配方
-    public ResponseEntity<?> create(@RequestBody Bom bom) {
 
-        Bom b = bomService.create(bom);
+    // 新增一筆 BOM 配方
+    @PostMapping("/api/bom")
+    public ResponseEntity<Bom> create(
+            @RequestBody BomRequestDTO dto) {
 
-        return new ResponseEntity<>(b, HttpStatus.CREATED);
+        Bom bom = bomService.create(dto);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(bom);
     }
 
-    @GetMapping("/api/bom/product/{productId}") // 查詢某商品底下所有配方
-    public ResponseEntity<?> findByProductId(@PathVariable Long productId) {
 
-        List<Bom> list = bomService.findByProductId(productId);
+    // 查詢某商品的所有 BOM 配方
+    @GetMapping("/api/bom/product/{productId}")
+    public ResponseEntity<List<BomResponseDTO>> findByProductId(
+            @PathVariable Long productId) {
 
-        return new ResponseEntity<>(list, HttpStatus.OK);
+        List<BomResponseDTO> list =
+                bomService.findByProductId(productId);
+
+        return ResponseEntity.ok(list);
     }
 
-    @PutMapping("/api/bomupdate/{id}") // 修改配方
-    public ResponseEntity<?> update(
+
+    // 修改某一筆 BOM 用量
+    @PutMapping("/api/bom/{id}")
+    public ResponseEntity<Bom> update(
             @PathVariable Long id,
             @RequestBody Bom bom) {
 
-        Bom b = bomService.update(id, bom);
+        Bom updated =
+                bomService.update(id, bom);
 
-        return new ResponseEntity<>(b, HttpStatus.OK);
+        return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/api/bomdelete/{id}") // 刪除配方
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+
+    // 刪除某一筆 BOM
+    @DeleteMapping("/api/bom/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id) {
 
         bomService.delete(id);
 
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 }
