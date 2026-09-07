@@ -11,15 +11,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.materials.Material;
 
 import lombok.RequiredArgsConstructor;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
-public class ProductdController {
-public final ProductService pdService;
+public class ProductController {
+private final ProductService pdService;
 
 @PostMapping("/api/product/add")//新增產品
 public  ResponseEntity<?> create(@RequestBody Products product) {

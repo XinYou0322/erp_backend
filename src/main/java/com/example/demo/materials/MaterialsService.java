@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.inventories.Inventory;
@@ -17,6 +19,18 @@ public class MaterialsService {
 	private  final InventoryRepository   InventoryRepo;
 	private  final MaterialRepository   MaterialRepo;
 	//查詢全部
+	
+	
+	
+	//找全部書頁
+	public Page<Material> getMaterials(Pageable pageable) {
+
+	    return MaterialRepo.findAll(pageable);
+
+	}
+	
+	
+	
 	  public List<Material> getAllMaterials() {
 	        
 		  
@@ -64,4 +78,34 @@ public class MaterialsService {
 	        MaterialRepo.delete(material);
 	    }
 
+	  
+	  public MaterialSummaryDTO getMaterialSummary() {
+
+		    Long totalMaterials =
+		    		 MaterialRepo.count();
+
+		    BigDecimal averageCost =
+		    		 MaterialRepo.findAverageCost();
+
+		    Long safetyStockCount =
+		    		 MaterialRepo.countSafetyStockMaterials();
+
+		    Long unitCount =
+		    		 MaterialRepo.countDistinctUnits();
+
+
+		    if (averageCost == null) {
+		        averageCost = BigDecimal.ZERO;
+		    }
+
+
+		    return new MaterialSummaryDTO(
+		            totalMaterials,
+		            averageCost,
+		            safetyStockCount,
+		            unitCount
+		    );
+		}
+	  
+	  
 }
