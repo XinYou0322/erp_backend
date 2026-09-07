@@ -61,11 +61,13 @@ public class SuppliersController {
     //---查詢---
     //單筆
     @GetMapping("/api/supplier/{id}")
-    public Suppliers getSupplierById(@PathVariable Long id) {
-        return suppliersService.findSupplierById(id)
-                .orElseThrow(() -> new IllegalArgumentException("找不到供應商"));
-                //回傳狀態值
-    }
+    public ResponseEntity<SuppliersDTO> findSupplierById(
+        @PathVariable Long id) {
+
+    return ResponseEntity.ok(
+            suppliersService.findSupplierById(id)
+    );
+}
 
     //多筆
     @GetMapping("/api/supplier/list")

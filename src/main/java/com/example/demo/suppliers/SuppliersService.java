@@ -15,7 +15,7 @@ public class SuppliersService {
     private final SuppliersRepository suppliersRepo;
 
     //---新增---
-    //單筆 ---完結版
+    //單筆 ---完結版(暫)
     //email不重複才能新增
     public SuppliersDTO insertSupplier(SuppliersDTO dto) {
         if (suppliersRepo.existsByEmail(dto.getEmail())) {
@@ -33,7 +33,7 @@ public class SuppliersService {
         Suppliers savedSupplier = suppliersRepo.save(suppliers);
         return SuppliersDTO.fromDto(savedSupplier);
     }
-    //多筆 ---完結版
+    //多筆 ---完結版(暫)
     public List<SuppliersDTO> insertSuppliers(List<SuppliersDTO> dtoList) {
 
         // DTO List → Entity List
@@ -42,7 +42,7 @@ public class SuppliersService {
     return SuppliersDTO.fromDtos(suppliersRepo.saveAll(suppliersList));
     }
 
-    //---修改---
+    //---修改--- ---完結版(暫)
     public SuppliersDTO updateSupplier(Long id, SuppliersUpdateDTO newSupplierDTO) {
 
     // 先確認這筆供應商存不存在
@@ -79,17 +79,40 @@ public class SuppliersService {
     return SuppliersDTO.fromDto(savedSupplier);
 }
 
-
     //---查詢---
-    //單筆
-    public Optional<Suppliers> findSupplierById(Long id){
-		return suppliersRepo.findById(id);
-	}
+    //單筆 ---完結版(暫)
+    public SuppliersDTO findSupplierById(Long id) {
+
+    Suppliers supplier = suppliersRepo.findById(id)
+            .orElseThrow(() ->
+                    new IllegalArgumentException("找不到供應商"));
+
+    return SuppliersDTO.fromDto(supplier);
+}
 
     //多筆
-    public List<Suppliers> findSuppliersById(List<Long> ids){
+    public SuppliersQueryResultDTO findSuppliersById(List<Long> ids){
         //此id存不存在
-		return suppliersRepo.findAllById(ids);
+        List<Suppliers> suppliers = suppliersRepo.findAllById(ids);
+        List<Long> foundIds = new ArrayList<>();
+        for (Suppliers supplier : suppliers) {
+        foundIds.add(supplier.getId());
+    }
+        List<Long> notFoundIds = new ArrayList<>();
+        for (Long id : ids) {
+        if (!foundIds.contains(id)) {
+            notFoundIds.add(id);
+        }
+    }
+        List<SuppliersDTO> dtoList =
+            SuppliersDTO.fromDtos(suppliers);
+        
+        SuppliersQueryResultDTO result =
+            new SuppliersQueryResultDTO();
+        result.setSuppliers(dtoList);
+        result.setNotFoundIds(notFoundIds);
+
+    return result;
 	}
 
     //全部
