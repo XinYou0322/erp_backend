@@ -23,8 +23,8 @@ public class UserUpdateDTO {
     @NotNull(message = "角色 ID 不能為空")
     private Long roleId;
 
-    @NotNull(message = "部門 ID 不能為空")
-    private Long departmentId;
+    // @NotNull(message = "部門 ID 不能為空")
+    // private Long departmentId;
 
     @NotNull(message = "使用者狀態不能為空")
     private UserStatus status;
