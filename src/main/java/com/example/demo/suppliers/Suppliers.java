@@ -5,6 +5,8 @@ import com.example.demo.purchase.PurchaseOrders;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.hibernate.annotations.Nationalized;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -28,18 +30,20 @@ public class Suppliers {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
-	@Column(length = 50)
+	@Nationalized //讓資料庫支持中文
+	@Column(nullable = false,length = 50)
 	private String name;
 	
 	
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String phone;
 	
-	@Column(length = 50)
+	@Nationalized //讓資料庫支持中文
+	@Column(nullable = false,length = 50)
 	private String address;
 	
 	//資料庫還沒有 email 欄位
-	@Column(length = 50)
+	@Column(nullable = false,length = 50)
 	private String email;
 	
 	@OneToMany(mappedBy = "supplier")

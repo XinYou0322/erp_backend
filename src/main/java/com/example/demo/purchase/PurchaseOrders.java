@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.hibernate.annotations.Nationalized;
+
 import com.example.demo.suppliers.Suppliers;
 
 import jakarta.persistence.Column;
@@ -37,14 +39,17 @@ public class PurchaseOrders {
     @JoinColumn(name = "supplier_id")
     private Suppliers supplier;
 	
+	@Nationalized //讓資料庫支持中文
 	@Column(length = 50)
 	private String status;
 	
 	//誰建立的訂購單
+	@Nationalized //讓資料庫支持中文
 	@Column(nullable = false,name="created_by",length = 50)
 	//@mapping到 ????
 	private String createdBy;
 	
+	@Nationalized //讓資料庫支持中文
 	@Column( name="approved_by",length = 50)
 	//@mapping到 ????
 	private String approvedBy;
