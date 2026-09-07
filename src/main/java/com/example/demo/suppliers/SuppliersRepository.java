@@ -6,4 +6,7 @@ public interface SuppliersRepository extends JpaRepository<Suppliers, Long> {
    
     //檢查email是否已存在
     boolean existsByEmail(String email);
+
+    //檢查電話是否已存在
+    boolean existsByPhone(String phone);
 }

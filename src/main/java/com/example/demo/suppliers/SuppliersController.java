@@ -7,11 +7,17 @@ import java.util.ArrayList;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -26,32 +32,30 @@ public class SuppliersController {
 
     //---新增---
     //單筆
-    //驗證Email格式 AI建議放在DTO(未完待續)
     @PostMapping("/api/supplier/add")
-    public Suppliers addSupplier(@RequestBody Suppliers supplier) {
+    public ResponseEntity<SuppliersDTO> addSupplier(@Valid @RequestBody SuppliersDTO dto) {
        
-        Suppliers addSuppliers = suppliersService.insertSupplier(supplier.getName(), supplier.getPhone(), supplier.getAddress(), supplier.getEmail());
-        
-        //DTO限制回傳資料
-        return addSuppliers;
+        return ResponseEntity
+            .status(HttpStatus.CREATED).body(suppliersService.insertSupplier(dto));
         // return "新增成功";
     }
 
     //多筆
     @PostMapping("/api/suppliers/addAll")
-    public List<Suppliers> addSuppliers(@RequestBody List<Suppliers> suppliersList) {
+    public ResponseEntity<List<SuppliersDTO>> addSuppliers(@RequestBody List<@Valid SuppliersDTO> ListDto) {
         //List<Suppliers> addAllSuppliers = new ArrayList<>();
-       
-
-        return suppliersService.insertSuppliers(suppliersList);
+        return ResponseEntity
+            .status(HttpStatus.CREATED).body(suppliersService.insertSuppliers(ListDto));
     }
 
     //---修改---
-    @PutMapping("/api/update/{id}")
-    public Suppliers putMethodName(@PathVariable Long id, @RequestBody Suppliers supplier) {
+    @PatchMapping ("/api/update/{id}")
+    public ResponseEntity<SuppliersDTO> putMethodName(@PathVariable Long id, @Valid @RequestBody SuppliersUpdateDTO dto) {
        
         
-        return suppliersService.updateSupplier(id, supplier);
+        return ResponseEntity.ok(
+            suppliersService.updateSupplier(id, dto)
+    );
     }
 
     //---查詢---
@@ -73,8 +77,8 @@ public class SuppliersController {
      
     //所有供應商
     @GetMapping("/api/supplier/all")
-    public List<Suppliers> AllSuppliers() {
-        List<Suppliers> allSuppliers = suppliersService.listAllSuppliers();
+    public List<SuppliersDTO> AllSuppliers() {
+        List<SuppliersDTO> allSuppliers = suppliersService.listAllSuppliers();
 
         //DTO限制回傳資料
         return allSuppliers;
