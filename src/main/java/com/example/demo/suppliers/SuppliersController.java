@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -68,13 +69,16 @@ public class SuppliersController {
             suppliersService.findSupplierById(id)
     );
 }
-
     //多筆
-    // @GetMapping("/api/supplier/list")
-    // public List<Suppliers> getSuppliersByIds(@RequestBody List<Long> ids) {
-    //     List<Suppliers> suppliersList = suppliersService.findSuppliersById(ids);
-    //     return suppliersList;
-    // }
+    @GetMapping("/api/suppliers")
+    public ResponseEntity<SuppliersQueryResultDTO> findSuppliersByIds(
+        @RequestParam List<Long> ids) {
+
+    return ResponseEntity.ok(
+            suppliersService.findSuppliersById(ids)
+    );
+}
+    //多筆
 
      
     //所有供應商
