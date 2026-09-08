@@ -45,17 +45,22 @@ public class WorkflowController {
         return WorkflowResponse.from(workflow);
     }
 
-    @GetMapping("/pending")
-    public List<WorkflowResponse> getPending(@RequestParam Long approverId) {
-        return workflowService.getPendingByApprover(approverId);
-    }
-
     @GetMapping("/{id}/logs")
     public List<WorkflowLogResponse> getLogs(@PathVariable Long id) {
         return workflowService.getLogs(id)
                 .stream()
                 .map(WorkflowLogResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/pending")
+    public List<WorkflowResponse> getPending(@RequestParam Long approverId) {
+        return workflowService.getPendingByApprover(approverId);
+    }
+
+    @GetMapping
+    public List<WorkflowResponse> getWorkflows(@RequestParam Long approverId) {
+        return workflowService.getAllByApprover(approverId);
     }
 
 }

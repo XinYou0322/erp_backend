@@ -22,4 +22,7 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
     // 查詢特定表單的狀態
     Optional<Workflow> findByDocumentTypeAndDocumentId(DocumentType documentType, Long documentId);
 
+    // 使用審核人員id查詢所有表單
+    List<Workflow> findByApproverOrderByCreatedAtDesc(User approver);
+
 }

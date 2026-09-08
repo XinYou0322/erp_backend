@@ -30,6 +30,7 @@ public class WorkflowService {
     private final WorkflowLogRepository worklogRespo;
     private final UsersRepository userRepo;
 
+    // 新增一個簽核流程
     @Transactional
     public Workflow startWorkflow(CreateWorkflowRequest request) {
         Workflow workflow = new Workflow();
@@ -50,6 +51,7 @@ public class WorkflowService {
 
     }
 
+    // 建立簽核紀錄
     private void saveLog(Workflow workflow, User operator, WorkflowAction action, String remark) {
 
         WorkflowLog log = new WorkflowLog();
@@ -61,14 +63,22 @@ public class WorkflowService {
         worklogRespo.save(log);
     }
 
+    // 查詢特定workflow
     public Workflow getWorkflowOrThrow(Long id) {
         return worksRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 workflow: " + id));
     }
 
-    public List<WorkflowResponse> getPendingByApprover(Long approverId) {
-        User approver = userRepo.findById(approverId)
+    // 查詢特定審核人員
+    private User getApproverOrThrow(Long approverId) {
+        return userRepo.findById(approverId)
                 .orElseThrow(() -> new RuntimeException("找不到使用者: " + approverId));
+    }
+
+    // 查詢審核人員的待辦事項
+    @Transactional(readOnly = true)
+    public List<WorkflowResponse> getPendingByApprover(Long approverId) {
+        User approver = getApproverOrThrow(approverId);
         List<Workflow> workflows = worksRepo.findByApproverAndStatus(approver, WorkflowStatus.PENDING);
 
         return workflows.stream().map(workflow -> {
@@ -83,6 +93,18 @@ public class WorkflowService {
         }).toList();
     }
 
+    // 查詢審核人員的所有簽核單
+    @Transactional(readOnly = true)
+    public List<WorkflowResponse> getAllByApprover(Long approverId) {
+        User approver = getApproverOrThrow(approverId);
+
+        return worksRepo.findByApproverOrderByCreatedAtDesc(approver)
+                .stream()
+                .map(WorkflowResponse::from)
+                .toList();
+    }
+
+    // 查詢簽核紀錄
     public List<WorkflowLog> getLogs(long workflowId) {
         return worklogRespo.findByWorkflowIdOrderByCreatedAtAsc(workflowId);
     }
@@ -90,5 +112,12 @@ public class WorkflowService {
     // public Workflow approve(Long workflowId, ApproveWorkflowRequest request)
 
     // public Workflow reject(Long workflowId, ApproveWorkflowRequest request)
+
+    // private Workflow updateStatus(long workflowId, Workflow workflow, User
+    // operator, WorkflowStatus status, WorkflowAction action){
+
+    // Workflow workflow=getWorkflowOrThrow(workflowId);
+
+    // }
 
 }
