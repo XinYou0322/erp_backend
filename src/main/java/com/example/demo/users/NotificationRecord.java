@@ -38,7 +38,7 @@ public class NotificationRecord {
     private String content;
 
     @Column(nullable = false, length = 30)
-    private String catecory; // inventory(庫存), workflow(工作流程), supplier(供應商), security(安全)
+    private String category; // inventory(庫存), workflow(工作流程), supplier(供應商), security(安全)
 
     @Column(nullable = false, length = 20)
     private String type; // info(資訊), success(成功), warning(警告), danger(危險/錯誤)
@@ -47,7 +47,7 @@ public class NotificationRecord {
     private String actionRoute;
 
     @Column(name = "is_read")
-    private Boolean isRade = false;
+    private Boolean read = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
