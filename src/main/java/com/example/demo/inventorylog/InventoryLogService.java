@@ -96,4 +96,86 @@ public class InventoryLogService {
             remaining = remaining.subtract(deductAmount);
         }
     }
+        
+    public List<InventoryLogResponseDTO> findAllLogs() {
+
+        List<InventoryLog> logs =
+                inventoryLogRepository
+                        .findAllByOrderByCreatedAtDesc();
+
+        return logs.stream()
+                .map(this::convertToDTO)
+                .toList();
+    }
+    public List<InventoryLogResponseDTO> findByMaterialId(
+            Long materialId) {
+
+        List<InventoryLog> logs =
+                inventoryLogRepository
+                        .findByMaterialIdOrderByCreatedAtDesc(
+                                materialId
+                        );
+
+        return logs.stream()
+                .map(this::convertToDTO)
+                .toList();
+    }
+        
+        
+    private InventoryLogResponseDTO convertToDTO(
+            InventoryLog log) {
+
+        InventoryLogResponseDTO dto =
+                new InventoryLogResponseDTO();
+
+        dto.setId(log.getId());
+
+        dto.setMaterialId(
+                log.getMaterial().getId()
+        );
+
+        dto.setMaterialCode(
+                log.getMaterial().getCode()
+        );
+
+        dto.setMaterialName(
+                log.getMaterial().getName()
+        );
+
+        dto.setUnit(
+                log.getMaterial().getUnit()
+        );
+
+        dto.setQuantity(
+                log.getQuantity()
+        );
+
+        dto.setAction(
+                log.getAction()
+        );
+
+        dto.setRefId(
+                log.getRefId()
+        );
+
+        dto.setNote(
+                log.getNote()
+        );
+
+        dto.setCreatedAt(
+                log.getCreatedAt()
+        );
+
+        return dto;
+    }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
 }
