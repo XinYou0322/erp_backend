@@ -240,8 +240,42 @@ VALUES
 ('MAT018', N'七百毫升塑膠杯', N'箱', 1450.00, 5.0000),
 ('MAT019', N'飲料封口膜', N'卷', 420.00, 6.0000),
 ('MAT020', N'飲料粗吸管', N'箱', 380.00, 8.0000);
+/*供應商*/
+INSERT INTO suppliers ([name], [phone], [address], [email])
+VALUES
+(N'晨光食品原料有限公司', '02-2345-1001', N'台北市中正區忠孝東路一段10號', 'morning@example.com'),
+(N'綠野農產企業社', '03-332-2002', N'桃園市桃園區中山路25號', 'greenfield@example.com'),
+(N'大豐包材有限公司', '04-2233-3003', N'台中市北區三民路三段88號', 'dafeng@example.com'),
+(N'好味茶葉行', '049-222-4004', N'南投縣南投市民族路120號', 'goodtea@example.com'),
+(N'南方乳品股份有限公司', '06-225-5005', N'台南市中西區民生路二段35號', 'southmilk@example.com'),
+(N'海港冷凍食品有限公司', '07-336-6006', N'高雄市前鎮區中山二路66號', 'harbor@example.com'),
+(N'東岸物流企業社', '03-835-7007', N'花蓮縣花蓮市中華路150號', 'eastlogistics@example.com'),
+(N'金順餐飲設備有限公司', '02-2988-8008', N'新北市三重區重新路四段99號', 'jinshun@example.com'),
+(N'香甜糖業行', '05-222-9009', N'嘉義市西區文化路77號', 'sweet@example.com'),
+(N'安心清潔用品有限公司', '08-732-1010', N'屏東縣屏東市自由路210號', 'clean@example.com'),
+(N'北辰冷凍食品有限公司', '02-2788-1122', N'台北市南港區忠孝東路七段25號', 'beichen@example.com'),
+(N'豐盛農產行', '03-555-2233', N'新竹縣竹北市光明六路88號', 'harvest@example.com'),
+(N'四季鮮果有限公司', '04-2311-3344', N'台中市西屯區台灣大道三段120號', 'fruit@example.com'),
+(N'晨曦食品原料有限公司', '02-2655-1212', N'台北市內湖區瑞光路168號', 'dawnfood@example.com'),
+(N'綠田有機農產行', '03-368-2323', N'桃園市八德區介壽路二段95號', 'greenfarm@example.com'),
+(N'大展餐飲包材有限公司', '04-2258-3434', N'台中市南屯區公益路二段188號', 'packaging@example.com'),
+(N'清香茶葉企業社', '049-223-4545', N'南投縣名間鄉名松路一段65號', 'freshtea@example.com'),
+(N'幸福乳品供應有限公司', '06-251-5656', N'台南市北區公園路520號', 'happydairy@example.com'),
+(N'海味冷凍食品行', '07-521-6767', N'高雄市鼓山區臨海二路36號', 'seafood@example.com'),
+(N'東方貨運企業有限公司', '03-857-7878', N'花蓮縣吉安鄉中央路三段110號', 'easttransport@example.com'),
+(N'永順廚房設備有限公司', '02-2995-8989', N'新北市三重區重新路五段88號', 'kitchenware@example.com'),
+(N'甜蜜糖品原料行', '05-534-9090', N'雲林縣斗六市中山路198號', 'sweetgoods@example.com'),
+(N'潔淨清潔用品企業社', '08-755-2020', N'屏東縣屏東市建國路125號', 'cleaning@example.com'),
+(N'日昇包裝材料行', '05-225-4455', N'嘉義市東區民族路76號', 'sunpack@example.com'),
+(N'南星食品企業社', '06-298-5566', N'台南市安平區永華路二段56號', 'southstar@example.com'),
+(N'高雄餐飲設備有限公司', '07-336-6677', N'高雄市苓雅區中正二路100號', 'khkitchen@example.com'),
+(N'蘭陽有機農場', '03-932-7788', N'宜蘭縣宜蘭市中山路三段45號', 'lanyan@example.com'),
+(N'東海乳品供應社', '04-2631-8899', N'台中市龍井區新興路22號', 'dairy@example.com'),
+(N'金葉茶業有限公司', '049-264-9900', N'南投縣竹山鎮集山路二段138號', 'goldentea@example.com'),
+(N'安心物流股份有限公司', '02-2299-1010', N'新北市五股區五權路60號', 'safelogistics@example.com');
 /*採購單+採購明細*/
 --原物料要先有!!
+--供應商也要先有
 SET XACT_ABORT ON;
 
 BEGIN TRY
@@ -348,42 +382,11 @@ BEGIN CATCH
     IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
     THROW;
 END CATCH;
-/*供應商*/
-INSERT INTO suppliers ([name], [phone], [address], [email])
-VALUES
-(N'晨光食品原料有限公司', '02-2345-1001', N'台北市中正區忠孝東路一段10號', 'morning@example.com'),
-(N'綠野農產企業社', '03-332-2002', N'桃園市桃園區中山路25號', 'greenfield@example.com'),
-(N'大豐包材有限公司', '04-2233-3003', N'台中市北區三民路三段88號', 'dafeng@example.com'),
-(N'好味茶葉行', '049-222-4004', N'南投縣南投市民族路120號', 'goodtea@example.com'),
-(N'南方乳品股份有限公司', '06-225-5005', N'台南市中西區民生路二段35號', 'southmilk@example.com'),
-(N'海港冷凍食品有限公司', '07-336-6006', N'高雄市前鎮區中山二路66號', 'harbor@example.com'),
-(N'東岸物流企業社', '03-835-7007', N'花蓮縣花蓮市中華路150號', 'eastlogistics@example.com'),
-(N'金順餐飲設備有限公司', '02-2988-8008', N'新北市三重區重新路四段99號', 'jinshun@example.com'),
-(N'香甜糖業行', '05-222-9009', N'嘉義市西區文化路77號', 'sweet@example.com'),
-(N'安心清潔用品有限公司', '08-732-1010', N'屏東縣屏東市自由路210號', 'clean@example.com'),
-(N'北辰冷凍食品有限公司', '02-2788-1122', N'台北市南港區忠孝東路七段25號', 'beichen@example.com'),
-(N'豐盛農產行', '03-555-2233', N'新竹縣竹北市光明六路88號', 'harvest@example.com'),
-(N'四季鮮果有限公司', '04-2311-3344', N'台中市西屯區台灣大道三段120號', 'fruit@example.com'),
-(N'晨曦食品原料有限公司', '02-2655-1212', N'台北市內湖區瑞光路168號', 'dawnfood@example.com'),
-(N'綠田有機農產行', '03-368-2323', N'桃園市八德區介壽路二段95號', 'greenfarm@example.com'),
-(N'大展餐飲包材有限公司', '04-2258-3434', N'台中市南屯區公益路二段188號', 'packaging@example.com'),
-(N'清香茶葉企業社', '049-223-4545', N'南投縣名間鄉名松路一段65號', 'freshtea@example.com'),
-(N'幸福乳品供應有限公司', '06-251-5656', N'台南市北區公園路520號', 'happydairy@example.com'),
-(N'海味冷凍食品行', '07-521-6767', N'高雄市鼓山區臨海二路36號', 'seafood@example.com'),
-(N'東方貨運企業有限公司', '03-857-7878', N'花蓮縣吉安鄉中央路三段110號', 'easttransport@example.com'),
-(N'永順廚房設備有限公司', '02-2995-8989', N'新北市三重區重新路五段88號', 'kitchenware@example.com'),
-(N'甜蜜糖品原料行', '05-534-9090', N'雲林縣斗六市中山路198號', 'sweetgoods@example.com'),
-(N'潔淨清潔用品企業社', '08-755-2020', N'屏東縣屏東市建國路125號', 'cleaning@example.com'),
-(N'日昇包裝材料行', '05-225-4455', N'嘉義市東區民族路76號', 'sunpack@example.com'),
-(N'南星食品企業社', '06-298-5566', N'台南市安平區永華路二段56號', 'southstar@example.com'),
-(N'高雄餐飲設備有限公司', '07-336-6677', N'高雄市苓雅區中正二路100號', 'khkitchen@example.com'),
-(N'蘭陽有機農場', '03-932-7788', N'宜蘭縣宜蘭市中山路三段45號', 'lanyan@example.com'),
-(N'東海乳品供應社', '04-2631-8899', N'台中市龍井區新興路22號', 'dairy@example.com'),
-(N'金葉茶業有限公司', '049-264-9900', N'南投縣竹山鎮集山路二段138號', 'goldentea@example.com'),
-(N'安心物流股份有限公司', '02-2299-1010', N'新北市五股區五權路60號', 'safelogistics@example.com');DELETE FROM inventory_logs;
-DELETE FROM inventories;
-DELETE FROM materials;
 
+/*DELETE FROM inventory_logs;
+DELETE FROM inventories;
+DELETE FROM materials;*/
+--關聯關係 會出問題
 INSERT INTO materials
 (code, name, unit, cost, safety_stock)
 VALUES
