@@ -26,9 +26,22 @@ public class NotificationController {
     @Autowired
     private NotificationService notificationService;
 
-    // 提取共用方法：從 request 獲取 userId，統一驗證邏輯
+    // 提取共用方法：支援從 Session 或 Request Header 取得 userId
     private Long getValidatedUserId(HttpServletRequest request) {
-        return (Long) request.getAttribute("userId");
+        // 1. 優先從 Session 讀取
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session != null && session.getAttribute("userId") != null) {
+            return (Long) session.getAttribute("userId");
+        }
+        // 2. 備援：支援前端自訂請求標頭 (X-User-Id)
+        String headerUserId = request.getHeader("X-User-Id");
+        if (headerUserId != null && !headerUserId.isBlank()) {
+            try {
+                return Long.parseLong(headerUserId);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return null;
     }
 
     @GetMapping("/unread-count")

@@ -91,20 +91,18 @@ public class UsersService {
     // 6. 登入檢查 (接收 DTO 並回傳 DTO)
     @Transactional(readOnly = true)
     public UserResponseDTO login(LoginRequestDTO dto) {
-        User user = userRepository.findByUsername(dto.getUsername())
+        String input = dto.getUsername() != null ? dto.getUsername().trim() : "";
+        User user = userRepository.findByUsernameOrEmail(input, input)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號或密碼錯誤"));
-
         if (UserStatus.INACTIVE.equals(user.getStatus())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "帳號已停用，請聯絡管理員");
         }
         if (UserStatus.LOCKED.equals(user.getStatus())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "帳號已被鎖定");
         }
-
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "帳號或密碼錯誤");
         }
-
         return userMapper.toDto(user);
     }
 
@@ -220,6 +218,15 @@ public class UsersService {
 
         dbUser.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         userRepository.save(dbUser);
+    }
+
+     // 16. 刪除使用者 (供前端權限管理頁面調用)
+    @Transactional
+    public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到使用者");
+        }
+        userRepository.deleteById(id);
     }
 
 }
