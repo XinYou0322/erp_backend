@@ -168,9 +168,127 @@ public class InventoryLogService {
 
         return dto;
     }
-        
-        
-        
+    
+    
+
+    @Transactional
+    public void adjustInventory(
+            InventoryAdjustmentRequestDTO request) {
+
+        for (InventoryAdjustmentItemDTO item : request.getItems()) {
+
+            Inventory inventory =
+                    inventoryRepository
+                            .findById(item.getInventoryId())
+                            .orElseThrow(() ->
+                                    new IllegalStateException(
+                                            "找不到庫存批次 id="
+                                                    + item.getInventoryId()
+                                    )
+                            );
+
+
+            BigDecimal quantity =
+                    item.getQuantity();
+
+
+            if (quantity == null
+                    || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+
+                throw new IllegalArgumentException(
+                        "異動數量必須大於 0"
+                );
+            }
+
+
+            String action =
+                    item.getAction();
+
+
+            BigDecimal changeQuantity;
+
+
+            if (
+                "WASTE".equals(action)
+                ||
+                "EXPIRED".equals(action)
+                ||
+                "MANUAL_USE".equals(action)
+            ) {
+
+                changeQuantity =
+                        quantity.negate();
+
+            } else if (
+                "ADJUSTMENT_IN".equals(action)
+            ) {
+
+                changeQuantity =
+                        quantity;
+
+            } else if (
+                "ADJUSTMENT_OUT".equals(action)
+            ) {
+
+                changeQuantity =
+                        quantity.negate();
+
+            } else {
+
+                throw new IllegalArgumentException(
+                        "不支援的異動類型：" + action
+                );
+            }
+
+
+            BigDecimal newQuantity =
+                    inventory.getQuantity()
+                            .add(changeQuantity);
+
+
+            if (newQuantity.compareTo(BigDecimal.ZERO) < 0) {
+
+                throw new IllegalStateException(
+                        inventory.getMaterial().getName()
+                                + " 庫存不足"
+                );
+            }
+
+
+            inventory.setQuantity(
+                    newQuantity
+            );
+
+
+            inventoryRepository.save(
+                    inventory
+            );
+
+
+            InventoryLog log =
+                    new InventoryLog();
+
+            log.setMaterial(
+                    inventory.getMaterial()
+            );
+
+            log.setQuantity(
+                    changeQuantity
+            );
+
+            log.setAction(
+                    action
+            );
+
+            log.setNote(
+                    item.getNote()
+            );
+
+            inventoryLogRepository.save(
+                    log
+            );
+        }
+    }
         
         
         

@@ -32,4 +32,16 @@ public class InventorySummaryDTO {
     // 最近到期日
     private LocalDate nearestExpiryDate;
 
+    
+    private BigDecimal expiredQuantity;
+
+    private BigDecimal availableQuantity;
+
+    private Integer expiredBatchCount;
+
+    private Integer expiringSoonBatchCount;
+
+    private String expiryStatus;
+    
+    
 }
