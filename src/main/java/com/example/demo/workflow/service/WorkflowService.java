@@ -2,6 +2,7 @@ package com.example.demo.workflow.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
+import com.example.demo.workflow.dto.ApproveWorkflowRequest;
 import com.example.demo.workflow.dto.CreateWorkflowRequest;
 import com.example.demo.workflow.dto.WorkflowResponse;
 import com.example.demo.workflow.entity.Workflow;
@@ -100,7 +102,15 @@ public class WorkflowService {
 
         return worksRepo.findByApproverOrderByCreatedAtDesc(approver)
                 .stream()
-                .map(WorkflowResponse::from)
+                .map(workflow -> {
+                    WorkflowResponse res = WorkflowResponse.from(workflow);
+
+                    worklogRespo.findFirstByWorkflowAndActionOrderByCreatedAtAsc(
+                            workflow, WorkflowAction.SUBMIT)
+                            .ifPresent(log -> res.setRemark(log.getRemark()));
+
+                    return res;
+                })
                 .toList();
     }
 
@@ -109,15 +119,51 @@ public class WorkflowService {
         return worklogRespo.findByWorkflowIdOrderByCreatedAtAsc(workflowId);
     }
 
-    // public Workflow approve(Long workflowId, ApproveWorkflowRequest request)
+    @Transactional
+    public Workflow approve(Long workflowId, ApproveWorkflowRequest request) {
 
-    // public Workflow reject(Long workflowId, ApproveWorkflowRequest request)
+        return updateStatus(workflowId, request, WorkflowStatus.APPROVED, WorkflowAction.APPROVE);
+    }
 
-    // private Workflow updateStatus(long workflowId, Workflow workflow, User
-    // operator, WorkflowStatus status, WorkflowAction action){
+    @Transactional
+    public Workflow reject(Long workflowId, ApproveWorkflowRequest request) {
 
-    // Workflow workflow=getWorkflowOrThrow(workflowId);
+        if (request.getRemark() == null || request.getRemark().isBlank()) {
+            throw new IllegalArgumentException("必須填寫原因");
+        }
+        return updateStatus(workflowId, request, WorkflowStatus.REJECTED, WorkflowAction.REJECT);
+    }
 
-    // }
+    private Workflow updateStatus(long workflowId, ApproveWorkflowRequest request, WorkflowStatus status,
+            WorkflowAction action) {
+
+        Workflow workflow = getWorkflowOrThrow(workflowId);
+        User approver = getApproverOrThrow(request.getApproverId());
+
+        validateApprover(workflow, approver);
+        validatePendingStatus(workflow);
+
+        workflow.setStatus(status);
+        Workflow update = worksRepo.save(workflow);
+
+        saveLog(update, approver, action, request.getRemark());
+
+        return update;
+    }
+
+    private void validateApprover(Workflow workflow, User approver) {
+        if (workflow.getApprover() == null ||
+                approver == null ||
+                !Objects.equals(workflow.getApprover().getId(), approver.getId())) {
+
+            throw new IllegalStateException("你不是此單的簽核人");
+        }
+    }
+
+    private void validatePendingStatus(Workflow workflow) {
+        if (workflow.getStatus() != WorkflowStatus.PENDING) {
+            throw new IllegalStateException("此簽核單目前狀態為" + workflow.getStatus() + ",無法操重複操作");
+        }
+    }
 
 }

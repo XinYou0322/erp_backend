@@ -1,9 +1,9 @@
 package com.example.demo.workflow.dto;
 
-import java.time.LocalDateTime;
+import lombok.Data;
+import lombok.Getter;
 
-import jakarta.validation.constraints.NotBlank;
-
+@Data
 public class ApproveWorkflowRequest {
 
     private Long approverId;
