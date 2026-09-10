@@ -5,7 +5,12 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.example.demo.suppliersNotes.SupplierNotes;
+import com.example.demo.suppliersNotes.SuppliersNotesRepository;
+import com.example.demo.users.User;
+import com.example.demo.users.UsersRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -13,25 +18,50 @@ import lombok.RequiredArgsConstructor;
 public class SuppliersService {
     
     private final SuppliersRepository suppliersRepo;
-
+    private final SuppliersNotesRepository suppliersNotesRepo;
+    private final UsersRepository usersRepo;
+    
+    
     //---新增---
     //單筆 ---完結版(暫)
-    //email不重複才能新增
-    public SuppliersDTO insertSupplier(SuppliersDTO dto) {
-        if (suppliersRepo.existsByEmail(dto.getEmail())) {
+    @Transactional
+    public SupplierRespoDTO insertSupplier(SupplierCreDTO createDTO
+    		,Long loginUserId
+    		) {
+    	//---供應商資料新增---
+    	//Email檢查
+        if (suppliersRepo.existsByEmail(createDTO.getEmail())) {
             throw new IllegalArgumentException("Email 已存在");
             //OR return "此email已存在"
         }
-        if (suppliersRepo.existsByPhone(dto.getPhone())) {
+        //電話檢查
+        if (suppliersRepo.existsByCallingCodeAndPhone(createDTO.getCallingCode(),createDTO.getPhone())) {
         throw new IllegalArgumentException("電話已存在");
+        }                
+        //DTO -> Entity
+        Suppliers supplier = createDTO.toEntity();
+        //儲存
+        Suppliers savedSupplier = suppliersRepo.save(supplier);
+        
+        //---備註判斷--- noteService
+        if(createDTO.getSupplierNotes()!=null) {
+        	//檢查登入者
+        	User creator = usersRepo.findById(loginUserId)
+        			.orElseThrow(() ->new IllegalArgumentException("找不到登入者資料"));
+        	//備註Entity
+        	SupplierNotes note = new SupplierNotes();
+        	note.setRemark(createDTO.getSupplierNotes().getRemark());
+        	note.setCreatedBy(creator);
+        	
+        	savedSupplier.addNote(note);
+        	
+        	SupplierNotes savedNote = suppliersNotesRepo.save(note);
+        	
+        	return SupplierRespoDTO.fromEntity( savedSupplier,savedNote);
         }
-        Suppliers suppliers = new Suppliers();
-        suppliers.setName(dto.getName());
-        suppliers.setPhone(dto.getPhone());
-        suppliers.setAddress(dto.getAddress());
-        suppliers.setEmail(dto.getEmail());
-        Suppliers savedSupplier = suppliersRepo.save(suppliers);
-        return SuppliersDTO.fromDto(savedSupplier);
+        
+        return SupplierRespoDTO.fromEntity(savedSupplier);
+        
     }
     //多筆 ---完結版(暫)
     public List<SuppliersDTO> insertSuppliers(List<SuppliersDTO> dtoList) {
@@ -56,7 +86,7 @@ public class SuppliersService {
     if(newSupplierDTO.getPhone()!= null){
             //新電話等不等於舊電話(equals等於) && 資料庫有沒有這個新電話
         if (!newSupplierDTO.getPhone().equals(supplier.getPhone())
-                && suppliersRepo.existsByPhone(newSupplierDTO.getPhone())) {
+                && suppliersRepo.existsByCallingCodeAndPhone(newSupplierDTO.getCallingCode(),newSupplierDTO.getPhone())) {
 
             throw new IllegalArgumentException("電話已存在");
         }
@@ -90,7 +120,7 @@ public class SuppliersService {
     return SuppliersDTO.fromDto(supplier);
 }
 
-    //多筆
+    //多筆 ---完結版(暫)
     public SuppliersQueryResultDTO findSuppliersById(List<Long> ids){
         //此id存不存在
         List<Suppliers> suppliers = suppliersRepo.findAllById(ids);
@@ -115,7 +145,7 @@ public class SuppliersService {
     return result;
 	}
 
-    //全部
+    //全部 ---完結版(暫)
     public List<SuppliersDTO> listAllSuppliers(){
         List<Suppliers> suppliersList  = suppliersRepo.findAll();
         List<SuppliersDTO> dtoList = new ArrayList<>();
@@ -131,12 +161,26 @@ public class SuppliersService {
 	}
 
     //---刪除---
+    //單筆 ---完結版(暫)
     public void deleteSupplier(Long id) {
         if (!suppliersRepo.existsById(id)) {
             throw new IllegalArgumentException("找不到供應商");
         }
         suppliersRepo.deleteById(id);
     }
-    
+    //多筆 ---完結版(暫)
+    public List<Long> deleteSuppliers(List<Long> ids) {
 
+    List<Long> notFoundIds = new ArrayList<>();
+
+    for (Long id : ids) {
+
+        if (suppliersRepo.existsById(id)) {
+            suppliersRepo.deleteById(id);
+        } else {
+            notFoundIds.add(id);
+        }
+    }
+    return notFoundIds;
+}
 }
