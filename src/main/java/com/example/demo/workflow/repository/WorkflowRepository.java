@@ -3,6 +3,7 @@ package com.example.demo.workflow.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.demo.workflow.entity.Workflow;
+import com.example.demo.workflow.entity.WorkflowLog;
 import com.example.demo.workflow.enums.WorkflowStatus;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.Optional;
 
 import com.example.demo.users.User;
 import com.example.demo.workflow.enums.DocumentType;
+import com.example.demo.workflow.enums.WorkflowAction;
 
 public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
 

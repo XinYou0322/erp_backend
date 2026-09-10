@@ -2,7 +2,10 @@ package com.example.demo.workflow.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,41 +80,53 @@ public class WorkflowService {
                 .orElseThrow(() -> new RuntimeException("找不到使用者: " + approverId));
     }
 
-    // 查詢審核人員的待辦事項
     @Transactional(readOnly = true)
     public List<WorkflowResponse> getPendingByApprover(Long approverId) {
         User approver = getApproverOrThrow(approverId);
         List<Workflow> workflows = worksRepo.findByApproverAndStatus(approver, WorkflowStatus.PENDING);
 
-        return workflows.stream().map(workflow -> {
-
-            WorkflowResponse res = WorkflowResponse.from(workflow);
-
-            worklogRespo.findFirstByWorkflowAndActionOrderByCreatedAtAsc(workflow, WorkflowAction.SUBMIT)
-                    .ifPresent(log -> res.setRemark(log.getRemark()));
-
-            return res;
-
-        }).toList();
+        return buildWorkflowResponses(workflows);
     }
 
-    // 查詢審核人員的所有簽核單
     @Transactional(readOnly = true)
     public List<WorkflowResponse> getAllByApprover(Long approverId) {
         User approver = getApproverOrThrow(approverId);
+        List<Workflow> workflows = worksRepo.findByApproverOrderByCreatedAtDesc(approver);
 
-        return worksRepo.findByApproverOrderByCreatedAtDesc(approver)
-                .stream()
-                .map(workflow -> {
-                    WorkflowResponse res = WorkflowResponse.from(workflow);
+        return buildWorkflowResponses(workflows);
+    }
 
-                    worklogRespo.findFirstByWorkflowAndActionOrderByCreatedAtAsc(
-                            workflow, WorkflowAction.SUBMIT)
-                            .ifPresent(log -> res.setRemark(log.getRemark()));
+    // 抽取共用的處理邏輯
+    private List<WorkflowResponse> buildWorkflowResponses(List<Workflow> workflows) {
+        if (workflows.isEmpty()) {
+            return List.of();
+        }
 
-                    return res;
-                })
-                .toList();
+        // 1. 一次性批量查出這些 workflow 所有的 SUBMIT logs
+        List<WorkflowLog> submitLogs = worklogRespo.findAllByWorkflowInAndActionOrderByCreatedAtAsc(
+                workflows, WorkflowAction.SUBMIT);
+
+        // 2. 將查出來的 logs 轉成 Map，Key 是 workflowId，Value 是 log 物件
+        // 這樣在記憶體中查找的速度是 O(1)，不需要再查資料庫
+        Map<Long, WorkflowLog> logMap = submitLogs.stream()
+                .collect(Collectors.toMap(
+                        log -> log.getWorkflow().getId(),
+                        Function.identity(),
+                        (existing, replacement) -> existing // 如果有一筆 workflow 對應到多筆 log，保留第一筆
+                ));
+
+        // 3. 組裝 Response
+        return workflows.stream().map(workflow -> {
+            WorkflowResponse res = WorkflowResponse.from(workflow);
+
+            // 直接從 Map 中拿資料，不再呼叫資料庫！
+            WorkflowLog submitLog = logMap.get(workflow.getId());
+            if (submitLog != null) {
+                res.setRemark(submitLog.getRemark());
+            }
+
+            return res;
+        }).toList();
     }
 
     // 查詢簽核紀錄
@@ -162,7 +177,7 @@ public class WorkflowService {
 
     private void validatePendingStatus(Workflow workflow) {
         if (workflow.getStatus() != WorkflowStatus.PENDING) {
-            throw new IllegalStateException("此簽核單目前狀態為" + workflow.getStatus() + ",無法操重複操作");
+            throw new IllegalStateException("此簽核單目前狀態為" + workflow.getStatus() + ",無法重複操作");
         }
     }
 
