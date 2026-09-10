@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
+import com.example.demo.productcategory.ProductCategory;
+
 @Entity
 @Table(name = "products")
 @Data
@@ -26,10 +28,9 @@ public class Products {
 
 
     // 商品分類
-    @Column(nullable = false, length = 50)
-    private String category;
-
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private ProductCategory category;
     // 商品售價
     @Column(
         name = "selling_price",
