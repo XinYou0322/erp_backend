@@ -2,6 +2,10 @@ package com.example.demo.workflow.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
+import com.example.demo.workflow.dto.ApproveWorkflowRequest;
 import com.example.demo.workflow.dto.CreateWorkflowRequest;
 import com.example.demo.workflow.dto.WorkflowResponse;
 import com.example.demo.workflow.entity.Workflow;
@@ -30,6 +35,7 @@ public class WorkflowService {
     private final WorkflowLogRepository worklogRespo;
     private final UsersRepository userRepo;
 
+    // 新增一個簽核流程
     @Transactional
     public Workflow startWorkflow(CreateWorkflowRequest request) {
         Workflow workflow = new Workflow();
@@ -50,6 +56,7 @@ public class WorkflowService {
 
     }
 
+    // 建立簽核紀錄
     private void saveLog(Workflow workflow, User operator, WorkflowAction action, String remark) {
 
         WorkflowLog log = new WorkflowLog();
@@ -61,34 +68,117 @@ public class WorkflowService {
         worklogRespo.save(log);
     }
 
+    // 查詢特定workflow
     public Workflow getWorkflowOrThrow(Long id) {
         return worksRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 workflow: " + id));
     }
 
-    public List<WorkflowResponse> getPendingByApprover(Long approverId) {
-        User approver = userRepo.findById(approverId)
+    // 查詢特定審核人員
+    private User getApproverOrThrow(Long approverId) {
+        return userRepo.findById(approverId)
                 .orElseThrow(() -> new RuntimeException("找不到使用者: " + approverId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowResponse> getPendingByApprover(Long approverId) {
+        User approver = getApproverOrThrow(approverId);
         List<Workflow> workflows = worksRepo.findByApproverAndStatus(approver, WorkflowStatus.PENDING);
 
-        return workflows.stream().map(workflow -> {
+        return buildWorkflowResponses(workflows);
+    }
 
+    @Transactional(readOnly = true)
+    public List<WorkflowResponse> getAllByApprover(Long approverId) {
+        User approver = getApproverOrThrow(approverId);
+        List<Workflow> workflows = worksRepo.findByApproverOrderByCreatedAtDesc(approver);
+
+        return buildWorkflowResponses(workflows);
+    }
+
+    // 抽取共用的處理邏輯
+    private List<WorkflowResponse> buildWorkflowResponses(List<Workflow> workflows) {
+        if (workflows.isEmpty()) {
+            return List.of();
+        }
+
+        // 1. 一次性批量查出這些 workflow 所有的 SUBMIT logs
+        List<WorkflowLog> submitLogs = worklogRespo.findAllByWorkflowInAndActionOrderByCreatedAtAsc(
+                workflows, WorkflowAction.SUBMIT);
+
+        // 2. 將查出來的 logs 轉成 Map，Key 是 workflowId，Value 是 log 物件
+        // 這樣在記憶體中查找的速度是 O(1)，不需要再查資料庫
+        Map<Long, WorkflowLog> logMap = submitLogs.stream()
+                .collect(Collectors.toMap(
+                        log -> log.getWorkflow().getId(),
+                        Function.identity(),
+                        (existing, replacement) -> existing // 如果有一筆 workflow 對應到多筆 log，保留第一筆
+                ));
+
+        // 3. 組裝 Response
+        return workflows.stream().map(workflow -> {
             WorkflowResponse res = WorkflowResponse.from(workflow);
 
-            worklogRespo.findFirstByWorkflowAndActionOrderByCreatedAtAsc(workflow, WorkflowAction.SUBMIT)
-                    .ifPresent(log -> res.setRemark(log.getRemark()));
+            // 直接從 Map 中拿資料，不再呼叫資料庫！
+            WorkflowLog submitLog = logMap.get(workflow.getId());
+            if (submitLog != null) {
+                res.setRemark(submitLog.getRemark());
+            }
 
             return res;
-
         }).toList();
     }
 
+    // 查詢簽核紀錄
     public List<WorkflowLog> getLogs(long workflowId) {
         return worklogRespo.findByWorkflowIdOrderByCreatedAtAsc(workflowId);
     }
 
-    // public Workflow approve(Long workflowId, ApproveWorkflowRequest request)
+    @Transactional
+    public Workflow approve(Long workflowId, ApproveWorkflowRequest request) {
 
-    // public Workflow reject(Long workflowId, ApproveWorkflowRequest request)
+        return updateStatus(workflowId, request, WorkflowStatus.APPROVED, WorkflowAction.APPROVE);
+    }
+
+    @Transactional
+    public Workflow reject(Long workflowId, ApproveWorkflowRequest request) {
+
+        if (request.getRemark() == null || request.getRemark().isBlank()) {
+            throw new IllegalArgumentException("必須填寫原因");
+        }
+        return updateStatus(workflowId, request, WorkflowStatus.REJECTED, WorkflowAction.REJECT);
+    }
+
+    private Workflow updateStatus(long workflowId, ApproveWorkflowRequest request, WorkflowStatus status,
+            WorkflowAction action) {
+
+        Workflow workflow = getWorkflowOrThrow(workflowId);
+        User approver = getApproverOrThrow(request.getApproverId());
+
+        validateApprover(workflow, approver);
+        validatePendingStatus(workflow);
+
+        workflow.setStatus(status);
+        Workflow update = worksRepo.save(workflow);
+
+        saveLog(update, approver, action, request.getRemark());
+
+        return update;
+    }
+
+    private void validateApprover(Workflow workflow, User approver) {
+        if (workflow.getApprover() == null ||
+                approver == null ||
+                !Objects.equals(workflow.getApprover().getId(), approver.getId())) {
+
+            throw new IllegalStateException("你不是此單的簽核人");
+        }
+    }
+
+    private void validatePendingStatus(Workflow workflow) {
+        if (workflow.getStatus() != WorkflowStatus.PENDING) {
+            throw new IllegalStateException("此簽核單目前狀態為" + workflow.getStatus() + ",無法重複操作");
+        }
+    }
 
 }
