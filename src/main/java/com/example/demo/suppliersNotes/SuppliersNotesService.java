@@ -15,7 +15,10 @@ public class SuppliersNotesService {
 	 private final SuppliersRepository suppliersRepo;
 
 	    private SuppliersNotesRepository suppliersNotesRepo;
-
+	    
+	    
+	    //---新增---
+	    //單筆
 	   @Transactional
 	    public SuppliersNotesRespoDTO createNote(
 	        Long supplierId,
@@ -23,13 +26,13 @@ public class SuppliersNotesService {
 	      //,Long loginUserId
 	        ) {
 
-	    // 前端選擇的供應商 ID，要在後端取得真正的 Entity
+	    //找供應商
 	    Suppliers supplier = suppliersRepo.findById(supplierId)
 	            .orElseThrow(() ->
 	                    new IllegalArgumentException("找不到供應商")
 	            );
 
-	    // // 根據登入者 ID 取得真正的 Users Entity
+	    // // 找user
 	    // Users creator = usersRepository.findById(loginUserId)
 	    //         .orElseThrow(() ->
 	    //                 new IllegalArgumentException("找不到登入者資料")
@@ -37,13 +40,12 @@ public class SuppliersNotesService {
 
 	    SupplierNotes note = new SupplierNotes();
 
-	    note.setSuppliers(supplier);
-	    note.setContent(createDTO.getContent());
-	    note.setCreatedBy(creator);
+	    note.setSupplier(supplier);
+	    note.setRemark(createDTO.getRemark());
+	    //note.setCreatedBy(creator);
 
-	    SupplierNotes savedNote =
-	            suppliersNotesRepository.save(note);
+	    SupplierNotes savedNote = suppliersNotesRepo.save(note);
 
-	    return SupplierNoteResponseDTO.fromEntity(savedNote);
+	    return SuppliersNotesRespoDTO.fromEntity(savedNote);
 	}
 }
