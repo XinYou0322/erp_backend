@@ -61,7 +61,7 @@ public class PurchaseOrders {
     //簽核人
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@Column( name="approved_by_user_id", nullable = false, updatable = false)
+    @JoinColumn( name="approved_by_user_id", nullable = false, updatable = false)
 	private User approvedBy;
     
     //收貨人
