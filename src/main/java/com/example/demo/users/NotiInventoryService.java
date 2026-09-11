@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class InventoryService {
+public class NotiInventoryService {
 
     @Autowired
     private NotificationService notificationService;

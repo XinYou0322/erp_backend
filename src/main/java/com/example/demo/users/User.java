@@ -29,6 +29,7 @@ public class User {
     @Setter(AccessLevel.NONE) // 限制外部不可以手動修改ID
     private Long id;
 
+    //使用者帳號
     @Setter
     @Column(unique = true, nullable = false, length = 50)
     private String username;
@@ -37,6 +38,7 @@ public class User {
     @Column(nullable = false, length = 60)
     private String password;
 
+    //使用者名字
     @Setter
     @Column(nullable = false, length = 50)
     private String name;
@@ -51,8 +53,9 @@ public class User {
     private Role role;
 
     // @Setter
+    // @ManyToOne(fetch = FetchType.LAZY)
     // @Column(name = "department_id", nullable = false)
-    // private Long departmentId;
+    // private Department departmentId;
 
     @Setter
     @Enumerated(EnumType.STRING)

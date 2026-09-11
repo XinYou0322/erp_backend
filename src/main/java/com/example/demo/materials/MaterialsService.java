@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.inventories.Inventory;
@@ -17,6 +19,18 @@ public class MaterialsService {
 	private  final InventoryRepository   InventoryRepo;
 	private  final MaterialRepository   MaterialRepo;
 	//查詢全部
+	
+	
+	
+	//找全部書頁
+	public Page<Material> getMaterials(Pageable pageable) {
+
+	    return MaterialRepo.findAll(pageable);
+
+	}
+	
+	
+	
 	  public List<Material> getAllMaterials() {
 	        
 		  
@@ -35,15 +49,7 @@ public class MaterialsService {
 	        // 1. 儲存原物料
 		  Material savedMaterial = MaterialRepo.save(material);
 
-	        // 2. 建立對應的庫存
-	        Inventory inventory = new Inventory();
-
-	        inventory.setMaterial(savedMaterial);
-
-	        // 初始庫存 = 0
-	        inventory.setQuantity(BigDecimal.ZERO);
-
-	        InventoryRepo.save(inventory);
+	   
 
 	        // 3. 回傳建立好的原物料
 	        return savedMaterial;
@@ -65,16 +71,41 @@ public class MaterialsService {
 	        Material material = findById(id);
 
 	        // 先刪除庫存
-	        Inventory inventory = InventoryRepo
-	                .findByMaterialId(material.getId()).get();
-	               
-
-	        if (inventory != null) {
-	        	InventoryRepo.delete(inventory);
-	        }
+	      
+	     
 
 	        // 再刪除原物料
 	        MaterialRepo.delete(material);
 	    }
 
+	  
+	  public MaterialSummaryDTO getMaterialSummary() {
+
+		    Long totalMaterials =
+		    		 MaterialRepo.count();
+
+		    BigDecimal averageCost =
+		    		 MaterialRepo.findAverageCost();
+
+		    Long safetyStockCount =
+		    		 MaterialRepo.countSafetyStockMaterials();
+
+		    Long unitCount =
+		    		 MaterialRepo.countDistinctUnits();
+
+
+		    if (averageCost == null) {
+		        averageCost = BigDecimal.ZERO;
+		    }
+
+
+		    return new MaterialSummaryDTO(
+		            totalMaterials,
+		            averageCost,
+		            safetyStockCount,
+		            unitCount
+		    );
+		}
+	  
+	  
 }

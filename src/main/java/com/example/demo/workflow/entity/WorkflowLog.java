@@ -1,7 +1,6 @@
 package com.example.demo.workflow.entity;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import com.example.demo.workflow.enums.WorkflowAction;
 import com.example.demo.users.User;
 import jakarta.persistence.*;
@@ -32,7 +31,7 @@ public class WorkflowLog {
     @JoinColumn(name = "operator_id", nullable = false)
     private User operator;
 
-    @Column(name = "remark", columnDefinition = "TEXT")
+    @Column(name = "remark", nullable = false, columnDefinition = "nvarchar(max)")
     private String remark;
 
     @Column(name = "created_at", nullable = false)

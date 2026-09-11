@@ -6,12 +6,12 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "materials")
-@Data // Lombok 自動幫你生成 Getter/Setter/ToString
+@Data
 public class Material {
-///測試測試
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @Column(nullable = false, unique = true, length = 50)
     private String code;
@@ -23,5 +23,9 @@ public class Material {
     private String unit;
 
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal cost; // 商業邏輯中的金錢、重量精度，一律使用 BigDecimal
+    private BigDecimal cost;
+
+    // 安全庫存
+    @Column(name = "safety_stock", precision = 18, scale = 4)
+    private BigDecimal safetyStock;
 }
