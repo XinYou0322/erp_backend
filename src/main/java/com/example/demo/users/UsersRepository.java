@@ -16,6 +16,10 @@ public interface UsersRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = { "role" })
     Optional<User> findByUsername(String username);
 
+    // 登入驗證時支援使用 帳號 (Username) 或 信箱 (Email)
+    @EntityGraph(attributePaths = { "role" })
+    Optional<User> findByUsernameOrEmail(String username, String email);
+
     // 檢查帳號是否已存在（註冊/新增員工時使用）
     boolean existsByUsername(String username);
 
@@ -25,7 +29,7 @@ public interface UsersRepository extends JpaRepository<User, Long> {
     // 依據 Email 查詢
     Optional<User> findByEmail(String email);
 
-    // // 依據部門查詢員工
+    // 依據部門查詢員工
     // @EntityGraph(attributePaths = { "role" })
     // List<User> findByDepartmentId(Long departmentId);
 
