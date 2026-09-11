@@ -70,4 +70,17 @@ public class BomController {
                 .noContent()
                 .build();
     }
+ // 儲存某商品的整份 BOM 配方
+    @PutMapping("/api/bom/product/{productId}")
+    public ResponseEntity<List<Bom>> saveFullBom(
+            @PathVariable Long productId,
+            @RequestBody BomSaveRequestDTO dto) {
+
+        dto.setProductId(productId);
+
+        List<Bom> list =
+                bomService.saveFullBom(dto);
+
+        return ResponseEntity.ok(list);
+    }
 }

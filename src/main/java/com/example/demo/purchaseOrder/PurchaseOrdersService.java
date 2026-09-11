@@ -30,9 +30,9 @@ public class PurchaseOrdersService {
     PurchaseOrders purchaseOrder = new PurchaseOrders();
 
     purchaseOrder.setSupplier(supplier);
-    purchaseOrder.setStatus(dto.getStatus());
-    purchaseOrder.setCreatedBy(dto.getCreatedBy());
-    purchaseOrder.setApprovedBy(dto.getApprovedBy());
+//    purchaseOrder.setStatus(dto.getStatus());
+//    purchaseOrder.setCreatedBy(dto.getCreatedBy());
+//    purchaseOrder.setApprovedBy(dto.getApprovedBy());
     purchaseOrder.setTotal(dto.getTotal());
     purchaseOrder.setExpectedDeliveryDate(
             dto.getExpectedDeliveryDate()

@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -34,13 +37,38 @@ public class UserController {
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "id", "username", "name", "email", "createdAt", "status");
 
-    // 1. 使用者登入驗證
+    // 1. 使用者登入驗證 (寫入 Session)
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO dto) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO dto, HttpServletRequest request) {
         UserResponseDTO userResponse = usersService.login(dto);
+
+        // 將使用者資訊與 ID 存入 Session，供 NotificationController 驗證
+        HttpSession session = request.getSession(true);
+        session.setAttribute("userId", userResponse.getId());
+        session.setAttribute("currentUser", userResponse);
         return ResponseEntity.ok(Map.of(
                 "message", "登入成功",
                 "user", userResponse));
+    }
+
+    // 1-2. 取得當前已登入使用者資料 (對接前端 userService.js)
+    @GetMapping("/now")
+    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null && session.getAttribute("currentUser") != null) {
+            return ResponseEntity.ok(session.getAttribute("currentUser"));
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "尚未登入"));
+    }
+
+    // 1-3. 登出端點 (清除 Session)
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        return ResponseEntity.ok(Map.of("message", "已登出系統"));
     }
 
     // 2. 新增使用者 / 員工註冊
@@ -124,6 +152,13 @@ public class UserController {
         usersService.updatePassword(id, dto);
         return ResponseEntity.ok(Map.of(
                 "message", "密碼更新成功"));
+    }
+
+    // 10. 刪除使用者
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        usersService.deleteUser(id);
+        return ResponseEntity.ok(Map.of("message", "使用者刪除成功"));
     }
 
 }

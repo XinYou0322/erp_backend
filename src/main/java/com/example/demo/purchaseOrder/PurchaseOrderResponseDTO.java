@@ -31,9 +31,9 @@ public class PurchaseOrderResponseDTO {
         responseDTO.setId(purchaseOrder.getId());
         responseDTO.setSupplierId(purchaseOrder.getSupplier().getId());
         responseDTO.setSupplierName(purchaseOrder.getSupplier().getName());
-        responseDTO.setStatus(purchaseOrder.getStatus());
-        responseDTO.setCreatedBy(purchaseOrder.getCreatedBy());
-        responseDTO.setApprovedBy(purchaseOrder.getApprovedBy());
+        //responseDTO.setStatus(purchaseOrder.getStatus());
+        //responseDTO.setCreatedBy(purchaseOrder.getCreatedBy());
+        //responseDTO.setApprovedBy(purchaseOrder.getApprovedBy());
         responseDTO.setTotal(purchaseOrder.getTotal());
         responseDTO.setCreatedAt(purchaseOrder.getCreatedAt());
         responseDTO.setExpectedDeliveryDate(purchaseOrder.getExpectedDeliveryDate());

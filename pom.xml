@@ -96,6 +96,11 @@
     	<artifactId>mapstruct</artifactId>
     	<version>1.5.5.Final</version> 
 		</dependency>
+
+		 <dependency><!-- 實現 WebSocket 即時雙向通訊 -->
+    	<groupId>org.springframework.boot</groupId>
+    	<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

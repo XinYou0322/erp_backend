@@ -17,4 +17,6 @@ public interface WorkflowLogRepository extends JpaRepository<WorkflowLog, Long> 
     Optional<WorkflowLog> findFirstByWorkflowAndActionOrderByCreatedAtAsc(
             Workflow workflow,
             WorkflowAction action);
+
+    List<WorkflowLog> findAllByWorkflowInAndActionOrderByCreatedAtAsc(List<Workflow> workflows, WorkflowAction action);
 }
