@@ -1,4 +1,4 @@
-package com.example.demo.purchase;
+package com.example.demo.purchaseOrder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

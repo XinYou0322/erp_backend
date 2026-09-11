@@ -34,10 +34,10 @@ public class SuppliersController {
     //---新增---
     //單筆
     @PostMapping("/api/supplier/add")
-    public ResponseEntity<SuppliersDTO> addSupplier(@Valid @RequestBody SuppliersDTO dto) {
+    public ResponseEntity<SupplierRespoDTO> addSupplier(@Valid @RequestBody SupplierCreDTO credto) {
        
         return ResponseEntity
-            .status(HttpStatus.CREATED).body(suppliersService.insertSupplier(dto));
+            .status(HttpStatus.CREATED).body(suppliersService.insertSupplier(credto));
         // return "新增成功";
     }
 
@@ -78,22 +78,32 @@ public class SuppliersController {
             suppliersService.findSuppliersById(ids)
     );
 }
-    //多筆
-
-     
-    //所有供應商
-    @GetMapping("/api/supplier/all")
-    public List<SuppliersDTO> AllSuppliers() {
-        List<SuppliersDTO> allSuppliers = suppliersService.listAllSuppliers();
-
-        //DTO限制回傳資料
-        return allSuppliers;
+    //全部
+    @GetMapping("/api/suppliers/All")
+    public ResponseEntity<List<SuppliersDTO>> findSuppliersAll() {
+        return ResponseEntity.ok(
+            suppliersService.listAllSuppliers()
+    );
     }
-    
+
     //---刪除---
+    //單筆
     @DeleteMapping("/api/supplier/{id}")
-    public void deleteSupplier(@PathVariable Long id) {
-        suppliersService.deleteSupplier(id);
-    }
+    public ResponseEntity<Void> deleteSupplier(@PathVariable Long id) {
+
+    suppliersService.deleteSupplier(id);
+
+    return ResponseEntity.noContent().build();
+}
+    //多筆
+    @DeleteMapping("/api/suppliers")
+    public ResponseEntity<List<Long>> deleteSuppliers(
+        @RequestParam List<Long> ids) {
+
+    List<Long> notFoundIds =
+            suppliersService.deleteSuppliers(ids);
+
+    return ResponseEntity.ok(notFoundIds);
+}
 
 }

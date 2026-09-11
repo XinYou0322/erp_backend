@@ -1,6 +1,9 @@
 package com.example.demo.suppliers;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+
+import com.example.demo.suppliersNotes.SupplierNotes;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -23,6 +26,9 @@ public class SuppliersDTO {
     @Email(message = "Email 格式錯誤")
     private String email;
 
+    private List<SupplierNotes> supplierNotes;
+
+
     //單筆
     public static SuppliersDTO fromDto(Suppliers suppliers) {
         SuppliersDTO dto = new SuppliersDTO();
@@ -31,6 +37,7 @@ public class SuppliersDTO {
         dto.setPhone(suppliers.getPhone());
         dto.setAddress(suppliers.getAddress());
         dto.setEmail(suppliers.getEmail());
+        
         return dto;
     }
     //多筆 

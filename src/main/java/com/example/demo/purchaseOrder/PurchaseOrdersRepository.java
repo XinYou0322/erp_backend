@@ -1,4 +1,4 @@
-package com.example.demo.purchase;
+package com.example.demo.purchaseOrder;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

@@ -1,4 +1,4 @@
-package com.example.demo.purchase;
+package com.example.demo.purchaseOrder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -8,8 +8,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.example.demo.suppliers.SuppliersRepository;
 import com.example.demo.suppliers.Suppliers;
+import com.example.demo.suppliers.SuppliersRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,24 +21,26 @@ public class PurchaseOrdersService {
     private final SuppliersRepository suppliersRepo;
     //---新增---
     // 新增一張採購單
-    public PurchaseOrders insertPurchaseOrder(Long supplierId,String createdBy,LocalDate expectedDeliveryDate, BigDecimal total) {
-       Optional<Suppliers> supplier = suppliersRepo.findById(supplierId);
-        
-       if (supplier.isEmpty()) {
-            throw new IllegalArgumentException("找不到供應商");
-        }
+    public PurchaseOrderResponseDTO insertPurchaseOrder(PurchaseOrderCreateDTO dto) {
+    // supplierId → Supplier Entity
+    Suppliers supplier = suppliersRepo.findById(dto.getSupplierId())
+        .orElseThrow(() -> new IllegalArgumentException("找不到此供應商"));
 
-        PurchaseOrders purchaseOrder = new PurchaseOrders();
+    // DTO → Entity
+    PurchaseOrders purchaseOrder = new PurchaseOrders();
 
-        purchaseOrder.setSupplier(supplier.get());
-        purchaseOrder.setCreatedBy(createdBy);
-        purchaseOrder.setExpectedDeliveryDate(expectedDeliveryDate);
-        purchaseOrder.setStatus("草稿");
-        //總金額部分
-        purchaseOrder.setTotal(total);
-        return purchaseOrdersRepo.save(purchaseOrder);
-    }
-
+    purchaseOrder.setSupplier(supplier);
+    purchaseOrder.setStatus(dto.getStatus());
+    purchaseOrder.setCreatedBy(dto.getCreatedBy());
+    purchaseOrder.setApprovedBy(dto.getApprovedBy());
+    purchaseOrder.setTotal(dto.getTotal());
+    purchaseOrder.setExpectedDeliveryDate(
+            dto.getExpectedDeliveryDate()
+    );
+    PurchaseOrders saved = purchaseOrdersRepo.save(purchaseOrder);
+    // Entity → ResponseDTO
+    return PurchaseOrderResponseDTO.toResponseDTO(saved);
+}
     // ---查詢---
     // 單筆
     public PurchaseOrders findPurchaseOrderById(Long id) {
