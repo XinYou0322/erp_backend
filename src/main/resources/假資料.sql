@@ -498,3 +498,100 @@ VALUES
 ((SELECT id FROM materials WHERE code = 'PKG-003'), 300.0000, 'STOCK_IN', NULL, DATEADD(DAY, -5, SYSUTCDATETIME()));
 
 
+INSERT INTO product_categories
+    (name, active)
+VALUES
+    (N'奶茶類', 1),
+    (N'純茶類', 1),
+    (N'果茶類', 1),
+    (N'特調類', 1);
+    INSERT INTO products
+    (
+        sku,
+        name,
+        category_id,
+        selling_price,
+        cost_price,
+        unit,
+        status
+    )
+VALUES
+    (
+        'DRINK-001',
+        N'珍珠奶茶',
+        1,
+        65.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-002',
+        N'四季春青茶',
+        2,
+        35.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-003',
+        N'阿薩姆紅茶',
+        2,
+        30.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-004',
+        N'百香綠茶',
+        3,
+        55.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-005',
+        N'黑糖珍珠鮮奶',
+        1,
+        75.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-006',
+        N'檸檬青茶',
+        3,
+        60.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-007',
+        N'仙草凍奶茶',
+        1,
+        65.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    ),
+
+    (
+        'DRINK-008',
+        N'冬瓜檸檬',
+        4,
+        50.00,
+        0.00,
+        N'杯',
+        'ACTIVE'
+    );

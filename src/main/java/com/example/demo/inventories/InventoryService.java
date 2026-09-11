@@ -39,11 +39,14 @@ public final MaterialRepository materialRepository;
         return saved;
     }
     
-    public List<InventorySummaryDTO> getInventorySummary() {///茶每一批原料總共多少輛
+    public List<InventorySummaryDTO> getInventorySummary() {
 
-        List<Material> materials = materialRepository.findAll();
+        List<Material> materials =
+                materialRepository.findAll();
+
 
         return materials.stream()
+
                 .map(material -> {
 
                     List<Inventory> batches =
@@ -52,47 +55,239 @@ public final MaterialRepository materialRepository;
                                             material.getId()
                                     );
 
-                    BigDecimal totalQuantity = batches.stream()
-                            .map(Inventory::getQuantity)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                    LocalDate nearestExpiryDate = batches.stream()
-                            .filter(batch ->
-                                    batch.getQuantity() != null
-                                    && batch.getQuantity()
-                                            .compareTo(BigDecimal.ZERO) > 0
-                            )
-                            .map(Inventory::getExpiryDate)
-                            .filter(date -> date != null)
-                            .min(LocalDate::compareTo)
-                            .orElse(null);
-                    BigDecimal safetyStock = material.getSafetyStock();
-                    
-                    String status = "NORMAL";
-                    
+                    LocalDate today =
+                            LocalDate.now();
+
+
+                    // =========================
+                    // 所有批次總庫存
+                    // =========================
+
+                    BigDecimal totalQuantity =
+                            batches.stream()
+
+                                    .map(Inventory::getQuantity)
+
+                                    .filter(quantity ->
+                                            quantity != null
+                                    )
+
+                                    .reduce(
+                                            BigDecimal.ZERO,
+                                            BigDecimal::add
+                                    );
+
+
+                    // =========================
+                    // 已過期庫存數量
+                    // =========================
+
+                    BigDecimal expiredQuantity =
+                            batches.stream()
+
+                                    .filter(batch ->
+                                            batch.getQuantity() != null
+                                            &&
+                                            batch.getQuantity()
+                                                    .compareTo(BigDecimal.ZERO) > 0
+                                    )
+
+                                    .filter(batch ->
+                                            batch.getExpiryDate() != null
+                                            &&
+                                            batch.getExpiryDate()
+                                                    .isBefore(today)
+                                    )
+
+                                    .map(Inventory::getQuantity)
+
+                                    .reduce(
+                                            BigDecimal.ZERO,
+                                            BigDecimal::add
+                                    );
+
+
+                    // =========================
+                    // 可用庫存
+                    // =========================
+
+                    BigDecimal availableQuantity =
+                            totalQuantity.subtract(
+                                    expiredQuantity
+                            );
+
+
+                    // =========================
+                    // 已過期批次數量
+                    // =========================
+
+                    int expiredBatchCount =
+                            (int) batches.stream()
+
+                                    .filter(batch ->
+                                            batch.getQuantity() != null
+                                            &&
+                                            batch.getQuantity()
+                                                    .compareTo(BigDecimal.ZERO) > 0
+                                    )
+
+                                    .filter(batch ->
+                                            batch.getExpiryDate() != null
+                                            &&
+                                            batch.getExpiryDate()
+                                                    .isBefore(today)
+                                    )
+
+                                    .count();
+
+
+                    // =========================
+                    // 7 天內到期批次數量
+                    // =========================
+
+                    int expiringSoonBatchCount =
+                            (int) batches.stream()
+
+                                    .filter(batch ->
+                                            batch.getQuantity() != null
+                                            &&
+                                            batch.getQuantity()
+                                                    .compareTo(BigDecimal.ZERO) > 0
+                                    )
+
+                                    .filter(batch ->
+                                            batch.getExpiryDate() != null
+                                    )
+
+                                    .filter(batch -> {
+
+                                        LocalDate expiryDate =
+                                                batch.getExpiryDate();
+
+                                        return
+                                                !expiryDate.isBefore(today)
+                                                &&
+                                                !expiryDate.isAfter(
+                                                        today.plusDays(7)
+                                                );
+                                    })
+
+                                    .count();
+
+
+                    // =========================
+                    // 最近有效日期
+                    // 這裡排除已過期批次
+                    // =========================
+
+                    LocalDate nearestExpiryDate =
+                            batches.stream()
+
+                                    .filter(batch ->
+                                            batch.getQuantity() != null
+                                            &&
+                                            batch.getQuantity()
+                                                    .compareTo(BigDecimal.ZERO) > 0
+                                    )
+
+                                    .map(Inventory::getExpiryDate)
+
+                                    .filter(date ->
+                                            date != null
+                                            &&
+                                            !date.isBefore(today)
+                                    )
+
+                                    .min(LocalDate::compareTo)
+
+                                    .orElse(null);
+
+
+                    // =========================
+                    // 庫存狀態
+                    // 改用 availableQuantity
+                    // =========================
+
+                    BigDecimal safetyStock =
+                            material.getSafetyStock();
+
+
+                    String status =
+                            "NORMAL";
+
+
                     if (safetyStock != null) {
 
-                        if (totalQuantity.compareTo(safetyStock.multiply(new BigDecimal("0.4"))) <= 0) {
-                            status = "URGENT";
+                        if (
+                            availableQuantity.compareTo(
+                                    safetyStock.multiply(
+                                            new BigDecimal("0.4")
+                                    )
+                            ) <= 0
+                        ) {
 
-                        } else if (totalQuantity.compareTo(safetyStock) <= 0) {
-                            status = "LOW";
+                            status =
+                                    "URGENT";
+
+                        } else if (
+                            availableQuantity.compareTo(
+                                    safetyStock
+                            ) <= 0
+                        ) {
+
+                            status =
+                                    "LOW";
                         }
-
                     }
-                    
+
+
+                    // =========================
+                    // 效期狀態
+                    // =========================
+
+                    String expiryStatus =
+                            "NORMAL";
+
+
+                    if (expiredBatchCount > 0) {
+
+                        expiryStatus =
+                                "EXPIRED";
+
+                    } else if (expiringSoonBatchCount > 0) {
+
+                        expiryStatus =
+                                "EXPIRING_SOON";
+                    }
+
+
                     return new InventorySummaryDTO(
-                    	    material.getId(),
-                    	    material.getCode(),
-                    	    material.getName(),
-                    	    material.getUnit(),
-                    	    totalQuantity,
-                    	    material.getCost(),
-                    	    safetyStock,
-                    	    status,
-                    	    nearestExpiryDate
-                    	);
+
+                            material.getId(),
+                            material.getCode(),
+                            material.getName(),
+                            material.getUnit(),
+
+                            totalQuantity,
+                            material.getCost(),
+
+                            safetyStock,
+                            status,
+
+                            nearestExpiryDate,
+
+                            expiredQuantity,
+                            availableQuantity,
+
+                            expiredBatchCount,
+                            expiringSoonBatchCount,
+
+                            expiryStatus
+                    );
+
                 })
+
                 .toList();
     }
     

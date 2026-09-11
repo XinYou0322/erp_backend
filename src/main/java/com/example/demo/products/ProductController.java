@@ -4,79 +4,99 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.example.demo.materials.Material;
+import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
 public class ProductController {
-private final ProductService pdService;
 
-@PostMapping("/api/product/add")//新增產品
-public  ResponseEntity<?> create(@RequestBody Products product) {
+    private final ProductService pdService;
+
+
+    // =========================
+    // 新增產品
+    // =========================
+    @PostMapping("/api/product/add")
+    public ResponseEntity<?> create(
+            @RequestBody ProductRequestDTO dto) {
+
+        Products product =
+                pdService.create(dto);
+
+        return new ResponseEntity<>(
+                product,
+                HttpStatus.CREATED
+        );
+    }
+
+
+    // =========================
+    // 查詢全部產品
+    // =========================
+    @GetMapping("/api/product/list")
+    public ResponseEntity<?> findAll() {
+
+        List<ProductResponseDTO> list =
+                pdService.findAll();
+
+        return new ResponseEntity<>(
+                list,
+                HttpStatus.OK
+        );
+    }
+
+
+    // =========================
+    // 查詢單一產品
+    // =========================
+    @GetMapping("/api/product/{id}")
+    public ResponseEntity<?> findById(
+            @PathVariable Long id) {
+
+        ProductResponseDTO product =
+                pdService.findById(id);
+
+        return new ResponseEntity<>(
+                product,
+                HttpStatus.OK
+        );
+    }
+
+
+    // =========================
+    // 修改產品
+    // =========================
+    @PutMapping("/api/productupdate/{id}")
+    public ResponseEntity<?> update(
+            @PathVariable Long id,
+            @RequestBody ProductRequestDTO dto) {
+
+        ProductResponseDTO product =
+                pdService.update(id, dto);
+
+        return new ResponseEntity<>(
+                product,
+                HttpStatus.OK
+        );
+    }
+
+
+    // =========================
+    // 刪除產品
+    // =========================
+    @DeleteMapping("/api/productdelete/{id}")
+    public ResponseEntity<?> delete(
+            @PathVariable Long id) {
+
+        pdService.delete(id);
+
+        return new ResponseEntity<>(
+                HttpStatus.NO_CONTENT
+        );
+    }
     
-	
-	
-	Products p=  pdService.create(product);
-	
-	return new ResponseEntity<>(p,HttpStatus.CREATED);
+    
+    
 }
-	
-	
-	
-@GetMapping("/api/product/list") // 查詢全部
-public ResponseEntity<?> findAll() {
-
-    List<Products> list = pdService.findAll();
-
-    return new ResponseEntity<>(list, HttpStatus.OK);
-}
-
-@GetMapping("/api/product/{id}") // 查詢單一
-public ResponseEntity<?> findById(@PathVariable Long id) {
-
-    Products p = pdService.findById(id);
-
-    return new ResponseEntity<>(p, HttpStatus.OK);
-}
-
-@PutMapping("/api/productupdate/{id}") // 修改產品
-public ResponseEntity<?> update(
-        @PathVariable Long id,
-        @RequestBody Products product) {
-
-    Products p = pdService.update(id, product);
-
-    return new ResponseEntity<>(p, HttpStatus.OK);
-}
-
-@DeleteMapping("/api/productdelete/{id}") // 刪除產品
-public ResponseEntity<?> delete(@PathVariable Long id) {
-
-    pdService.delete(id);
-
-    return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-}
-}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-

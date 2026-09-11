@@ -1,6 +1,7 @@
 package com.example.demo.bom;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -148,4 +150,75 @@ public class BomService {
 
         recalculateProductCost(productId);
     }
+    
+    @Transactional
+    public List<Bom> saveFullBom(BomSaveRequestDTO dto) {
+
+        // 1. 先確認商品存在
+        Products product =
+                productRepository
+                        .findById(dto.getProductId())
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "找不到商品 id=" + dto.getProductId()
+                                )
+                        );
+
+
+        // 2. 刪除這個商品原本的所有 BOM
+        bomRepository.deleteByProductId(
+                dto.getProductId()
+        );
+
+
+        // 3. 準備存新的 BOM
+        List<Bom> newBomList =
+                new ArrayList<>();
+
+
+        // 4. 一筆一筆建立新的 BOM
+        for (BomItemRequestDTO item : dto.getItems()) {
+
+            Material material =
+                    materialRepository
+                            .findById(item.getMaterialId())
+                            .orElseThrow(() ->
+                                    new EntityNotFoundException(
+                                            "找不到原物料 id="
+                                                    + item.getMaterialId()
+                                    )
+                            );
+
+
+            Bom bom = new Bom();
+
+            bom.setProduct(product);
+
+            bom.setMaterial(material);
+
+            bom.setQuantity(
+                    item.getQuantity()
+            );
+
+
+            Bom saved =
+                    bomRepository.save(bom);
+
+
+            newBomList.add(saved);
+        }
+
+
+        // 5. 整份 BOM 儲存完後重新計算商品成本
+        recalculateProductCost(
+                product.getId()
+        );
+
+
+        // 6. 回傳新 BOM
+        return newBomList;
+    }
+    
+    
+    
 }
