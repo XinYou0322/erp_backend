@@ -498,6 +498,52 @@ VALUES
 ((SELECT id FROM materials WHERE code = 'PKG-003'), 300.0000, 'STOCK_IN', NULL, DATEADD(DAY, -5, SYSUTCDATETIME()));
 
 
+
+INSERT INTO workflows
+(
+    document_type,
+    document_id,
+    status,
+    applicant_id,
+    approver_id,
+    created_at
+)
+VALUES
+('LEAVE', 1001, 'PENDING', 2, 1, '2026-09-01T09:00:00'),
+
+('ORDER', 2001, 'APPROVED', 3, 2, '2026-09-02T10:30:00'),
+
+('LEAVE', 1002, 'REJECTED', 4, 2, '2026-09-03T14:00:00'),
+
+('ORDER', 2002, 'PENDING', 5, 1, '2026-09-04T09:15:00'),
+
+('ORDER', 2003, 'APPROVED', 3, 1, '2026-09-04T11:00:00');
+
+
+
+INSERT INTO workflow_logs
+(
+    workflow_id,
+    action,
+    operator_id,
+    remark,
+    created_at
+)
+VALUES
+
+(1, 'SUBMIT', 2, '身體不適，申請一天病假', '2026-09-01T09:00:00'),
+
+(2, 'SUBMIT', 3, '申請採購珍珠 50kg、鮮奶 30箱', '2026-09-02T10:30:00'),
+(2, 'APPROVE', 2, '採購內容確認無誤，核准申請', '2026-09-02T15:20:00'),
+
+(3, 'SUBMIT', 4, '家中有事，申請請假一天', '2026-09-03T14:00:00'),
+(3, 'REJECT', 2, '目前人力不足，無法核准此次請假', '2026-09-03T16:30:00'),
+
+(4, 'SUBMIT', 5, '申請採購紅茶葉 20kg', '2026-09-04T09:15:00'),
+
+(5, 'SUBMIT', 3, '申請辦公用品採購', '2026-09-04T11:00:00'),
+(5, 'APPROVE', 1, '確認需求後核准採購', '2026-09-04T13:45:00');
+
 INSERT INTO product_categories
     (name, active)
 VALUES
