@@ -20,7 +20,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "*") // 允許前端跨域呼叫
 public class NotificationController {
 
     @Autowired
