@@ -46,20 +46,19 @@ public class SupplierCreDTO {
     // 預設 PENDING
     // 前端也可以指定
 	private SupplierStatus status = SupplierStatus.PENDING;
-	
-	
+		
 	@Valid //告訴 Validation：這個物件裡面的欄位，也要繼續進去驗證
     private SuppliersNotesCreDTO supplierNotes;
 	
 	public Suppliers toEntity() {
 		Suppliers supplier = new Suppliers();
 		
-		supplier.setName(name);
+		supplier.setName(name.trim());
 		supplier.setCallingCode(callingCode);
 		supplier.setPhone(phone);
-		supplier.setExtension(extension);
-		supplier.setAddress(address);
-		supplier.setEmail(email);
+		supplier.setExtension(extension == null ? null : extension.trim());
+		supplier.setAddress(address.trim());
+		supplier.setEmail(email.trim());
 		supplier.setStatus(status);
 		
 		
