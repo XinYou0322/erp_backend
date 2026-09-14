@@ -10,6 +10,9 @@ import com.example.demo.bom.Bom;
 import com.example.demo.bom.BomRepository;
 import com.example.demo.inventories.Inventory;
 import com.example.demo.inventories.InventoryRepository;
+import com.example.demo.inventorylog.DTO.InventoryAdjustmentItemDTO;
+import com.example.demo.inventorylog.DTO.InventoryAdjustmentRequestDTO;
+import com.example.demo.inventorylog.DTO.InventoryLogResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 

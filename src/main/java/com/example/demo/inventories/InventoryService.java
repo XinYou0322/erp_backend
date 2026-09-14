@@ -1,7 +1,9 @@
 package com.example.demo.inventories;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -339,7 +341,55 @@ public final MaterialRepository materialRepository;
 
         return inventoryRepository.save(exist);
     }
+    @Transactional
 
+public void batchInventory(
+        InventoryBatchRequestDTO request) {
+
+    for (
+        InventoryBatchRequestDTO.Item item
+        : request.getItems()
+    ) {
+
+        Material material =
+            materialRepository
+                .findById(item.getMaterialId())
+                .orElseThrow(
+                    () -> new RuntimeException(
+                        "找不到原物料"
+                    )
+                );
+
+
+        // 1. 新增库存批次
+        Inventory inventory =
+            new Inventory();
+
+        inventory.setMaterial(material);
+        inventory.setQuantity(item.getQuantity());
+        inventory.setExpiryDate(item.getExpiryDate());
+
+        inventoryRepository.save(inventory);
+
+
+        // 2. 新增库存异动纪录
+        InventoryLog log =
+            new InventoryLog();
+
+        log.setMaterial(material);
+
+        log.setQuantity(
+            item.getQuantity()
+        );
+
+        log.setAction(
+            "STOCK_IN"
+        );
+        log.setCreatedAt(Instant.now());
+
+        inventoryLogRepository.save(log);
+    }
+}
     // 刪除一批（例如整批報廢或輸入錯誤）
     public void delete(Long id) {
         inventoryRepository.deleteById(id);
