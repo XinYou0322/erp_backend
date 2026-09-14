@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.example.demo.leave.enums.LeaveStatus;
+import com.example.demo.leave.enums.LeaveType;
 import com.example.demo.users.User;
 import jakarta.persistence.*;
 import lombok.Getter;

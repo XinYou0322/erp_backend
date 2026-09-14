@@ -1,4 +1,4 @@
-package com.example.demo.leave;
+package com.example.demo.leave.enums;
 
 public enum LeaveType {
 
