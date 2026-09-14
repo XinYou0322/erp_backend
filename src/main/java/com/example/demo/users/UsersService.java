@@ -53,6 +53,7 @@ public class UsersService {
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setRole(role);
+        user.setAvatar(dto.getAvatar());
         // user.setDepartmentId(dto.getDepartmentId());
         user.setStatus(UserStatus.ACTIVE);
 
@@ -165,6 +166,9 @@ public class UsersService {
 
         dbUser.setName(dto.getName());
         dbUser.setEmail(dto.getEmail());
+        if (dto.getAvatar() != null) {
+            dbUser.setAvatar(dto.getAvatar());
+        }
         // dbUser.setDepartmentId(dto.getDepartmentId());
         dbUser.setStatus(dto.getStatus());
         dbUser.setRole(role);
@@ -220,7 +224,7 @@ public class UsersService {
         userRepository.save(dbUser);
     }
 
-     // 16. 刪除使用者 (供前端權限管理頁面調用)
+    // 16. 刪除使用者 (供前端權限管理頁面調用)
     @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {

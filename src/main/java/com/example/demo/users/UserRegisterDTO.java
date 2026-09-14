@@ -31,6 +31,8 @@ public class UserRegisterDTO {
     @NotNull(message = "角色 ID 不能為空")
     private Long roleId;
 
+    private String avatar;
+
     // @NotNull(message = "部門 ID 不能為空")
     // private Long departmentId;
 

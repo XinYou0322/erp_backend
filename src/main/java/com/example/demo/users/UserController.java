@@ -1,8 +1,13 @@
 package com.example.demo.users;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -76,6 +82,42 @@ public class UserController {
     public ResponseEntity<?> createUser(@Valid @RequestBody UserRegisterDTO dto) {
         UserResponseDTO createdUser = usersService.createUser(dto);
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/upload-avatar")
+    public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "請選擇圖片檔案"));
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "只能上傳圖片檔案"));
+        }
+
+        try {
+            String uploadDir = System.getProperty("user.dir") + "/uploads/avatars";
+            Path dir = Paths.get(uploadDir);
+            Files.createDirectories(dir);
+
+            String ext = "";
+            String originalName = file.getOriginalFilename();
+            if (originalName != null && originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf("."));
+            }
+
+            String fileName = UUID.randomUUID() + ext;
+            Path target = dir.resolve(fileName);
+            Files.write(target, file.getBytes());
+
+            String avatarUrl = "http://localhost:8080/uploads/avatars/" + fileName;
+            return ResponseEntity.ok(Map.of(
+                    "message", "上傳成功",
+                    "avatarUrl", avatarUrl));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "圖片儲存失敗"));
+        }
     }
 
     // 2-2. 新增使用者別名路由

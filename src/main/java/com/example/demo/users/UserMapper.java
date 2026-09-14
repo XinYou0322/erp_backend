@@ -9,6 +9,7 @@ public interface UserMapper {
     @Mapping(source = "role.id", target = "role.id")
     @Mapping(source = "role.roleName", target = "role.name")
     @Mapping(source = "role.description", target = "role.description")
+    @Mapping(source = "avatar", target = "avatar")
     // @Mapping(source = "departmentId", target = "department.id")
     UserResponseDTO toDto(User user);
 

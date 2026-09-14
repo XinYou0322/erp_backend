@@ -13,6 +13,7 @@ public class UserResponseDTO {
     private String username;
     private String name;
     private String email;
+    private String avatar;
     private String status;
     private Instant createdAt;
 
