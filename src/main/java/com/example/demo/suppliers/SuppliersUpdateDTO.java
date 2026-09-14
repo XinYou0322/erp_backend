@@ -1,5 +1,7 @@
 package com.example.demo.suppliers;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -28,7 +30,7 @@ public class SuppliersUpdateDTO {
         message = "分機只能包含數字，最多 10 碼"
     )
     private String extension;
-
+    
     @Size(max = 200, message = "地址不可以超過 200 個字")
     private String address;
 
@@ -36,4 +38,22 @@ public class SuppliersUpdateDTO {
     private String email;
 
     private SupplierStatus status;
+
+    // 判斷 前端到底有沒有傳 extension 這個欄位
+    private boolean extensionProvided = false;
+    
+    @JsonSetter("extension")
+    public void setExtension(String extension) {
+
+        // 只要 JSON 裡出現 extension，就設為 true
+        this.extensionProvided = true;
+
+        // null 或空字串都代表清除分機
+        if (extension == null || extension.isBlank()) {
+            this.extension = null;
+        } else {
+            this.extension = extension.trim();
+        }
+    }
+
 }
