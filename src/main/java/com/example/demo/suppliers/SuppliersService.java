@@ -303,4 +303,11 @@ public class SuppliersService {
 
         return result;
     }
+//    ├─ ① 關鍵字搜尋        ← 最推薦
+//    ├─ ② 分頁查詢
+//    ├─ ③ 供應商總數 count  //資料庫有 5000 筆，前端目前只拿：第 1 頁 20 筆，suppliers.length = 20
+
+//    ├─ ⑤ Supplier 詳細資料 + Notes
+//    ├─ ⑥ 排序
+//    └─ ⑦ 後期改成停用而非實體刪除
 }
