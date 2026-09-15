@@ -14,18 +14,28 @@ public class PurchaseOrderResponseDTO {
 
     private String supplierName;
 
-    private String status;
+    private PurchaseOrdersStatus status;
 
-    private String createdBy;
+    private Long createdByUserId;
+    private String createdByName;
 
-    private String approvedBy;
+    private Long approvedByUserId;
+    private String approvedByName;
 
     private BigDecimal total;
 
     private LocalDateTime createdAt;
+    
+    private LocalDateTime updatedAt;
 
     private LocalDate expectedDeliveryDate;
+    
+    private LocalDateTime receivedAt;
 
+    private String receiptUrl;
+    
+    private String decisionRemark;
+    
     public static PurchaseOrderResponseDTO toResponseDTO(PurchaseOrders purchaseOrder) {
         PurchaseOrderResponseDTO responseDTO = new PurchaseOrderResponseDTO();
         responseDTO.setId(purchaseOrder.getId());
