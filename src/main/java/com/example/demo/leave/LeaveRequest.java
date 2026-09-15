@@ -38,7 +38,7 @@ public class LeaveRequest {
     @Column(nullable = false)
     private LocalDate endDate;
 
-    @Column(nullable = false, length = 500)
+    @Column(columnDefinition = "NVARCHAR(500)")
     private String reason;
 
     @Enumerated(EnumType.STRING)

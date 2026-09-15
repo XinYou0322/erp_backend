@@ -144,7 +144,12 @@ public class LeaveRequestService {
 
         leave.setStatus(LeaveStatus.CANCELLED);
 
-        return leaveRepo.save(leave);
+        LeaveRequest updated = leaveRepo.save(leave);
+
+        // 再取消 Workflow
+        workflowService.cancelWorkflow(id, DocumentType.LEAVE);
+
+        return updated;
     }
 
     // 更新狀態
