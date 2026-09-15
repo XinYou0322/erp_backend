@@ -18,6 +18,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.Instant;
 
+import com.example.demo.Role.Role;
+
 @Entity
 @Table(name = "users")
 @Getter

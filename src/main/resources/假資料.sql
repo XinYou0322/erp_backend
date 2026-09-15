@@ -641,3 +641,11 @@ VALUES
         N'杯',
         'ACTIVE'
     );
+
+    //打卡紀錄表
+    CREATE TABLE clock_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,          -- 員工編號
+    clock_time DATETIME NOT NULL,          -- 打卡時間（由後端伺服器生成）
+    clock_type VARCHAR(10) NOT NULL        -- 打卡類型：'CLOCK_IN' 或 'CLOCK_OUT'
+);

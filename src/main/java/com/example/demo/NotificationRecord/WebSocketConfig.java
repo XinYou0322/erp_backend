@@ -1,4 +1,4 @@
-package com.example.demo.users;
+package com.example.demo.NotificationRecord;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;

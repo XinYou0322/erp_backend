@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.demo.Role.Role;
+import com.example.demo.Role.RoleRepository;
+
 import lombok.RequiredArgsConstructor;
 
 @Service

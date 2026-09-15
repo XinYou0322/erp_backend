@@ -1,4 +1,4 @@
-package com.example.demo.users;
+package com.example.demo.NotificationRecord;
 
 import java.util.List;
 import java.util.Map;
