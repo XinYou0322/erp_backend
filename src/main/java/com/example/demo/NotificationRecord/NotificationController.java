@@ -70,8 +70,18 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/read")
-    public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
-        // 單則已讀只需要通知 ID，但若要更安全，可以進 Service 驗證該通知是否屬於該 userId
+    public ResponseEntity<Void> markAsRead(HttpServletRequest request, @PathVariable Long id) {
+        Long userId = getValidatedUserId(request);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        NotificationRecord notification = notificationService.getById(id)
+                .orElse(null);
+        if (notification == null || !userId.equals(notification.getUserId())) {
+            return ResponseEntity.status(403).build();
+        }
+
         notificationService.markAsRead(id);
         return ResponseEntity.ok().build();
     }
@@ -113,6 +123,34 @@ public class NotificationController {
             return ResponseEntity.badRequest().build();
         }
         notificationService.triggerSampleAlert(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/low-stock")
+    public ResponseEntity<Void> createLowStockNotification(
+            HttpServletRequest request,
+            @RequestBody Map<String, Object> payload) {
+
+        Long userId = getValidatedUserId(request);
+        if (userId == null) {
+            Object candidate = payload.get("userId");
+            if (candidate instanceof Number) {
+                userId = ((Number) candidate).longValue();
+            }
+        }
+
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Object materialsObj = payload.get("materials");
+        if (!(materialsObj instanceof java.util.List<?> materials)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> materialList = (List<Map<String, Object>>) materials;
+        notificationService.createLowStockAlert(userId, materialList);
         return ResponseEntity.ok().build();
     }
 }
