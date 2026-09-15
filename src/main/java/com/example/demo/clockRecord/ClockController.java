@@ -7,7 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*") // 允許 Vue 前端跨網域 (CORS) 呼叫
 @RestController
@@ -40,7 +42,7 @@ public class ClockController {
 
         // 4. 建立紀錄並存入資料庫
         ClockRecord record = new ClockRecord(userId, serverTime, nextType);
-        ClockRecord savedRecord = clockRecordRepository.save(record);
+        clockRecordRepository.save(record);
 
         // 5. 回傳結果給前端 Vue 更新 UI
         return ResponseEntity.ok(Map.of(
@@ -48,5 +50,31 @@ public class ClockController {
                 "message", nextType.equals("CLOCK_IN") ? "打卡上班成功！" : "簽退成功！",
                 "clockTime", serverTime.toString(),
                 "isClockedIn", nextType.equals("CLOCK_IN")));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<?> getClockHistory(@RequestParam(required = false) String userId) {
+        List<ClockRecord> records;
+
+        if (userId != null && !userId.isBlank()) {
+            records = clockRecordRepository.findByUserIdOrderByClockTimeDesc(userId);
+        } else {
+            records = clockRecordRepository.findAllByOrderByClockTimeDesc();
+        }
+
+        List<Map<String, Object>> payload = records.stream().map(record -> {
+            Map<String, Object> item = new java.util.HashMap<>();
+            item.put("id", record.getId());
+            item.put("userId", record.getUserId());
+            item.put("clockType", record.getClockType());
+            item.put("clockTime", record.getClockTime().toString());
+            item.put("label", "CLOCK_IN".equals(record.getClockType()) ? "上班打卡" : "簽退記錄");
+            return item;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "records", payload,
+                "count", payload.size()));
     }
 }
