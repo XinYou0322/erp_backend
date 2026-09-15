@@ -2,6 +2,8 @@ package com.example.demo.leave;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,10 +11,13 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.leave.dto.CreateLeaveRequest;
 import com.example.demo.leave.dto.LeaveRequestResponse;
+import com.example.demo.leave.dto.SubmitLeaveRequest;
+import com.example.demo.leave.dto.UpdateLeaveRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +31,7 @@ public class LeaveRequestController {
 
     // 建立草稿
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public LeaveRequestResponse create(
             @RequestBody @Valid CreateLeaveRequest request) {
 
@@ -34,14 +40,14 @@ public class LeaveRequestController {
     }
 
     // 送出簽核
-    // @PostMapping("/{id}/submit")
-    // public LeaveRequestResponse submit(
-    // @PathVariable Long id,
-    // @RequestBody SubmitLeaveRequest request) {
+    @PostMapping("/{id}/submit")
+    public LeaveRequestResponse submit(
+            @PathVariable Long id,
+            @RequestBody @Valid SubmitLeaveRequest request) {
 
-    // return LeaveRequestResponse.from(
-    // leaveService.submitLeaveRequest(id, request.getApproverId()));
-    // }
+        return LeaveRequestResponse.from(
+                leaveService.submitLeaveRequest(id, request.getApproverId()));
+    }
 
     // 查單筆
     @GetMapping("/{id}")
@@ -52,9 +58,9 @@ public class LeaveRequestController {
     }
 
     // 查某員工所有請假單
-    @GetMapping
+    @GetMapping("/applicant/{applicantId}")
     public List<LeaveRequestResponse> getByApplicant(
-            @RequestParam Long applicantId) {
+            @PathVariable Long applicantId) {
 
         return leaveService.getByApplicant(applicantId);
     }
@@ -63,7 +69,7 @@ public class LeaveRequestController {
     @PutMapping("/{id}")
     public LeaveRequestResponse update(
             @PathVariable Long id,
-            @RequestBody @Valid CreateLeaveRequest request) {
+            @RequestBody @Valid UpdateLeaveRequest request) {
 
         return LeaveRequestResponse.from(
                 leaveService.updateLeaveRequest(id, request));
@@ -71,9 +77,10 @@ public class LeaveRequestController {
 
     // 取消請假單
     @PostMapping("/{id}/cancel")
-    public LeaveRequestResponse cancel(@PathVariable Long id) {
+    public ResponseEntity<LeaveRequestResponse> cancel(@PathVariable Long id) {
 
-        return LeaveRequestResponse.from(
+        LeaveRequestResponse response = LeaveRequestResponse.from(
                 leaveService.cancelLeaveRequest(id));
+        return ResponseEntity.ok(response);
     }
 }

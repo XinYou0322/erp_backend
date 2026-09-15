@@ -12,7 +12,7 @@ import lombok.Data;
 public class CreateLeaveRequest {
     private LeaveType leaveType;
 
-    private Long documentId;
+    // private Long documentId;
 
     private Long applicantId;
 

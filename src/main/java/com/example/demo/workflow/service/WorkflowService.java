@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import com.example.demo.workflow.entity.WorkflowLog;
 import com.example.demo.workflow.enums.DocumentType;
 import com.example.demo.workflow.enums.WorkflowAction;
 import com.example.demo.workflow.enums.WorkflowStatus;
+import com.example.demo.workflow.event.WorkflowStatusChangedEvent;
 import com.example.demo.workflow.repository.WorkflowLogRepository;
 import com.example.demo.workflow.repository.WorkflowRepository;
 
@@ -34,6 +36,7 @@ public class WorkflowService {
     private final WorkflowRepository worksRepo;
     private final WorkflowLogRepository worklogRespo;
     private final UsersRepository userRepo;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 新增一個簽核流程
     @Transactional
@@ -163,6 +166,10 @@ public class WorkflowService {
 
         saveLog(update, approver, action, request.getRemark());
 
+        // 發布事件
+        eventPublisher.publishEvent(
+                new WorkflowStatusChangedEvent(workflow.getDocumentId(), workflow.getDocumentType(), status));
+
         return update;
     }
 
@@ -178,6 +185,22 @@ public class WorkflowService {
     private void validatePendingStatus(Workflow workflow) {
         if (workflow.getStatus() != WorkflowStatus.PENDING) {
             throw new IllegalStateException("此簽核單目前狀態為" + workflow.getStatus() + ",無法重複操作");
+        }
+    }
+
+    @Transactional
+    public void cancelWorkflow(Long documentId, DocumentType documentType) {
+        // 1. 根據業務單據 ID 和類型找到對應的 Workflow
+        Workflow workflow = worksRepo.findByDocumentTypeAndDocumentId(documentType, documentId)
+                .orElseThrow(() -> new EntityNotFoundException("找不到對應的 Workflow"));
+
+        // 2. 只有審核中的流程才需要被取消
+        if (workflow.getStatus() == WorkflowStatus.PENDING) {
+            workflow.setStatus(WorkflowStatus.CANCELLED);
+            worksRepo.save(workflow);
+
+            // 3. (可選) 記錄取消的日誌，方便後續追蹤
+            saveLog(workflow, workflow.getApplicant(), WorkflowAction.CANCEL, "申請人主動取消");
         }
     }
 

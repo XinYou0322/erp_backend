@@ -6,14 +6,18 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.example.demo.leave.dto.CreateLeaveRequest;
 import com.example.demo.leave.dto.LeaveRequestResponse;
+import com.example.demo.leave.dto.UpdateLeaveRequest;
 import com.example.demo.leave.enums.LeaveStatus;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
 import com.example.demo.workflow.dto.CreateWorkflowRequest;
 import com.example.demo.workflow.enums.DocumentType;
+import com.example.demo.workflow.enums.WorkflowStatus;
+import com.example.demo.workflow.event.WorkflowStatusChangedEvent;
 import com.example.demo.workflow.service.WorkflowService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -97,7 +101,8 @@ public class LeaveRequestService {
     }
 
     // 更新請假單
-    public LeaveRequest updateLeaveRequest(Long id, CreateLeaveRequest request) {
+    @Transactional
+    public LeaveRequest updateLeaveRequest(Long id, UpdateLeaveRequest request) {
 
         LeaveRequest leave = getLeaveRequestOrThrow(id);
 
@@ -105,25 +110,36 @@ public class LeaveRequestService {
             throw new IllegalStateException("只有草稿可以修改");
         }
 
-        if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("結束日期不能早於開始日期");
+        if (request.getLeaveType() != null) {
+            leave.setLeaveType(request.getLeaveType());
+        }
+        if (request.getStartDate() != null) {
+            leave.setStartDate(request.getStartDate());
+        }
+        if (request.getEndDate() != null) {
+            leave.setEndDate(request.getEndDate());
+        }
+        if (request.getReason() != null) {
+            leave.setReason(request.getReason());
         }
 
-        leave.setLeaveType(request.getLeaveType());
-        leave.setStartDate(request.getStartDate());
-        leave.setEndDate(request.getEndDate());
-        leave.setReason(request.getReason());
+        if (leave.getStartDate() != null && leave.getEndDate() != null) {
+            if (leave.getEndDate().isBefore(leave.getStartDate())) {
+                throw new IllegalArgumentException("結束日期不能早於開始日期");
+            }
+        }
 
         return leaveRepo.save(leave);
     }
 
     // 取消請假單
+    @Transactional
     public LeaveRequest cancelLeaveRequest(Long id) {
 
         LeaveRequest leave = getLeaveRequestOrThrow(id);
 
-        if (leave.getStatus() == LeaveStatus.APPROVED) {
-            throw new IllegalStateException("已核准請假不可取消");
+        if (leave.getStatus() != LeaveStatus.PENDING) {
+            throw new IllegalStateException("只有審核中的請假單可以取消");
         }
 
         leave.setStatus(LeaveStatus.CANCELLED);
@@ -132,9 +148,15 @@ public class LeaveRequestService {
     }
 
     // 更新狀態
+    @Transactional
     public void updateStatus(Long leaveId, LeaveStatus status) {
 
         LeaveRequest leave = getLeaveRequestOrThrow(leaveId);
+
+        // 簡單的狀態機防護：只允許從 PENDING 轉換到終態
+        if (leave.getStatus() != LeaveStatus.PENDING) {
+            throw new IllegalStateException("無法從當前狀態轉換為: " + status);
+        }
 
         leave.setStatus(status);
 
