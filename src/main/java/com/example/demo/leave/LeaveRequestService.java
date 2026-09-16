@@ -168,4 +168,24 @@ public class LeaveRequestService {
         leaveRepo.save(leave);
     }
 
+    // 刪除請假單 (僅限草稿)
+    @Transactional
+    public void deleteLeaveRequest(Long id) {
+        LeaveRequest leave = getLeaveRequestOrThrow(id);
+
+        // 1. 狀態檢查：只有草稿可以刪除
+        if (leave.getStatus() != LeaveStatus.DRAFT) {
+            throw new IllegalStateException("只有草稿狀態的請假單可以刪除");
+        }
+
+        // 2. (可選) 權限檢查：確保是申請人本人刪除，防止 A 員工刪除 B 員工的草稿
+        // Long currentUserId = getCurrentUserId(); // 從 SecurityContext 取得
+        // if (!leave.getApplicant().getId().equals(currentUserId)) {
+        // throw new AccessDeniedException("您無權刪除此請假單");
+        // }
+
+        // 3. 執行刪除
+        leaveRepo.deleteById(id);
+    }
+
 }
