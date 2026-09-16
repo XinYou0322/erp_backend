@@ -24,6 +24,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -103,7 +104,7 @@ public class PurchaseOrders {
 	
 	
 	// 一張採購單有多筆採購明細
-    @OneToMany(mappedBy = "purchaseOrder")
+    @OneToMany(mappedBy = "purchaseOrder" ,  cascade = CascadeType.ALL)
     //@OrderBy("id ASC") 取得明細時id 小 → 大
     private List<PurchaseOrderItems> items = new LinkedList<>();
 

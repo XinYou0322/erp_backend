@@ -3,13 +3,17 @@ package com.example.demo.purchaseOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.ArrayList;
 import java.util.List;
 
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.materials.Material;
 import com.example.demo.materials.MaterialRepository;
+import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
+import com.example.demo.purchaseOrderItem.PurchaseOrderItemsCreDTO;
 import com.example.demo.suppliers.Suppliers;
 import com.example.demo.suppliers.SuppliersRepository;
 import com.example.demo.users.User;
@@ -56,46 +60,121 @@ public class PurchaseOrdersService {
         PurchaseOrderItemsCreDTO itemDTO =
                 dto.getItems().get(i);
 
-        // 7. 根據 materialId 查詢原物料
-        Material material = materialRepository
+        //查詢原物料
+        Material material = materialRepo
                 .findById(itemDTO.getMaterialId())
                 .orElseThrow(() -> new RuntimeException("找不到原物料"));
 
-        // 8. 建立明細 Entity
+        // 
         PurchaseOrderItems item = new PurchaseOrderItems();
-
-        // 設定多對一關聯：這筆明細屬於哪張採購單
+        //多對一關聯：這筆明細屬於哪張採購單
         item.setPurchaseOrder(purchaseOrder);
-
-        // 設定這筆明細採購的原物料
         item.setMaterial(material);
+        item.setQuantity(itemDTO.getQuantity());
+        item.setUnitPrice(itemDTO.getPrice());
+        // 小計 = 數量 乘(multiply) 單價     
+        BigDecimal subtotal =
+                itemDTO.getQuantity().multiply(itemDTO.getPrice());
+
+        //總金額
+        totalAmount = totalAmount.add(subtotal);
+
+        //將明細加入主單的明細集合
+        purchaseOrder.getItems().add(item);
+    	}
     
+    	//設定後端計算出的總金額
+    	purchaseOrder.setTotal(totalAmount);
+
+    	// 主單及所有明細
+    	PurchaseOrders savedOrder =
+            purchaseOrdersRepo.save(purchaseOrder);
+
+    	//Entity -> DTO
+    	return PurchaseOrderResponseDTO.fromEntity(savedOrder);
+}
     
-    return PurchaseOrderResponseDTO.toResponseDTO(saved);
-    
+    //單號 用時間
     private String createTemporaryOrderNumber() {
         return "TMP-" + System.currentTimeMillis(); //目前時間的毫秒數
     }
-}
+
     // ---查詢---
     // 單筆
-    public PurchaseOrders findPurchaseOrderById(Long id) {
-        return purchaseOrdersRepo.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("找不到採購單"));
+    @Transactional(readOnly = true)
+    public PurchaseOrderResponseDTO findPurchaseOrderById(Long id) {
+    	PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("找不到採購單，採購單 ID：" + id));
+         return PurchaseOrderResponseDTO.fromEntity(purchaseOrder);
     }
     // 多筆
-    public List<PurchaseOrders> findPurchaseOrdersByIds(
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderQueryResponseDTO> findPurchaseOrdersByIds(
         List<Long> ids) {
+    	List<PurchaseOrders> purchaseOrders = purchaseOrdersRepo.findAllById(ids);
+    	List<Long> foundIds = new ArrayList<>();
+    	for (PurchaseOrders purchaseOrder: purchaseOrders) {
+            foundIds.add(purchaseOrder.getId());
+        }
+    	List<Long> notFoundIds = new ArrayList<>();
+        for (Long id : ids) {
+        if (!foundIds.contains(id)) {
+            notFoundIds.add(id);
+        }
+        }
+        
+        
+        //將每筆 Entity -> ResponseDTO
+        List<PurchaseOrderResponseDTO> responseDTOList = new ArrayList<>();
+        
+        for (PurchaseOrders purchaseOrder : purchaseOrders) {
 
-    return purchaseOrdersRepo.findAllById(ids);
+            PurchaseOrderResponseDTO responseDTO = PurchaseOrderResponseDTO.fromEntity(purchaseOrder);
+                   
+            responseDTOList.add(responseDTO);
+        }    
+        // 建立最後回傳結果
+        PurchaseOrderQueryResponseDTO result = new PurchaseOrderQueryResponseDTO();           
+
+        // 查到的資料
+        result.setPurchaseOrders(responseDTOList);
+
+        // 沒查到的 ID
+        result.setNotFoundIds(notFoundIds);
+
+        //設定提示訊息
+        if (notFoundIds.isEmpty()) {
+
+            result.setMessage("全部採購單查詢成功");
+
+        } else {
+
+            result.setMessage(
+                    "以下採購單查無此資料：" + notFoundIds
+            );
+        }
+
+
+        // 同時回傳「有的資料 + 沒有的資料」
+        return result;
     }
     // 全部
-    public List<PurchaseOrders> findAllPurchaseOrders() {
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponseDTO> findAllPurchaseOrders() {
+    	List<PurchaseOrders> purchaseOrders = purchaseOrdersRepo.findAll();
+    	List<PurchaseOrderResponseDTO> responseDTOList =  new ArrayList<>();
+    	for (PurchaseOrders purchaseOrder : purchaseOrders) {
 
-    return purchaseOrdersRepo.findAll();
+            PurchaseOrderResponseDTO responseDTO = PurchaseOrderResponseDTO.fromEntity(purchaseOrder);
+                   
+            responseDTOList.add(responseDTO);
+        }        
+    	
+    return responseDTOList;
     }
   
-    // 修改
+    // ---修改---
+    
     public PurchaseOrders updatePurchaseOrder(Long id, PurchaseOrders newPurchaseOrder) {
         // 先確認這筆採購單存不存在
         PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(id)
@@ -112,15 +191,15 @@ public class PurchaseOrdersService {
         return purchaseOrdersRepo.save(purchaseOrder);
     }
 
-    // 刪除
-    // 刪除單筆
-    public void deletePurchaseOrder(Long id) {
-        if (!purchaseOrdersRepo.existsById(id)) {
-            throw new IllegalArgumentException("找不到採購單");
-        }
-        purchaseOrdersRepo.deleteById(id);
-    }
-    //多筆
+//    // 刪除
+//    // 刪除單筆
+//    public void deletePurchaseOrder(Long id) {
+//        if (!purchaseOrdersRepo.existsById(id)) {
+//            throw new IllegalArgumentException("找不到採購單");
+//        }
+//        purchaseOrdersRepo.deleteById(id);
+//    }
+
 
     // 採購流程
    

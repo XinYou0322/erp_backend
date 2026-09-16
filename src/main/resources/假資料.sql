@@ -241,71 +241,2208 @@ VALUES
 ('MAT019', N'飲料封口膜', N'卷', 420.00, 6.0000),
 ('MAT020', N'飲料粗吸管', N'箱', 380.00, 8.0000);
 /*供應商*/
-INSERT INTO suppliers ([name], [phone], [address], [email])
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+
+-- =========================================================
+-- 固定供應商 ID = 1 ~ 30
+-- 因為先前 purchase_orders 使用 supplier_id = 1 ~ 30
+-- =========================================================
+SET IDENTITY_INSERT suppliers ON;
+
+
+-- =========================================================
+-- 1. 茶葉供應商
+-- =========================================================
+INSERT INTO suppliers
+(
+    id,
+    name,
+    country_calling_code,
+    phone,
+    extension,
+    address,
+    email,
+    status
+)
 VALUES
-(N'晨光食品原料有限公司', '02-2345-1001', N'台北市中正區忠孝東路一段10號', 'morning@example.com'),
-(N'綠野農產企業社', '03-332-2002', N'桃園市桃園區中山路25號', 'greenfield@example.com'),
-(N'大豐包材有限公司', '04-2233-3003', N'台中市北區三民路三段88號', 'dafeng@example.com'),
-(N'好味茶葉行', '049-222-4004', N'南投縣南投市民族路120號', 'goodtea@example.com'),
-(N'南方乳品股份有限公司', '06-225-5005', N'台南市中西區民生路二段35號', 'southmilk@example.com'),
-(N'海港冷凍食品有限公司', '07-336-6006', N'高雄市前鎮區中山二路66號', 'harbor@example.com'),
-(N'東岸物流企業社', '03-835-7007', N'花蓮縣花蓮市中華路150號', 'eastlogistics@example.com'),
-(N'金順餐飲設備有限公司', '02-2988-8008', N'新北市三重區重新路四段99號', 'jinshun@example.com'),
-(N'香甜糖業行', '05-222-9009', N'嘉義市西區文化路77號', 'sweet@example.com'),
-(N'安心清潔用品有限公司', '08-732-1010', N'屏東縣屏東市自由路210號', 'clean@example.com'),
-(N'北辰冷凍食品有限公司', '02-2788-1122', N'台北市南港區忠孝東路七段25號', 'beichen@example.com'),
-(N'豐盛農產行', '03-555-2233', N'新竹縣竹北市光明六路88號', 'harvest@example.com'),
-(N'四季鮮果有限公司', '04-2311-3344', N'台中市西屯區台灣大道三段120號', 'fruit@example.com'),
-(N'晨曦食品原料有限公司', '02-2655-1212', N'台北市內湖區瑞光路168號', 'dawnfood@example.com'),
-(N'綠田有機農產行', '03-368-2323', N'桃園市八德區介壽路二段95號', 'greenfarm@example.com'),
-(N'大展餐飲包材有限公司', '04-2258-3434', N'台中市南屯區公益路二段188號', 'packaging@example.com'),
-(N'清香茶葉企業社', '049-223-4545', N'南投縣名間鄉名松路一段65號', 'freshtea@example.com'),
-(N'幸福乳品供應有限公司', '06-251-5656', N'台南市北區公園路520號', 'happydairy@example.com'),
-(N'海味冷凍食品行', '07-521-6767', N'高雄市鼓山區臨海二路36號', 'seafood@example.com'),
-(N'東方貨運企業有限公司', '03-857-7878', N'花蓮縣吉安鄉中央路三段110號', 'easttransport@example.com'),
-(N'永順廚房設備有限公司', '02-2995-8989', N'新北市三重區重新路五段88號', 'kitchenware@example.com'),
-(N'甜蜜糖品原料行', '05-534-9090', N'雲林縣斗六市中山路198號', 'sweetgoods@example.com'),
-(N'潔淨清潔用品企業社', '08-755-2020', N'屏東縣屏東市建國路125號', 'cleaning@example.com'),
-(N'日昇包裝材料行', '05-225-4455', N'嘉義市東區民族路76號', 'sunpack@example.com'),
-(N'南星食品企業社', '06-298-5566', N'台南市安平區永華路二段56號', 'southstar@example.com'),
-(N'高雄餐飲設備有限公司', '07-336-6677', N'高雄市苓雅區中正二路100號', 'khkitchen@example.com'),
-(N'蘭陽有機農場', '03-932-7788', N'宜蘭縣宜蘭市中山路三段45號', 'lanyan@example.com'),
-(N'東海乳品供應社', '04-2631-8899', N'台中市龍井區新興路22號', 'dairy@example.com'),
-(N'金葉茶業有限公司', '049-264-9900', N'南投縣竹山鎮集山路二段138號', 'goldentea@example.com'),
-(N'安心物流股份有限公司', '02-2299-1010', N'新北市五股區五權路60號', 'safelogistics@example.com');
+(
+    1,
+    N'台灣茗茶原料有限公司',
+    '+886',
+    '02-2788-1101',
+    '101',
+    N'台北市南港區忠孝東路七段120號',
+    'tea01@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 2
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    2,
+    N'清香茶業有限公司',
+    '+886',
+    '02-2678-2202',
+    NULL,
+    N'新北市鶯歌區中正一路88號',
+    'tea02@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 3
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    3,
+    N'四季春茶葉行',
+    '+886',
+    '04-2235-3303',
+    '203',
+    N'台中市北屯區崇德路二段156號',
+    'tea03@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 4
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    4,
+    N'伯爵茶品國際有限公司',
+    '+886',
+    '04-2326-4404',
+    NULL,
+    N'台中市西區公益路180號',
+    'tea04@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 5. 奶精、粉類
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    5,
+    N'香濃食品原料有限公司',
+    '+886',
+    '06-2535-5505',
+    '305',
+    N'台南市永康區中正南路420號',
+    'powder05@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 6. 鮮奶
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    6,
+    N'晨牧鮮乳有限公司',
+    '+886',
+    '05-2376-6606',
+    NULL,
+    N'嘉義市西區北港路310號',
+    'milk06@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 7. 煉乳
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    7,
+    N'甜香乳品有限公司',
+    '+886',
+    '07-3457-7707',
+    '107',
+    N'高雄市左營區博愛三路210號',
+    'dairy07@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 8. 果糖
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    8,
+    N'甘甜糖業有限公司',
+    '+886',
+    '07-5558-8808',
+    NULL,
+    N'高雄市鼓山區明誠三路520號',
+    'sugar08@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 9. 黑糖
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    9,
+    N'古早味黑糖食品行',
+    '+886',
+    '08-7329-9909',
+    NULL,
+    N'屏東縣屏東市自由路168號',
+    'sugar09@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 10. 珍珠
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    10,
+    N'珍好食品原料有限公司',
+    '+886',
+    '04-2561-1010',
+    '210',
+    N'台中市大雅區中清路三段350號',
+    'pearl10@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 11. 椰果
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    11,
+    N'椰香食品有限公司',
+    '+886',
+    '07-6211-1111',
+    NULL,
+    N'高雄市岡山區岡山路260號',
+    'coconut11@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 12. 仙草
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    12,
+    N'仙草之家食品有限公司',
+    '+886',
+    '03-5871-1212',
+    NULL,
+    N'新竹縣關西鎮中山東路105號',
+    'grass12@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 13. 布丁粉
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    13,
+    N'金品食品粉料有限公司',
+    '+886',
+    '06-2891-1313',
+    '313',
+    N'台南市東區崇德路525號',
+    'pudding13@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 14. 蘆薈
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    14,
+    N'綠田農產有限公司',
+    '+886',
+    '08-7751-1414',
+    NULL,
+    N'屏東縣里港鄉中山路118號',
+    'aloe14@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 15. 檸檬
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    15,
+    N'九如鮮果農產行',
+    '+886',
+    '08-7391-1515',
+    NULL,
+    N'屏東縣九如鄉九如路二段220號',
+    'lemon15@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 16. 百香果
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    16,
+    N'埔里百香果農產有限公司',
+    '+886',
+    '049-299-1616',
+    '116',
+    N'南投縣埔里鎮中山路三段186號',
+    'passion16@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 17. 芒果
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    17,
+    N'玉井鮮果實業有限公司',
+    '+886',
+    '06-5741-1717',
+    NULL,
+    N'台南市玉井區中正路155號',
+    'mango17@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 18. 塑膠杯
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    18,
+    N'永盛飲料容器有限公司',
+    '+886',
+    '07-7871-1818',
+    '218',
+    N'高雄市大寮區鳳林三路450號',
+    'cup18@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 19. 封口膜
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    19,
+    N'大華包裝材料有限公司',
+    '+886',
+    '07-3511-1919',
+    NULL,
+    N'高雄市楠梓區楠梓路380號',
+    'package19@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 20. 吸管
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    20,
+    N'環球餐飲耗材有限公司',
+    '+886',
+    '07-3332-2020',
+    '320',
+    N'高雄市前鎮區中山二路215號',
+    'straw20@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 21
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    21,
+    N'鼎盛茶飲原料有限公司',
+    '+886',
+    '04-2293-2121',
+    NULL,
+    N'台中市北區中清路一段330號',
+    'drink21@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 22
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    22,
+    N'好味食品原料行',
+    '+886',
+    '06-3582-2222',
+    NULL,
+    N'台南市中西區民生路二段198號',
+    'food22@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 23
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    23,
+    N'旺來餐飲原料有限公司',
+    '+886',
+    '07-3982-2323',
+    '123',
+    N'高雄市三民區建工路560號',
+    'drink23@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 24
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    24,
+    N'禾豐食品有限公司',
+    '+886',
+    '04-2472-2424',
+    NULL,
+    N'台中市南屯區五權西路二段410號',
+    'food24@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 25
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    25,
+    N'南台灣鮮果有限公司',
+    '+886',
+    '07-7022-2525',
+    NULL,
+    N'高雄市鳳山區光遠路275號',
+    'fruit25@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 26
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    26,
+    N'優鮮冷藏食品有限公司',
+    '+886',
+    '07-8152-2626',
+    '226',
+    N'高雄市前鎮區新生路240號',
+    'fresh26@erp-supplier.com',
+    'ACTIVE'
+);
+
+
+-- =========================================================
+-- 27
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    27,
+    N'東方茶品實業有限公司',
+    '+886',
+    '03-3552-2727',
+    NULL,
+    N'桃園市桃園區中正路680號',
+    'tea27@erp-supplier.com',
+    'PENDING'
+);
+
+
+-- =========================================================
+-- 28
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    28,
+    N'新味食品材料有限公司',
+    '+886',
+    '02-2282-2828',
+    NULL,
+    N'新北市蘆洲區長安街320號',
+    'food28@erp-supplier.com',
+    'PENDING'
+);
+
+
+-- =========================================================
+-- 29
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    29,
+    N'豐收農產有限公司',
+    '+886',
+    '05-5332-2929',
+    NULL,
+    N'雲林縣斗六市文化路368號',
+    'farm29@erp-supplier.com',
+    'PENDING'
+);
+
+
+-- =========================================================
+-- 30
+-- =========================================================
+INSERT INTO suppliers
+(
+    id, name, country_calling_code, phone,
+    extension, address, email, status
+)
+VALUES
+(
+    30,
+    N'全聯餐飲物料有限公司',
+    '+886',
+    '07-5363-3030',
+    '330',
+    N'高雄市苓雅區中華四路185號',
+    'material30@erp-supplier.com',
+    'PENDING'
+);
+
+
+SET IDENTITY_INSERT suppliers OFF;
+
+
+-- =========================================================
+-- Supplier Notes
+-- 部分供應商有備註，部分沒有
+--
+-- 假設：
+-- User ID 1 ~ 5 已存在
+-- supplier_note.id 為 IDENTITY，所以不用自行設定
+-- =========================================================
+
+
+-- Supplier 1：2 筆備註
+INSERT INTO supplier_note
+(
+    supplier_id,
+    remark,
+    created_by_user_id,
+    created_at,
+    updated_at
+)
+VALUES
+(
+    1,
+    N'茶葉品質穩定，過去合作交期皆正常。',
+    1,
+    '2026-08-10 09:20:00',
+    '2026-08-10 09:20:00'
+);
+
+INSERT INTO supplier_note
+(
+    supplier_id,
+    remark,
+    created_by_user_id,
+    created_at,
+    updated_at
+)
+VALUES
+(
+    1,
+    N'阿薩姆紅茶近期價格有小幅調整，下次採購前需重新確認報價。',
+    2,
+    '2026-09-01 10:30:00',
+    '2026-09-01 10:30:00'
+);
+
+
+-- Supplier 3
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    3,
+    N'四季春茶葉香氣表現良好，可列為長期合作供應商。',
+    2,
+    '2026-08-15 14:20:00',
+    '2026-08-15 14:20:00'
+);
+
+
+-- Supplier 5：2 筆
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    5,
+    N'奶精粉需存放於乾燥環境，收貨時注意外包裝是否受潮。',
+    3,
+    '2026-08-18 11:00:00',
+    '2026-08-18 11:00:00'
+);
+
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    5,
+    N'大量訂購可另外洽談價格。',
+    1,
+    '2026-09-02 15:10:00',
+    '2026-09-02 15:10:00'
+);
+
+
+-- Supplier 6：鮮奶
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    6,
+    N'鮮奶屬冷藏品，配送後須立即確認保存溫度及有效期限。',
+    4,
+    '2026-08-20 09:40:00',
+    '2026-08-20 09:40:00'
+);
+
+
+-- Supplier 8
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    8,
+    N'果糖糖漿最低訂購量為兩桶。',
+    1,
+    '2026-08-22 13:30:00',
+    '2026-08-22 13:30:00'
+);
+
+
+-- Supplier 9
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    9,
+    N'黑糖風味較濃，適合黑糖珍珠及黑糖鮮奶系列。',
+    2,
+    '2026-08-23 16:15:00',
+    '2026-08-23 16:15:00'
+);
+
+
+-- Supplier 10：2 筆
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    10,
+    N'珍珠每批到貨須確認製造日期。',
+    3,
+    '2026-08-25 10:20:00',
+    '2026-08-25 10:20:00'
+);
+
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    10,
+    N'目前供貨穩定，平均交期約三個工作天。',
+    4,
+    '2026-09-03 11:40:00',
+    '2026-09-03 11:40:00'
+);
+
+
+-- Supplier 12
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    12,
+    N'仙草凍夏季需求較高，建議提前備貨。',
+    2,
+    '2026-08-27 14:00:00',
+    '2026-08-27 14:00:00'
+);
+
+
+-- Supplier 14
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    14,
+    N'蘆薈果肉開封後保存期限較短，採購量不宜過高。',
+    5,
+    '2026-08-29 09:30:00',
+    '2026-08-29 09:30:00'
+);
+
+
+-- Supplier 15：2 筆
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    15,
+    N'檸檬為產地直送，價格可能依季節波動。',
+    1,
+    '2026-08-30 10:10:00',
+    '2026-08-30 10:10:00'
+);
+
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    15,
+    N'最近一批檸檬品質良好，果汁量充足。',
+    3,
+    '2026-09-05 13:20:00',
+    '2026-09-05 13:20:00'
+);
+
+
+-- Supplier 16
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    16,
+    N'百香果原汁需冷藏保存，收貨時注意瓶身完整。',
+    2,
+    '2026-09-01 14:30:00',
+    '2026-09-01 14:30:00'
+);
+
+
+-- Supplier 17
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    17,
+    N'芒果果泥於芒果產季時價格較優惠。',
+    4,
+    '2026-09-02 09:50:00',
+    '2026-09-02 09:50:00'
+);
+
+
+-- Supplier 18：2 筆
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    18,
+    N'塑膠杯大量採購時需確認倉庫剩餘空間。',
+    1,
+    '2026-09-03 15:00:00',
+    '2026-09-03 15:00:00'
+);
+
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    18,
+    N'七百毫升杯目前交期約五個工作天。',
+    5,
+    '2026-09-06 11:30:00',
+    '2026-09-06 11:30:00'
+);
+
+
+-- Supplier 19
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    19,
+    N'封口膜規格需與目前門市封膜機尺寸一致。',
+    3,
+    '2026-09-04 13:40:00',
+    '2026-09-04 13:40:00'
+);
+
+
+-- Supplier 20
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    20,
+    N'粗吸管主要供珍珠類飲品使用，庫存低於安全量時應優先補貨。',
+    2,
+    '2026-09-05 10:00:00',
+    '2026-09-05 10:00:00'
+);
+
+
+-- Supplier 21
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    21,
+    N'可同時提供多種茶葉與飲料原料，適合作為備用供應商。',
+    4,
+    '2026-09-07 16:20:00',
+    '2026-09-07 16:20:00'
+);
+
+
+-- Supplier 23
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    23,
+    N'合作回覆速度快，臨時追加訂單可先電話確認庫存。',
+    1,
+    '2026-09-08 14:10:00',
+    '2026-09-08 14:10:00'
+);
+
+
+-- Supplier 25
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    25,
+    N'主要供應南部水果，可依季節提供不同品項。',
+    3,
+    '2026-09-09 09:20:00',
+    '2026-09-09 09:20:00'
+);
+
+
+-- Supplier 26
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    26,
+    N'冷藏配送需提前一天確認到貨時段。',
+    5,
+    '2026-09-10 15:30:00',
+    '2026-09-10 15:30:00'
+);
+
+
+-- Supplier 27：目前審核中
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    27,
+    N'新供應商，報價資料已收到，目前等待供應商資格審核。',
+    2,
+    '2026-09-11 10:30:00',
+    '2026-09-11 10:30:00'
+);
+
+
+-- Supplier 28：目前審核中
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    28,
+    N'樣品測試中，確認品質後再決定是否正式合作。',
+    4,
+    '2026-09-12 14:40:00',
+    '2026-09-12 14:40:00'
+);
+
+
+-- Supplier 29
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    29,
+    N'等待農產品來源及相關資料確認。',
+    1,
+    '2026-09-13 09:50:00',
+    '2026-09-13 09:50:00'
+);
+
+
+-- Supplier 30
+INSERT INTO supplier_note
+(
+    supplier_id, remark, created_by_user_id,
+    created_at, updated_at
+)
+VALUES
+(
+    30,
+    N'新合作廠商，目前正在確認商品目錄及合作條件。',
+    3,
+    '2026-09-14 11:20:00',
+    '2026-09-14 11:20:00'
+);
+
+
+COMMIT TRANSACTION;
 /*採購單+採購明細*/
 --原物料要先有!!
 --供應商也要先有
+
+
+
+
+
+
+
+
 SET XACT_ABORT ON;
+BEGIN TRANSACTION;
 
-BEGIN TRY
-    BEGIN TRANSACTION;
+DECLARE @poId BIGINT;
 
-    DECLARE @first_purchase_order_id BIGINT;
+-- 如果你的 Enum 不是 PENDING，只需要修改這裡
+DECLARE @status VARCHAR(50) = 'PENDING_APPROVAL';
 
-    /* 先新增20張採購單，total暫時填0，新增明細後再自動計算 */
-    INSERT INTO purchase_orders (supplier_id, [status], created_by, approved_by, [total], created_at, expected_delivery_date)
-    VALUES
-    (1, N'已完成', N'staff01', N'purchase_manager01', 0, '2026-08-10T09:15:00', '2026-08-15'),
-    (2, N'已完成', N'staff02', N'purchase_manager01', 0, '2026-08-12T10:20:00', '2026-08-18'),
-    (3, N'已完成', N'team_leader01', N'deputy_manager01', 0, '2026-08-15T11:30:00', '2026-08-22'),
-    (4, N'部分到貨', N'staff03', N'purchase_manager01', 0, '2026-08-18T14:10:00', '2026-08-25'),
-    (5, N'已完成', N'shift_leader01', N'store_manager01', 0, '2026-08-20T08:45:00', '2026-08-27'),
-    (6, N'已下單', N'assistant_leader01', N'purchase_manager01', 0, '2026-08-23T13:25:00', '2026-08-30'),
-    (7, N'已完成', N'staff04', N'deputy_manager01', 0, '2026-08-25T15:40:00', '2026-09-01'),
-    (8, N'已核准', N'team_leader02', N'purchase_manager01', 0, '2026-08-28T09:50:00', '2026-09-06'),
-    (9, N'已完成', N'staff05', N'store_manager01', 0, '2026-08-29T11:15:00', '2026-09-03'),
-    (10, N'已下單', N'staff06', N'purchase_manager01', 0, '2026-08-30T16:20:00', '2026-09-08'),
-    (11, N'部分到貨', N'shift_leader02', N'deputy_manager01', 0, '2026-09-01T08:30:00', '2026-09-09'),
-    (12, N'已核准', N'assistant_leader02', N'purchase_manager01', 0, '2026-09-02T10:45:00', '2026-09-10'),
-    (13, N'已取消', N'team_leader01', N'deputy_manager01', 0, '2026-09-02T14:30:00', '2026-09-12'),
-    (14, N'已完成', N'staff01', N'purchase_manager01', 0, '2026-09-03T09:10:00', '2026-09-05'),
-    (15, N'待審核', N'staff02', NULL, 0, '2026-09-03T13:40:00', '2026-09-11'),
-    (16, N'已下單', N'team_leader02', N'purchase_manager01', 0, '2026-09-04T08:55:00', '2026-09-12'),
-    (17, N'已核准', N'staff03', N'deputy_manager01', 0, '2026-09-04T11:35:00', '2026-09-13'),
-    (18, N'待審核', N'staff04', NULL, 0, '2026-09-05T09:20:00', '2026-09-14'),
-    (19, N'已取消', N'staff05', N'store_manager01', 0, '2026-09-05T15:10:00', '2026-09-15'),
-    (20, N'待審核', N'staff06', NULL, 0, '2026-09-06T10:00:00', '2026-09-16');
+
+-- =========================================================
+-- 採購單 01
+-- total = 320*5 + 95*24 + 85*10 = 4730
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number,
+    supplier_id,
+    status,
+    created_by_user_id,
+    approved_by_user_id,
+    received_by_user_id,
+    total,
+    created_at,
+    updated_at,
+    expected_delivery_date,
+    received_at,
+    receipt_url,
+    decision_remark
+)
+VALUES
+(
+    'PO-202609-001',
+    1,
+    @status,
+    1,
+    3,
+    NULL,
+    4730.00,
+    '2026-09-01 09:00:00',
+    '2026-09-01 09:00:00',
+    '2026-09-06',
+    NULL,
+    NULL,
+    N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(
+    purchase_order_id,
+    material_id,
+    quantity,
+    price
+)
+VALUES
+(@poId, 1, 5.0000, 320.00),   -- 阿薩姆紅茶葉
+(@poId, 6, 24.0000, 95.00),   -- 全脂鮮奶
+(@poId, 9, 10.0000, 85.00);   -- 黑糖
+
+
+-- =========================================================
+-- 採購單 02
+-- total = 3136
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-002', 2, @status,
+    2, 4,
+    NULL,
+    3136.00,
+    '2026-09-01 10:00:00',
+    '2026-09-01 10:00:00',
+    '2026-09-06',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 2, 4.0000, 280.00),   -- 茉香綠茶葉
+(@poId, 7, 12.0000, 88.00),   -- 煉乳
+(@poId, 15, 8.0000, 120.00);  -- 新鮮檸檬
+
+
+-- =========================================================
+-- 採購單 03
+-- total = 5500
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-003', 3, @status,
+    3, 5,
+    NULL,
+    5500.00,
+    '2026-09-02 09:00:00',
+    '2026-09-02 09:00:00',
+    '2026-09-07',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 3, 6.0000, 360.00),   -- 四季春烏龍茶葉
+(@poId, 10, 3.0000, 680.00),  -- 黑糖珍珠
+(@poId, 16, 5.0000, 260.00);  -- 百香果原汁
+
+
+-- =========================================================
+-- 採購單 04
+-- total = 5610
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-004', 4, @status,
+    4, 2,
+    NULL,
+    5610.00,
+    '2026-09-02 10:00:00',
+    '2026-09-02 10:00:00',
+    '2026-09-07',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 4, 5.0000, 410.00),   -- 伯爵紅茶葉
+(@poId, 11, 2.0000, 520.00),  -- 椰果
+(@poId, 19, 6.0000, 420.00);  -- 飲料封口膜
+
+
+-- =========================================================
+-- 採購單 05
+-- total = 6590
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-005', 5, @status,
+    1, 3,
+    NULL,
+    6590.00,
+    '2026-09-03 09:00:00',
+    '2026-09-03 09:00:00',
+    '2026-09-08',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 5, 3.0000, 950.00),   -- 奶精粉
+(@poId, 12, 4.0000, 460.00),  -- 仙草凍
+(@poId, 20, 5.0000, 380.00);  -- 飲料粗吸管
+
+
+-- =========================================================
+-- 採購單 06
+-- total = 7090
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-006', 6, @status,
+    2, 4,
+    NULL,
+    7090.00,
+    '2026-09-03 10:00:00',
+    '2026-09-03 10:00:00',
+    '2026-09-08',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 6, 30.0000, 95.00),   -- 全脂鮮奶
+(@poId, 14, 10.0000, 250.00), -- 蘆薈果肉
+(@poId, 17, 6.0000, 290.00);  -- 芒果果泥
+
+
+-- =========================================================
+-- 採購單 07
+-- total = 5192
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-007', 7, @status,
+    3, 5,
+    NULL,
+    5192.00,
+    '2026-09-04 09:00:00',
+    '2026-09-04 09:00:00',
+    '2026-09-09',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 7, 24.0000, 88.00),   -- 煉乳
+(@poId, 15, 15.0000, 120.00), -- 新鮮檸檬
+(@poId, 1, 4.0000, 320.00);   -- 阿薩姆紅茶葉
+
+
+-- =========================================================
+-- 採購單 08
+-- total = 4590
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-008', 8, @status,
+    4, 2,
+    NULL,
+    4590.00,
+    '2026-09-04 10:00:00',
+    '2026-09-04 10:00:00',
+    '2026-09-09',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 8, 2.0000, 720.00),    -- 果糖糖漿
+(@poId, 18, 1.0000, 1450.00),  -- 七百毫升塑膠杯
+(@poId, 9, 20.0000, 85.00);    -- 黑糖
+
+
+-- =========================================================
+-- 採購單 09
+-- total = 6245
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-009', 9, @status,
+    1, 3,
+    NULL,
+    6245.00,
+    '2026-09-05 09:00:00',
+    '2026-09-05 09:00:00',
+    '2026-09-10',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 9, 25.0000, 85.00),   -- 黑糖
+(@poId, 10, 4.0000, 680.00),  -- 黑糖珍珠
+(@poId, 2, 5.0000, 280.00);   -- 茉香綠茶葉
+
+
+-- =========================================================
+-- 採購單 10
+-- total = 7080
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-010', 10, @status,
+    2, 4,
+    NULL,
+    7080.00,
+    '2026-09-05 10:00:00',
+    '2026-09-05 10:00:00',
+    '2026-09-10',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 10, 6.0000, 680.00),  -- 黑糖珍珠
+(@poId, 11, 3.0000, 520.00),  -- 椰果
+(@poId, 3, 4.0000, 360.00);   -- 四季春烏龍茶葉
+
+
+-- =========================================================
+-- 採購單 11
+-- total = 5510
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-011', 11, @status,
+    3, 5,
+    NULL,
+    5510.00,
+    '2026-09-06 09:00:00',
+    '2026-09-06 09:00:00',
+    '2026-09-11',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 11, 4.0000, 520.00), -- 椰果
+(@poId, 12, 3.0000, 460.00), -- 仙草凍
+(@poId, 4, 5.0000, 410.00);  -- 伯爵紅茶葉
+
+
+-- =========================================================
+-- 採購單 12
+-- total = 5760
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-012', 12, @status,
+    4, 2,
+    NULL,
+    5760.00,
+    '2026-09-06 10:00:00',
+    '2026-09-06 10:00:00',
+    '2026-09-11',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 12, 5.0000, 460.00), -- 仙草凍
+(@poId, 13, 2.0000, 780.00), -- 布丁粉
+(@poId, 5, 2.0000, 950.00);  -- 奶精粉
+
+
+-- =========================================================
+-- 採購單 13
+-- total = 7240
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-013', 13, @status,
+    1, 3,
+    NULL,
+    7240.00,
+    '2026-09-07 09:00:00',
+    '2026-09-07 09:00:00',
+    '2026-09-12',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 13, 3.0000, 780.00), -- 布丁粉
+(@poId, 14, 12.0000, 250.00),-- 蘆薈果肉
+(@poId, 6, 20.0000, 95.00);  -- 全脂鮮奶
+
+
+-- =========================================================
+-- 採購單 14
+-- total = 6534
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-014', 14, @status,
+    2, 4,
+    NULL,
+    6534.00,
+    '2026-09-07 10:00:00',
+    '2026-09-07 10:00:00',
+    '2026-09-12',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 14, 15.0000, 250.00), -- 蘆薈果肉
+(@poId, 15, 10.0000, 120.00), -- 新鮮檸檬
+(@poId, 7, 18.0000, 88.00);   -- 煉乳
+
+
+-- =========================================================
+-- 採購單 15
+-- total = 5920
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-015', 15, @status,
+    3, 5,
+    NULL,
+    5920.00,
+    '2026-09-08 09:00:00',
+    '2026-09-08 09:00:00',
+    '2026-09-13',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 15, 20.0000, 120.00), -- 新鮮檸檬
+(@poId, 16, 8.0000, 260.00),  -- 百香果原汁
+(@poId, 8, 2.0000, 720.00);   -- 果糖糖漿
+
+
+-- =========================================================
+-- 採購單 16
+-- total = 6600
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-016', 16, @status,
+    4, 2,
+    NULL,
+    6600.00,
+    '2026-09-08 10:00:00',
+    '2026-09-08 10:00:00',
+    '2026-09-13',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 16, 10.0000, 260.00), -- 百香果原汁
+(@poId, 17, 5.0000, 290.00),  -- 芒果果泥
+(@poId, 9, 30.0000, 85.00);   -- 黑糖
+
+
+-- =========================================================
+-- 採購單 17
+-- total = 6200
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-017', 17, @status,
+    1, 3,
+    NULL,
+    6200.00,
+    '2026-09-09 09:00:00',
+    '2026-09-09 09:00:00',
+    '2026-09-14',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 17, 7.0000, 290.00),   -- 芒果果泥
+(@poId, 18, 1.0000, 1450.00),  -- 七百毫升塑膠杯
+(@poId, 10, 4.0000, 680.00);   -- 黑糖珍珠
+
+
+-- =========================================================
+-- 採購單 18
+-- total = 7820
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-018', 18, @status,
+    2, 4,
+    NULL,
+    7820.00,
+    '2026-09-09 10:00:00',
+    '2026-09-09 10:00:00',
+    '2026-09-14',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 18, 2.0000, 1450.00), -- 七百毫升塑膠杯
+(@poId, 19, 8.0000, 420.00),  -- 飲料封口膜
+(@poId, 11, 3.0000, 520.00);  -- 椰果
+
+
+-- =========================================================
+-- 採購單 19
+-- total = 8320
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-019', 19, @status,
+    3, 5,
+    NULL,
+    8320.00,
+    '2026-09-10 09:00:00',
+    '2026-09-10 09:00:00',
+    '2026-09-15',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 19, 10.0000, 420.00), -- 飲料封口膜
+(@poId, 20, 6.0000, 380.00),  -- 飲料粗吸管
+(@poId, 12, 4.0000, 460.00);  -- 仙草凍
+
+
+-- =========================================================
+-- 採購單 20
+-- total = 6200
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-020', 20, @status,
+    4, 2,
+    NULL,
+    6200.00,
+    '2026-09-10 10:00:00',
+    '2026-09-10 10:00:00',
+    '2026-09-15',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 20, 8.0000, 380.00), -- 飲料粗吸管
+(@poId, 1, 5.0000, 320.00),  -- 阿薩姆紅茶葉
+(@poId, 13, 2.0000, 780.00); -- 布丁粉
+
+
+-- =========================================================
+-- 採購單 21
+-- total = 7180
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-021', 21, @status,
+    1, 3,
+    NULL,
+    7180.00,
+    '2026-09-11 09:00:00',
+    '2026-09-11 09:00:00',
+    '2026-09-16',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 1, 8.0000, 320.00),  -- 阿薩姆紅茶葉
+(@poId, 2, 6.0000, 280.00),  -- 茉香綠茶葉
+(@poId, 3, 5.0000, 360.00),  -- 四季春烏龍茶葉
+(@poId, 6, 12.0000, 95.00);  -- 全脂鮮奶
+
+
+-- =========================================================
+-- 採購單 22
+-- total = 7395
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-022', 22, @status,
+    2, 4,
+    NULL,
+    7395.00,
+    '2026-09-11 10:00:00',
+    '2026-09-11 10:00:00',
+    '2026-09-16',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 4, 6.0000, 410.00),  -- 伯爵紅茶葉
+(@poId, 5, 2.0000, 950.00),  -- 奶精粉
+(@poId, 7, 20.0000, 88.00),  -- 煉乳
+(@poId, 9, 15.0000, 85.00);  -- 黑糖
+
+
+-- =========================================================
+-- 採購單 23
+-- total = 8480
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-023', 23, @status,
+    3, 5,
+    NULL,
+    8480.00,
+    '2026-09-12 09:00:00',
+    '2026-09-12 09:00:00',
+    '2026-09-17',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 8, 3.0000, 720.00),  -- 果糖糖漿
+(@poId, 10, 5.0000, 680.00), -- 黑糖珍珠
+(@poId, 12, 2.0000, 460.00), -- 仙草凍
+(@poId, 14, 8.0000, 250.00); -- 蘆薈果肉
+
+
+-- =========================================================
+-- 採購單 24
+-- total = 6820
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-024', 24, @status,
+    4, 2,
+    NULL,
+    6820.00,
+    '2026-09-12 10:00:00',
+    '2026-09-12 10:00:00',
+    '2026-09-17',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 11, 3.0000, 520.00), -- 椰果
+(@poId, 13, 2.0000, 780.00), -- 布丁粉
+(@poId, 15, 20.0000, 120.00),-- 新鮮檸檬
+(@poId, 16, 5.0000, 260.00); -- 百香果原汁
+
+
+-- =========================================================
+-- 採購單 25
+-- total = 8910
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-025', 25, @status,
+    1, 3,
+    NULL,
+    8910.00,
+    '2026-09-13 09:00:00',
+    '2026-09-13 09:00:00',
+    '2026-09-18',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 17, 6.0000, 290.00),   -- 芒果果泥
+(@poId, 18, 1.0000, 1450.00),  -- 七百毫升塑膠杯
+(@poId, 19, 10.0000, 420.00),  -- 飲料封口膜
+(@poId, 20, 4.0000, 380.00);   -- 飲料粗吸管
+
+
+-- =========================================================
+-- 採購單 26
+-- total = 10120
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-026', 26, @status,
+    2, 4,
+    NULL,
+    10120.00,
+    '2026-09-13 10:00:00',
+    '2026-09-13 10:00:00',
+    '2026-09-18',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 2, 10.0000, 280.00), -- 茉香綠茶葉
+(@poId, 6, 24.0000, 95.00),  -- 全脂鮮奶
+(@poId, 10, 3.0000, 680.00), -- 黑糖珍珠
+(@poId, 14, 12.0000, 250.00);-- 蘆薈果肉
+
+
+-- =========================================================
+-- 採購單 27
+-- total = 10600
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-027', 27, @status,
+    3, 5,
+    NULL,
+    10600.00,
+    '2026-09-14 09:00:00',
+    '2026-09-14 09:00:00',
+    '2026-09-19',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 3, 8.0000, 360.00),   -- 四季春烏龍茶葉
+(@poId, 7, 30.0000, 88.00),   -- 煉乳
+(@poId, 11, 4.0000, 520.00),  -- 椰果
+(@poId, 15, 25.0000, 120.00); -- 新鮮檸檬
+
+
+-- =========================================================
+-- 採購單 28
+-- total = 8170
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-028', 28, @status,
+    4, 2,
+    NULL,
+    8170.00,
+    '2026-09-14 10:00:00',
+    '2026-09-14 10:00:00',
+    '2026-09-19',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 4, 7.0000, 410.00),  -- 伯爵紅茶葉
+(@poId, 8, 2.0000, 720.00),  -- 果糖糖漿
+(@poId, 12, 5.0000, 460.00), -- 仙草凍
+(@poId, 16, 6.0000, 260.00); -- 百香果原汁
+
+
+-- =========================================================
+-- 採購單 29
+-- total = 10160
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-029', 29, @status,
+    1, 3,
+    NULL,
+    10160.00,
+    '2026-09-15 09:00:00',
+    '2026-09-15 09:00:00',
+    '2026-09-20',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 5, 4.0000, 950.00),  -- 奶精粉
+(@poId, 9, 20.0000, 85.00),  -- 黑糖
+(@poId, 13, 3.0000, 780.00), -- 布丁粉
+(@poId, 17, 8.0000, 290.00); -- 芒果果泥
+
+
+-- =========================================================
+-- 採購單 30
+-- total = 10310
+-- =========================================================
+INSERT INTO purchase_orders
+(
+    order_number, supplier_id, status,
+    created_by_user_id, approved_by_user_id,
+    received_by_user_id,
+    total, created_at, updated_at,
+    expected_delivery_date,
+    received_at, receipt_url, decision_remark
+)
+VALUES
+(
+    'PO-202609-030', 30, @status,
+    2, 4,
+    NULL,
+    10310.00,
+    '2026-09-16 09:00:00',
+    '2026-09-16 09:00:00',
+    '2026-09-21',
+    NULL, NULL, N'等待簽核'
+);
+
+SET @poId = SCOPE_IDENTITY();
+
+INSERT INTO purchase_order_items
+(purchase_order_id, material_id, quantity, price)
+VALUES
+(@poId, 1, 6.0000, 320.00),    -- 阿薩姆紅茶葉
+(@poId, 18, 1.0000, 1450.00),  -- 七百毫升塑膠杯
+(@poId, 19, 12.0000, 420.00),  -- 飲料封口膜
+(@poId, 20, 5.0000, 380.00);   -- 飲料粗吸管
+
+
+COMMIT TRANSACTION;
 
     SET @first_purchase_order_id = CONVERT(BIGINT, SCOPE_IDENTITY()) - 19;
 
