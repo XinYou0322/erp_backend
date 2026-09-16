@@ -10,6 +10,8 @@ import lombok.Data;
 public class PurchaseOrderResponseDTO {
     private Long id;
 
+    private String orderNumber;
+    
     private Long supplierId;
 
     private String supplierName;
@@ -31,22 +33,38 @@ public class PurchaseOrderResponseDTO {
     private LocalDate expectedDeliveryDate;
     
     private LocalDateTime receivedAt;
+    
+    private Long receivedByUserId;
+    private String receivedByName;
 
     private String receiptUrl;
     
     private String decisionRemark;
     
-    public static PurchaseOrderResponseDTO toResponseDTO(PurchaseOrders purchaseOrder) {
-        PurchaseOrderResponseDTO responseDTO = new PurchaseOrderResponseDTO();
-        responseDTO.setId(purchaseOrder.getId());
-        responseDTO.setSupplierId(purchaseOrder.getSupplier().getId());
-        responseDTO.setSupplierName(purchaseOrder.getSupplier().getName());
-        //responseDTO.setStatus(purchaseOrder.getStatus());
-        //responseDTO.setCreatedBy(purchaseOrder.getCreatedBy());
-        //responseDTO.setApprovedBy(purchaseOrder.getApprovedBy());
-        responseDTO.setTotal(purchaseOrder.getTotal());
-        responseDTO.setCreatedAt(purchaseOrder.getCreatedAt());
-        responseDTO.setExpectedDeliveryDate(purchaseOrder.getExpectedDeliveryDate());
-        return responseDTO;
+    public static PurchaseOrderResponseDTO fromEntity(PurchaseOrders purchaseOrder) {
+        PurchaseOrderResponseDTO dto = new PurchaseOrderResponseDTO();
+        dto.setId(purchaseOrder.getId());
+        dto.setOrderNumber(purchaseOrder.getOrderNumber());
+        dto.setSupplierId(purchaseOrder.getSupplier().getId());
+        dto.setSupplierName(purchaseOrder.getSupplier().getName());
+        dto.setStatus(purchaseOrder.getStatus());
+        dto.setCreatedByUserId(purchaseOrder.getCreatedBy().getId());
+        dto.setCreatedByName(purchaseOrder.getCreatedBy().getName());
+        dto.setApprovedByUserId(purchaseOrder.getApprovedBy().getId());
+        dto.setApprovedByName(purchaseOrder.getApprovedBy().getName());
+        dto.setTotal(purchaseOrder.getTotal());
+        dto.setCreatedAt(purchaseOrder.getCreatedAt());
+        dto.setUpdatedAt(purchaseOrder.getUpdatedAt());
+        dto.setExpectedDeliveryDate(purchaseOrder.getExpectedDeliveryDate());
+        dto.setReceiptUrl(purchaseOrder.getReceiptUrl());
+        dto.setDecisionRemark(purchaseOrder.getDecisionRemark());
+        
+        //有收貨人才set
+        if(purchaseOrder.getReceivedBy()!=null) {
+        	dto.setReceivedByUserId( purchaseOrder.getReceivedBy().getId());
+        	dto.setReceivedByName(purchaseOrder.getReceivedBy().getName() );
+	  
+        }
+        return dto;
     }
 }

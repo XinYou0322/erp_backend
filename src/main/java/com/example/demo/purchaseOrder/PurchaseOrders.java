@@ -42,6 +42,9 @@ public class PurchaseOrders {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
+	@Column(name = "order_number", nullable = false, length = 40)
+	private String orderNumber;
+	
 	@JsonIgnore
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "supplier_id", nullable = false )
