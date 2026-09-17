@@ -28,7 +28,8 @@ public class Material {
     @Column(name = "purchase_unit",nullable = true, length = 50)
     private String purchaseUnit;
     
-    
+    @Column(nullable = false, length = 20)   
+    private String status;
     //轉換單位
     @Column(name = "conversion_quantity",nullable = true, precision = 18, scale = 4)
     private BigDecimal conversionQuantity;

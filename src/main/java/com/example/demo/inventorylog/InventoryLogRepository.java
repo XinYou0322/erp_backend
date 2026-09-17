@@ -3,6 +3,8 @@ package com.example.demo.inventorylog;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -12,4 +14,9 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
     List<InventoryLog> findByMaterialIdOrderByCreatedAtDesc(Long materialId);
     
     List<InventoryLog> findAllByOrderByCreatedAtDesc();
+    List<InventoryLog>
+    findByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        Instant start,
+        Instant end
+    );
 }
