@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.suppliers.SupplierMultiQueryRespoDTO;
 import com.example.demo.suppliers.SupplierRespoDTO;
 
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.PutMapping;
 
 import java.util.List;
@@ -43,11 +45,49 @@ public class PurchaseOrdersController {
   }
   //多筆
   @GetMapping("/api/purchaseOrder/findByIds")
-  public ResponseEntity<List<PurchaseOrderResponseDTO>> findSuppliersByIds(
+  public ResponseEntity<PurchaseOrderQueryResponseDTO> findSuppliersByIds(
       @RequestParam("ids") List<Long> ids) {
 
   return ResponseEntity.ok(
 		  purchaseOrdersService.findPurchaseOrdersByIds(ids)
   );
 }
+  //全部
+  @GetMapping("/api/purchaseOrder/findAll")
+  public ResponseEntity<List<PurchaseOrderResponseDTO>> findSuppliersAll(
+      ) {
+
+  return ResponseEntity.ok(
+		  purchaseOrdersService.findAllPurchaseOrders()
+  );
+}
+  
+  
+  
+  
+  
+  //送出
+  @PostMapping("/api/purchaseOrder/{id}/submit")
+  public ResponseEntity<PurchaseOrderResponseDTO> submitPurchaseOrder(
+          @PathVariable Long id,
+          @RequestParam Long loginUserId) {
+
+      PurchaseOrderResponseDTO result = purchaseOrdersService.submitPurchaseOrder(id,loginUserId);
+
+      return ResponseEntity.ok(result);
+  }
+  //修改
+  @PutMapping("/api/purchaseOrder/{purchaseOrderId}")
+  public ResponseEntity<PurchaseOrderResponseDTO> updatePurchaseOrder(
+          @PathVariable Long purchaseOrderId,
+          @Valid @RequestBody PurchaseOrderUpdateDTO updateDTO,
+          @RequestParam Long loginUserId) {
+
+      // 呼叫 Service 修改採購單
+      PurchaseOrderResponseDTO result = purchaseOrdersService.updatePurchaseOrder(purchaseOrderId,updateDTO,loginUserId);
+   
+      // 修改成功回傳 200 OK + 修改後資料
+      return ResponseEntity.ok(result);
+  }
+ 
 }

@@ -104,7 +104,7 @@ public class PurchaseOrders {
 	
 	
 	// 一張採購單有多筆採購明細
-    @OneToMany(mappedBy = "purchaseOrder" ,  cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "purchaseOrder" ,  cascade = CascadeType.ALL , orphanRemoval = true)
     //@OrderBy("id ASC") 取得明細時id 小 → 大
     private List<PurchaseOrderItems> items = new LinkedList<>();
 
