@@ -15,6 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -48,10 +53,20 @@ public class UserController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO dto, HttpServletRequest request) {
         UserResponseDTO userResponse = usersService.login(dto);
 
-        // 將使用者資訊與 ID 存入 Session，供 NotificationController 驗證
         HttpSession session = request.getSession(true);
         session.setAttribute("userId", userResponse.getId());
         session.setAttribute("currentUser", userResponse);
+
+        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleName(
+                userResponse.getRole() != null ? userResponse.getRole().getName() : "");
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(
+                userResponse.getUsername(),
+                null,
+                authorities));
+        SecurityContextHolder.setContext(context);
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
         return ResponseEntity.ok(Map.of(
                 "message", "登入成功",
                 "user", userResponse));
@@ -70,6 +85,7 @@ public class UserController {
     // 1-3. 登出端點 (清除 Session)
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
+        SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
@@ -127,6 +143,7 @@ public class UserController {
     }
 
     // 3. 查詢使用者分頁列表（支援關鍵字搜尋姓名或帳號）
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping
     public ResponseEntity<Page<UserResponseDTO>> getUsers(
             @RequestParam(required = false) String keyword,
@@ -152,6 +169,7 @@ public class UserController {
     }
 
     // 5. 依據 ID 查詢使用者詳細資訊
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'EMPLOYEE')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
         UserResponseDTO user = usersService.getUserById(id);
@@ -168,6 +186,7 @@ public class UserController {
     // }
 
     // 7. 修改使用者資料
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
@@ -177,6 +196,7 @@ public class UserController {
     }
 
     // 8. 啟用 / 停用 / 鎖定帳號狀態
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
@@ -197,6 +217,7 @@ public class UserController {
     }
 
     // 10. 刪除使用者
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         usersService.deleteUser(id);
