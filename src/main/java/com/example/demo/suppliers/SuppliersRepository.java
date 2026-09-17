@@ -1,6 +1,10 @@
 package com.example.demo.suppliers;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface SuppliersRepository extends JpaRepository<Suppliers, Long> {
    
@@ -23,4 +27,18 @@ public interface SuppliersRepository extends JpaRepository<Suppliers, Long> {
             String phone,
             Long id
     );
+    
+    @Query(
+    	    "SELECT s FROM Suppliers s " +
+    	    "WHERE LOWER(s.name) LIKE LOWER(:searchText) " +
+    	    "OR s.callingCode LIKE :searchText " +
+    	    "OR s.phone LIKE :searchText " +
+    	    "OR s.extension LIKE :searchText " +
+    	    "OR LOWER(s.address) LIKE LOWER(:searchText) " +
+    	    "OR LOWER(s.email) LIKE LOWER(:searchText)"
+    	)
+    	Page<Suppliers> searchByKeyword(
+    	        @Param("searchText") String searchText,
+    	        Pageable pageable
+    	);
 }

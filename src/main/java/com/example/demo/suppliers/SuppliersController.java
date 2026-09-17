@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -99,7 +100,17 @@ public class SuppliersController {
             suppliersService.listAllSuppliers()
     );
     }
+    //分頁
+    @GetMapping("/api/Supplier/page")
+    public ResponseEntity<Page<SupplierQueryRespoDTO>> findSupplierPage(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
+        Page<SupplierQueryRespoDTO> result = suppliersService.findSupplierPage(keyword,page,size);
+
+        return ResponseEntity.ok(result);
+    }
     //---刪除---
     //單筆
     @DeleteMapping("/api/Supplier/{id}")

@@ -3,6 +3,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.purchaseOrder.PurchaseOrdersRepository;
@@ -204,6 +209,54 @@ public class SuppliersService {
 
     return dtoList;
 	}
+    
+    //供應商 總覽/關鍵字 分頁查詢
+    @Transactional(readOnly = true)
+    public Page<SupplierQueryRespoDTO> findSupplierPage(
+            String keyword,
+            int page,
+            int size) {
+
+        // 建立分頁條件
+        Pageable pageable = PageRequest.of(page,size,
+                Sort.by(Sort.Direction.DESC, "id"));
+
+        Page<Suppliers> supplierPage;
+        // 沒有關鍵字：查詢全部供應商並分頁
+        if (keyword == null || keyword.trim().isEmpty()) {
+
+            supplierPage = suppliersRepo.findAll(pageable);
+
+        } else {
+
+            // 有關鍵字：搜尋 name、phone、address、email 並分頁
+            String searchText = "%" + keyword.trim() + "%";
+
+            supplierPage = suppliersRepo.searchByKeyword(
+                    searchText,
+                    pageable
+            );
+        }
+
+        // Entity 轉成 DTO
+        List<SupplierQueryRespoDTO> dtoList =
+                new ArrayList<SupplierQueryRespoDTO>();
+
+        for (Suppliers supplier : supplierPage.getContent()) {
+
+            SupplierQueryRespoDTO dto =
+                    SupplierQueryRespoDTO.fromEntity(supplier);
+
+            dtoList.add(dto);
+        }
+
+        // 包裝成 Page<DTO>
+        return new PageImpl<SupplierQueryRespoDTO>(
+                dtoList,
+                pageable,
+                supplierPage.getTotalElements()
+        );
+    }
 
     //---刪除---
     //單筆 ---
@@ -303,10 +356,13 @@ public class SuppliersService {
 
         return result;
     }
+
+        
+    
+    
+    
 //    ├─ ① 關鍵字搜尋        ← 最推薦
 //    ├─ ② 分頁查詢
-//    ├─ ③ 供應商總數 count  //資料庫有 5000 筆，前端目前只拿：第 1 頁 20 筆，suppliers.length = 20
-
 //    ├─ ⑤ Supplier 詳細資料 + Notes
 //    ├─ ⑥ 排序
 //    └─ ⑦ 後期改成停用而非實體刪除
