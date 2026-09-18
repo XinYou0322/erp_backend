@@ -43,7 +43,8 @@ public class PurchaseOrders {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
-	@Column(name = "order_number", nullable = false, length = 40)
+	@Column(name = "order_number",nullable = false, length = 40)
+	//nullable = false
 	private String orderNumber;
 	
 	@JsonIgnore
