@@ -3,6 +3,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.purchaseOrder.PurchaseOrdersRepository;
@@ -204,6 +209,63 @@ public class SuppliersService {
 
     return dtoList;
 	}
+    
+    //供應商 總覽/關鍵字 分頁查詢
+    @Transactional(readOnly = true)
+    public Page<SupplierQueryRespoDTO> findSupplierPage(
+            String keyword,
+            SupplierStatus status,
+            int page,
+            int size) {
+    	
+        if (size != 10 && size != 30 && size != 50) {
+            size = 10;
+        }
+
+        if (page < 0) {
+            page = 0;
+        }
+    	
+        // 建立分頁條件
+        Pageable pageable = PageRequest.of(page,size,
+                Sort.by(Sort.Direction.DESC, "id"));
+
+       
+        // 沒有關鍵字：查詢全部供應商並分頁
+        String searchText = null;
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            searchText = "%" + keyword.trim() + "%";
+        }
+
+        // 3. 同時處理關鍵字、狀態和分頁
+        Page<Suppliers> supplierPage =
+                suppliersRepo.searchSuppliers(
+                        searchText,
+                        status,
+                        pageable
+                );
+
+
+        // Entity 轉成 DTO
+        List<SupplierQueryRespoDTO> dtoList =
+                new ArrayList<SupplierQueryRespoDTO>();
+
+        for (Suppliers supplier : supplierPage.getContent()) {
+
+            SupplierQueryRespoDTO dto =
+                    SupplierQueryRespoDTO.fromEntity(supplier);
+
+            dtoList.add(dto);
+        }
+
+        // 包裝成 Page<DTO>
+        return new PageImpl<SupplierQueryRespoDTO>(
+                dtoList,
+                pageable,
+                supplierPage.getTotalElements()
+        );
+    }
 
     //---刪除---
     //單筆 ---
@@ -303,4 +365,14 @@ public class SuppliersService {
 
         return result;
     }
+
+        
+    
+    
+    
+//    ├─ ① 關鍵字搜尋        ← 最推薦
+//    ├─ ② 分頁查詢
+//    ├─ ⑤ Supplier 詳細資料 + Notes
+//    ├─ ⑥ 排序
+//    └─ ⑦ 後期改成停用而非實體刪除
 }

@@ -130,8 +130,44 @@ public class SuppliersNotesService {
 
 	        return "備註刪除成功，ID：" + noteId;
 	    }
-	   
-	   
+	   @Transactional
+	    public List<String> deleteNotes(List<Long> noteIds) {
+
+	        List<String> result = new ArrayList<>();
+
+	        if (noteIds == null || noteIds.isEmpty()) {
+	            result.add("請提供要刪除的備註 ID");
+	            return result;
+	        }
+
+	        for (Long noteId : noteIds) {
+
+	            Optional<SupplierNotes> optionalNote =
+	                    suppliersNotesRepo.findById(noteId);
+
+	            if (optionalNote.isEmpty()) {
+
+	                result.add("找不到備註，ID：" + noteId);
+
+	            } else {
+
+	                SupplierNotes note = optionalNote.get();
+
+	                suppliersNotesRepo.delete(note);
+
+	                result.add("備註刪除成功，ID：" + noteId);
+	            }
+	        }
+
+	        return result;
+	    }
+
+	   //依 noteId 查單筆備註
+	   //某供應商備註依時間排序
+	   //分頁查某供應商備註
+	   //關鍵字搜尋備註
+	   //依建立人查備註
+	   //查全部備註(最不需要)
 	   
 	   
 	   

@@ -10,7 +10,6 @@ import org.hibernate.annotations.Nationalized;
 
 import com.example.demo.suppliers.Suppliers;
 import com.example.demo.users.User;
-import com.example.demo.workflow.enums.WorkflowStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
 
@@ -25,7 +24,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -42,15 +43,18 @@ public class PurchaseOrders {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	
+	@Column(name = "order_number", nullable = false, length = 40)
+	private String orderNumber;
+	
 	@JsonIgnore
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "supplier_id", nullable = false )
     private Suppliers supplier;
 	
-	//未
+	
 	@Enumerated(EnumType.STRING)
 	@Column(length = 50)
-	private WorkflowStatus status = WorkflowStatus.PENDING;
+	private PurchaseOrdersStatus status ;
 
 	//申請人
     @JsonIgnore
@@ -61,10 +65,11 @@ public class PurchaseOrders {
     //簽核人
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn( name="approved_by_user_id", nullable = false, updatable = false)
+    @JoinColumn( name="approved_by_user_id", nullable = false, updatable = false) //如果不限定簽核人 去掉nullable = false, updatable = false
 	private User approvedBy;
     
     //收貨人
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "received_by_user_id")
     private User receivedBy;
@@ -88,6 +93,7 @@ public class PurchaseOrders {
 	private LocalDateTime receivedAt;
 
 	//放收據的地方
+	//@OneToMany<PurchaseOrderAttachments>
 	@Column(name = "receipt_url", length = 500)
 	private String receiptUrl;
 	
@@ -98,7 +104,7 @@ public class PurchaseOrders {
 	
 	
 	// 一張採購單有多筆採購明細
-    @OneToMany(mappedBy = "purchaseOrder")
+    @OneToMany(mappedBy = "purchaseOrder" ,  cascade = CascadeType.ALL , orphanRemoval = true)
     //@OrderBy("id ASC") 取得明細時id 小 → 大
     private List<PurchaseOrderItems> items = new LinkedList<>();
 
@@ -115,5 +121,9 @@ public class PurchaseOrders {
 	    createdAt = now;
 	    updatedAt = now;
 	    }
-
+	
+	@PreUpdate
+	protected void onUpdate() {
+	    updatedAt = LocalDateTime.now();
+	}
 }

@@ -2,7 +2,6 @@ package com.example.demo.salesOrder;
 
 import java.math.BigDecimal;
 
-import org.hibernate.annotations.ManyToAny;
 import org.hibernate.annotations.Nationalized;
 
 import com.example.demo.products.Products;
@@ -53,7 +52,7 @@ public class SalesOrderItem {
     private String productName;
 	
 	@Column(nullable = false)
-	private Integer quantity;
+	private BigDecimal quantity;
 	
 	//結帳當下的單價
 	@Column(name = "unit_price", nullable = false, precision = 18, scale = 2)
