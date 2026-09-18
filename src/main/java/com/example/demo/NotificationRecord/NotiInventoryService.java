@@ -1,4 +1,4 @@
-package com.example.demo.users;
+package com.example.demo.NotificationRecord;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

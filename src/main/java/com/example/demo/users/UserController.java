@@ -1,8 +1,13 @@
 package com.example.demo.users;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -10,6 +15,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -42,10 +53,20 @@ public class UserController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDTO dto, HttpServletRequest request) {
         UserResponseDTO userResponse = usersService.login(dto);
 
-        // 將使用者資訊與 ID 存入 Session，供 NotificationController 驗證
         HttpSession session = request.getSession(true);
         session.setAttribute("userId", userResponse.getId());
         session.setAttribute("currentUser", userResponse);
+
+        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleName(
+                userResponse.getRole() != null ? userResponse.getRole().getName() : "");
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(
+                userResponse.getUsername(),
+                null,
+                authorities));
+        SecurityContextHolder.setContext(context);
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
         return ResponseEntity.ok(Map.of(
                 "message", "登入成功",
                 "user", userResponse));
@@ -64,6 +85,7 @@ public class UserController {
     // 1-3. 登出端點 (清除 Session)
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request) {
+        SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
@@ -78,6 +100,42 @@ public class UserController {
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 
+    @PostMapping("/upload-avatar")
+    public ResponseEntity<?> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "請選擇圖片檔案"));
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "只能上傳圖片檔案"));
+        }
+
+        try {
+            String uploadDir = System.getProperty("user.dir") + "/uploads/avatars";
+            Path dir = Paths.get(uploadDir);
+            Files.createDirectories(dir);
+
+            String ext = "";
+            String originalName = file.getOriginalFilename();
+            if (originalName != null && originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf("."));
+            }
+
+            String fileName = UUID.randomUUID() + ext;
+            Path target = dir.resolve(fileName);
+            Files.write(target, file.getBytes());
+
+            String avatarUrl = "http://localhost:8080/uploads/avatars/" + fileName;
+            return ResponseEntity.ok(Map.of(
+                    "message", "上傳成功",
+                    "avatarUrl", avatarUrl));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "圖片儲存失敗"));
+        }
+    }
+
     // 2-2. 新增使用者別名路由
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserRegisterDTO dto) {
@@ -85,6 +143,7 @@ public class UserController {
     }
 
     // 3. 查詢使用者分頁列表（支援關鍵字搜尋姓名或帳號）
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping
     public ResponseEntity<Page<UserResponseDTO>> getUsers(
             @RequestParam(required = false) String keyword,
@@ -110,6 +169,7 @@ public class UserController {
     }
 
     // 5. 依據 ID 查詢使用者詳細資訊
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'EMPLOYEE')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
         UserResponseDTO user = usersService.getUserById(id);
@@ -126,6 +186,7 @@ public class UserController {
     // }
 
     // 7. 修改使用者資料
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
@@ -135,6 +196,7 @@ public class UserController {
     }
 
     // 8. 啟用 / 停用 / 鎖定帳號狀態
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
@@ -155,6 +217,7 @@ public class UserController {
     }
 
     // 10. 刪除使用者
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         usersService.deleteUser(id);

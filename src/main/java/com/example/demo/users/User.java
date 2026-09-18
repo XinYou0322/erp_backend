@@ -18,6 +18,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.Instant;
 
+import com.example.demo.Role.Role;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -29,7 +31,7 @@ public class User {
     @Setter(AccessLevel.NONE) // 限制外部不可以手動修改ID
     private Long id;
 
-    //使用者帳號
+    // 使用者帳號
     @Setter
     @Column(unique = true, nullable = false, length = 50)
     private String username;
@@ -38,7 +40,7 @@ public class User {
     @Column(nullable = false, length = 60)
     private String password;
 
-    //使用者名字
+    // 使用者名字
     @Setter
     @Column(nullable = false, length = 50)
     private String name;
@@ -51,6 +53,10 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    @Setter
+    @Column(length = 500)
+    private String avatar;
 
     // @Setter
     // @ManyToOne(fetch = FetchType.LAZY)

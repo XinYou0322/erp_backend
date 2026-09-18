@@ -1,4 +1,4 @@
-package com.example.demo.users;
+package com.example.demo.NotificationRecord;
 
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +47,43 @@ public class NotificationService {
         notifRepository.clearNotifications(userId, category);
     }
 
+    @Transactional
+    public void createLowStockAlert(Long userId, List<Map<String, Object>> materials) {
+        if (userId == null || materials == null || materials.isEmpty()) {
+            return;
+        }
+
+        StringBuilder detail = new StringBuilder();
+        int limit = Math.min(materials.size(), 3);
+        for (int i = 0; i < limit; i++) {
+            Map<String, Object> item = materials.get(i);
+            String name = String.valueOf(item.getOrDefault("name", "原物料"));
+            Object stock = item.getOrDefault("stock", 0);
+            Object minStock = item.getOrDefault("minStock", 0);
+            if (i > 0) {
+                detail.append("、");
+            }
+            detail.append(name)
+                    .append("（")
+                    .append(stock)
+                    .append("/")
+                    .append(minStock)
+                    .append("）");
+        }
+
+        if (materials.size() > 3) {
+            detail.append("……");
+        }
+
+        String title = "庫存告急";
+        String content = String.format(
+                "目前有 %d 項原物料低於安全水位：%s，建議立即補貨。",
+                materials.size(),
+                detail);
+
+        createAndSendNotification(userId, title, content, "inventory", "warning", "/material");
+    }
+
     /**
      * 核心中樞：當 ERP 發生任何業務事件時，呼叫此方法寫入 DB 並即時推播
      */
@@ -60,18 +97,21 @@ public class NotificationService {
         record.setCategory(category);
         record.setType(type);
         record.setActionRoute(actionRoute);
-        notifRepository.save(record);
 
-        notifRepository.saveAndFlush(record);
+        NotificationRecord saved = notifRepository.save(record);
 
         // 包裝成與前端通訊的即時資料包
         Map<String, Object> wsPayload = new HashMap<>();
         wsPayload.put("action", "NEW_NOTIFICATION");
         wsPayload.put("unreadCount", notifRepository.countByUserIdAndReadFalse(userId));
-        wsPayload.put("notification", record);
+        wsPayload.put("notification", saved);
 
         // 執行即時推播
         webSocketHandler.sendToUser(userId, wsPayload);
+    }
+
+    public java.util.Optional<NotificationRecord> getById(Long id) {
+        return notifRepository.findById(id);
     }
 
     /**

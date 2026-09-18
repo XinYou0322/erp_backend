@@ -1,10 +1,11 @@
-package com.example.demo.users;
+package com.example.demo.Role;
 
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ public class RoleController {
     private final RoleService roleService;
 
     // 1. 查詢所有角色清單 (用於後台下拉選單或列表)
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping
     public ResponseEntity<List<RoleResponseDTO>> getAllRoles() {
         List<RoleResponseDTO> roles = roleService.getAllRoles();
@@ -32,6 +34,7 @@ public class RoleController {
     }
 
     // 2. 根據 ID 查詢特定角色
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @GetMapping("/{id}")
     public ResponseEntity<RoleResponseDTO> getRoleById(@PathVariable Long id) {
         RoleResponseDTO role = roleService.getRoleById(id);
@@ -39,6 +42,7 @@ public class RoleController {
     }
 
     // 3. 建立新角色
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<RoleResponseDTO> createRole(@Valid @RequestBody RoleRequestDTO dto) {
         RoleResponseDTO created = roleService.createRole(dto);
@@ -46,6 +50,7 @@ public class RoleController {
     }
 
     // 4. 修改角色
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<RoleResponseDTO> updateRole(
             @PathVariable Long id,
@@ -55,6 +60,7 @@ public class RoleController {
     }
 
     // 5. 刪除角色
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteRole(@PathVariable Long id) {
         roleService.deleteRole(id);

@@ -2778,3 +2778,38 @@ VALUES
         N'杯',
         'ACTIVE'
     );
+
+    //打卡紀錄表
+    CREATE TABLE clock_records (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,   -- 自動遞增，從 1 開始，每次加 1
+    user_id VARCHAR(50) NOT NULL,          -- 員工編號
+    clock_time DATETIME NOT NULL,          -- 打卡時間（由後端伺服器生成）
+    clock_type VARCHAR(10) NOT NULL        -- 打卡類型：'CLOCK_IN' 或 'CLOCK_OUT'
+);
+
+-- 1. 建立行事曆主表
+CREATE TABLE calendar_events (
+    id VARCHAR(36) NOT NULL,
+    title NVARCHAR(255) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    category VARCHAR(50) NOT NULL, -- procurement, production, meeting, etc.
+    [date] DATE NOT NULL,          -- 行事曆日期 (yyyy-MM-dd)
+    start_time TIME(0) NOT NULL,    -- 開始時間 (HH:mm:ss)
+    end_time TIME(0) NOT NULL,      -- 結束時間 (HH:mm:ss)
+    location NVARCHAR(255) NULL,
+    organizer NVARCHAR(100) NULL,
+    priority VARCHAR(20) NOT NULL,  -- high, medium, low
+    [status] VARCHAR(20) NOT NULL,  -- pending, in_progress, completed, cancelled
+    related_ref VARCHAR(100) NULL,  -- 關聯單據 (如 PO-2026-0301)
+    reminder_minutes INT DEFAULT 15,
+    created_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT PK_calendar_events PRIMARY KEY (id)
+);
+
+-- 2. 建立參與成員子表 (一對多關係)
+CREATE TABLE event_attendees (
+    event_id VARCHAR(36) NOT NULL,
+    attendee_name NVARCHAR(100) NOT NULL,
+    CONSTRAINT FK_event_attendees_calendar_events FOREIGN KEY (event_id) 
+        REFERENCES calendar_events(id) ON DELETE CASCADE
+);
