@@ -265,7 +265,6 @@ public final MaterialRepository materialRepository;
 
 
                     return new InventorySummaryDTO(
-
                             material.getId(),
                             material.getCode(),
                             material.getName(),
@@ -276,6 +275,7 @@ public final MaterialRepository materialRepository;
 
                             safetyStock,
                             status,
+                            material.getStatus(),
 
                             nearestExpiryDate,
 

@@ -19,15 +19,19 @@ public class MaterialsService {
 	
 	private  final InventoryRepository   InventoryRepo;
 	private  final MaterialRepository   MaterialRepo;
-	//查詢全部
 	
 	
 	
+	
+	//查詢還可以使用的
+	public List<Material> getActiveMaterials() {
+
+	    return MaterialRepo.findByStatus("ACTIVE");
+	}
 	//找全部書頁
 	public Page<Material> getMaterials(Pageable pageable) {
 
-	    return MaterialRepo.findAll(pageable);
-
+	    return MaterialRepo.findAllOrderByStatus(pageable);
 	}
 	
 	
@@ -86,6 +90,7 @@ public class MaterialsService {
 		            "成本模式只能是 DIRECT 或 CONVERSION"
 		        );
 		    }
+		    material.setStatus("ACTIVE");
 
 		    Material savedMaterial = MaterialRepo.save(material);
 
@@ -155,18 +160,32 @@ public class MaterialsService {
 	        
 	        return MaterialRepo.save(material);
 	    }
-	  public void delete(Long id) {
+	  public Material updateStatus(Long id, String status) {
 
-	        Material material = findById(id);
+		    // 1. 找原物料
+		    Material material = MaterialRepo
+		            .findById(id)
+		            .orElseThrow(() ->
+		                new IllegalArgumentException(
+		                    "找不到原物料 id=" + id
+		                )
+		            );
 
-	        // 先刪除庫存
-	      
-	     
+		    // 2. 檢查傳進來的狀態是否合法
+		    if (!"ACTIVE".equals(status)
+		            && !"INACTIVE".equals(status)) {
 
-	        // 再刪除原物料
-	        MaterialRepo.delete(material);
-	    }
+		        throw new IllegalArgumentException(
+		            "原物料狀態只能是 ACTIVE 或 INACTIVE"
+		        );
+		    }
 
+		    // 3. 修改狀態
+		    material.setStatus(status);
+
+		    // 4. 儲存
+		    return MaterialRepo.save(material);
+		}
 	  
 	  public MaterialSummaryDTO getMaterialSummary() {
 
