@@ -265,7 +265,6 @@ public final MaterialRepository materialRepository;
 
 
                     return new InventorySummaryDTO(
-
                             material.getId(),
                             material.getCode(),
                             material.getName(),
@@ -276,6 +275,7 @@ public final MaterialRepository materialRepository;
 
                             safetyStock,
                             status,
+                            material.getStatus(),
 
                             nearestExpiryDate,
 
@@ -346,11 +346,33 @@ public final MaterialRepository materialRepository;
 public void batchInventory(
         InventoryBatchRequestDTO request) {
 
+    	 if (request == null ||
+    		        request.getItems() == null ||
+    		        request.getItems().isEmpty()) {
+
+    		        throw new IllegalArgumentException(
+    		            "進貨資料不得為空"
+    		        );
+    		    }
+    	
+    	
     for (
         InventoryBatchRequestDTO.Item item
         : request.getItems()
     ) {
+    	if (item.getMaterialId() == null) {
+    	    throw new IllegalArgumentException(
+    	        "原物料不得為空"
+    	    );
+    	}
 
+    	if (item.getQuantity() == null ||
+    	    item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+
+    	    throw new IllegalArgumentException(
+    	        "進貨數量必須大於 0"
+    	    );
+    	}
         Material material =
             materialRepository
                 .findById(item.getMaterialId())
@@ -364,11 +386,31 @@ public void batchInventory(
         // 1. 新增库存批次
         Inventory inventory =
             new Inventory();
-
+        BigDecimal actualQuantity;
         inventory.setMaterial(material);
-        inventory.setQuantity(item.getQuantity());
-        inventory.setExpiryDate(item.getExpiryDate());
+        if ("CONVERSION".equals(material.getCostMode())) {
+            if (material.getConversionQuantity() == null ||
+                    material.getConversionQuantity()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
 
+                    throw new IllegalArgumentException(
+                        "原物料換算數量設定錯誤"
+                    );
+                }
+        	  actualQuantity =
+                item.getQuantity()
+                    .multiply(
+                        material.getConversionQuantity()
+                    );
+
+        } else {
+
+            actualQuantity =
+                item.getQuantity();
+
+        }
+        inventory.setExpiryDate(item.getExpiryDate());
+        inventory.setQuantity(actualQuantity);
         inventoryRepository.save(inventory);
 
 
@@ -379,7 +421,7 @@ public void batchInventory(
         log.setMaterial(material);
 
         log.setQuantity(
-            item.getQuantity()
+        		actualQuantity
         );
 
         log.setAction(

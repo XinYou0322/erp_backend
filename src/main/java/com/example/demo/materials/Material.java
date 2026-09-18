@@ -22,7 +22,25 @@ public class Material {
     @Column(nullable = false, length = 50)
     private String unit;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "cost_mode",nullable = false, length = 50)
+    private String costMode;
+
+    @Column(name = "purchase_unit",nullable = true, length = 50)
+    private String purchaseUnit;
+    
+    @Column(nullable = false, length = 20)   
+    private String status;
+    //轉換單位
+    @Column(name = "conversion_quantity",nullable = true, precision = 18, scale = 4)
+    private BigDecimal conversionQuantity;
+    //採購成本
+    @Column(name = "purchase_cost",nullable = true, precision = 18, scale = 4)
+    private BigDecimal purchaseCost;
+
+    
+    
+    
+    @Column(nullable = false, precision = 18, scale = 4)
     private BigDecimal cost;
 
     // 安全庫存

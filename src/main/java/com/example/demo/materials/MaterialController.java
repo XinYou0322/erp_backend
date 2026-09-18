@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -81,13 +82,25 @@ public ResponseEntity<?> findById(@PathVariable Long id) {
     return new ResponseEntity<>(m,HttpStatus.OK);
 }
 
-@DeleteMapping	("/api/materialdelete/{id}")
-public ResponseEntity<?> deleteById(@PathVariable Long id) {
-	Material m =MtSerivce.findById(id);
-	MtSerivce.delete(id);
-    return new ResponseEntity<>(m,HttpStatus.OK);
+@PatchMapping("/api/material/{id}/status")
+public ResponseEntity<?> updateStatus(
+        @PathVariable Long id,
+        @RequestParam String status) {
+
+    Material material =
+            MtSerivce.updateStatus(id, status);
+
+    return new ResponseEntity<>(
+            material,
+            HttpStatus.OK
+    );
+}@GetMapping("/api/material/active")
+public ResponseEntity<?> getActiveMaterials() {
+
+    List<Material> materials =
+            MtSerivce.getActiveMaterials();
+
+    return ResponseEntity.ok(materials);
 }
-
-
 	
 }
