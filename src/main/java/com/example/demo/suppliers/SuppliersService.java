@@ -214,29 +214,38 @@ public class SuppliersService {
     @Transactional(readOnly = true)
     public Page<SupplierQueryRespoDTO> findSupplierPage(
             String keyword,
+            SupplierStatus status,
             int page,
             int size) {
+    	
+        if (size != 10 && size != 30 && size != 50) {
+            size = 10;
+        }
 
+        if (page < 0) {
+            page = 0;
+        }
+    	
         // 建立分頁條件
         Pageable pageable = PageRequest.of(page,size,
                 Sort.by(Sort.Direction.DESC, "id"));
 
-        Page<Suppliers> supplierPage;
+       
         // 沒有關鍵字：查詢全部供應商並分頁
-        if (keyword == null || keyword.trim().isEmpty()) {
+        String searchText = null;
 
-            supplierPage = suppliersRepo.findAll(pageable);
-
-        } else {
-
-            // 有關鍵字：搜尋 name、phone、address、email 並分頁
-            String searchText = "%" + keyword.trim() + "%";
-
-            supplierPage = suppliersRepo.searchByKeyword(
-                    searchText,
-                    pageable
-            );
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            searchText = "%" + keyword.trim() + "%";
         }
+
+        // 3. 同時處理關鍵字、狀態和分頁
+        Page<Suppliers> supplierPage =
+                suppliersRepo.searchSuppliers(
+                        searchText,
+                        status,
+                        pageable
+                );
+
 
         // Entity 轉成 DTO
         List<SupplierQueryRespoDTO> dtoList =

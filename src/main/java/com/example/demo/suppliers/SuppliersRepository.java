@@ -30,15 +30,22 @@ public interface SuppliersRepository extends JpaRepository<Suppliers, Long> {
     
     @Query(
     	    "SELECT s FROM Suppliers s " +
-    	    "WHERE LOWER(s.name) LIKE LOWER(:searchText) " +
-    	    "OR s.callingCode LIKE :searchText " +
-    	    "OR s.phone LIKE :searchText " +
-    	    "OR s.extension LIKE :searchText " +
-    	    "OR LOWER(s.address) LIKE LOWER(:searchText) " +
-    	    "OR LOWER(s.email) LIKE LOWER(:searchText)"
+    	    "WHERE (" +
+    	        ":searchText IS NULL " +
+    	        "OR LOWER(s.name) LIKE LOWER(:searchText) " +
+    	        "OR s.callingCode LIKE :searchText " +
+    	        "OR s.phone LIKE :searchText " +
+    	        "OR s.extension LIKE :searchText " +
+    	        "OR LOWER(s.address) LIKE LOWER(:searchText) " +
+    	        "OR LOWER(s.email) LIKE LOWER(:searchText)" +
+    	    ") " +
+    	    "AND (" +
+    	        ":status IS NULL OR s.status = :status" +
+    	    ")"
     	)
-    	Page<Suppliers> searchByKeyword(
+    	Page<Suppliers> searchSuppliers(
     	        @Param("searchText") String searchText,
+    	        @Param("status") SupplierStatus status,
     	        Pageable pageable
     	);
 }

@@ -2,6 +2,7 @@ package com.example.demo.purchaseOrder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.ArrayList;
@@ -9,7 +10,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -228,6 +233,114 @@ public class PurchaseOrdersService {
     	
     return responseDTOList;
     }
+    //分頁
+ 
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderResponseDTO> findPurchaseOrderPage(
+			         String keyword,
+			         PurchaseOrdersStatus status,
+			         Long supplierId,
+			         LocalDate startDate,
+			         LocalDate endDate,
+			         int page,
+			         int size) {
+
+     // 10/30/50
+     // 一律改回預設 10 筆
+     if (size != 10
+             && size != 30
+             && size != 50) {
+         size = 10;
+     }
+     if (page < 0) {
+         page = 0;
+     }
+
+     //檢查日期
+     // 不合法 Ex. 2026/09/30 ~ 2026/09/01
+     if (startDate != null
+             && endDate != null
+             && startDate.isAfter(endDate)) {
+         throw new IllegalArgumentException(
+                 "開始日期不能晚於結束日期"
+         );
+     }
+     //LocalDate → LocalDateTime
+     LocalDateTime startDateTime = null;
+     LocalDateTime endDateTime = null;
+
+     // 開始日期
+     if (startDate != null) {
+         startDateTime =
+                 startDate.atStartOfDay();
+     }
+
+     // 結束日期
+     if (endDate != null) {
+         //endDate = 2026/09/30 實際會變成：2026/10/01 00:00
+    	 //Repository 使用： po.createdAt < endDateTime 
+    	 //所以 9/30 這一整天都會包含
+         endDateTime =
+                 endDate
+                         .plusDays(1)
+                         .atStartOfDay();
+     }
+
+     //搜尋關鍵字
+     String searchKeyword = null;
+
+     if (keyword != null
+             && !keyword.trim().isEmpty()) {
+         searchKeyword =
+                 keyword.trim();
+     }
+
+     // 6. 建立分頁設定
+     Pageable pageable =
+             PageRequest.of(
+                     page,
+                     size,
+                     // 最新建立的採購單排最前面
+                     Sort.by(
+                             Sort.Direction.DESC,
+                             "createdAt"
+                     )
+             );
+
+     // 7. Repository 查詢
+     Page<PurchaseOrders> purchaseOrderPage =
+             purchaseOrdersRepo
+                     .searchPurchaseOrders(
+                             status,
+                             supplierId,
+                             startDateTime,
+                             endDateTime,
+                             searchKeyword,
+                             pageable
+                     );
+
+     // 8. Entity → DTO
+ 
+     List<PurchaseOrderResponseDTO> dtoList =
+             new ArrayList<>();
+
+     for (PurchaseOrders purchaseOrder
+             : purchaseOrderPage.getContent()) {
+         PurchaseOrderResponseDTO dto =
+                 PurchaseOrderResponseDTO
+                         .fromEntity(purchaseOrder);
+
+         dtoList.add(dto);
+     }
+
+     //Page<DTO>
+  
+     return new PageImpl<PurchaseOrderResponseDTO>(
+             dtoList,
+             pageable,
+             purchaseOrderPage.getTotalElements()
+     );
+ }
   
     // ---修改---
     public PurchaseOrderResponseDTO updatePurchaseOrder(Long id, PurchaseOrderUpdateDTO updateDTO,Long loginUserId) {
@@ -384,7 +497,7 @@ public class PurchaseOrdersService {
 
     // 採購流程
    
-    // 送出審核
+ 
 
     // 核准採購單
 

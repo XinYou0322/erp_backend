@@ -13,8 +13,11 @@ import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PutMapping;
 
+import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,6 +64,35 @@ public class PurchaseOrdersController {
 		  purchaseOrdersService.findAllPurchaseOrders()
   );
 }
+  //分頁
+  @GetMapping("/api/purchaseOrder/page")
+  public ResponseEntity<Page<PurchaseOrderResponseDTO>>
+          findPurchaseOrderPage(
+          @RequestParam(required = false) String keyword, // 搜尋：採購單號 / 品名
+          @RequestParam(required = false) PurchaseOrdersStatus status,
+          @RequestParam(required = false) Long supplierId,
+          @RequestParam(required = false)
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+          @RequestParam(required = false)
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+          @RequestParam(defaultValue = "0") int page, //第幾頁
+          @RequestParam(defaultValue = "10") int size //預設一頁10筆
+  ) {
+      // Controller 把收到的條件交給 Service
+      Page<PurchaseOrderResponseDTO> result =
+              purchaseOrdersService.findPurchaseOrderPage(
+                      keyword,
+                      status,
+                      supplierId,
+                      startDate,
+                      endDate,
+                      page,
+                      size
+              );
+
+
+      return ResponseEntity.ok(result);
+  }
   
   
   

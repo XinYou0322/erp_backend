@@ -103,11 +103,18 @@ public class SuppliersController {
     //分頁
     @GetMapping("/api/Supplier/page")
     public ResponseEntity<Page<SupplierQueryRespoDTO>> findSupplierPage(
-            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) SupplierStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<SupplierQueryRespoDTO> result = suppliersService.findSupplierPage(keyword,page,size);
+        Page<SupplierQueryRespoDTO> result =
+                suppliersService.findSupplierPage(
+                        keyword,
+                        status,
+                        page,
+                        size
+                );
 
         return ResponseEntity.ok(result);
     }
