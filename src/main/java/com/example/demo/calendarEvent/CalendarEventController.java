@@ -17,15 +17,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/calendar")
-@CrossOrigin(origins = "*") // 允許前端跨域呼欠，生產環境請改成特定網域
 public class CalendarEventController {
 
     @Autowired
     private CalendarEventService service;
 
+    // 取得全部排程列表
+    @GetMapping("/events")
+    public ResponseEntity<List<CalendarEvent>> getAllEvents() {
+        return ResponseEntity.ok(service.getAllEvents());
+    }
+
     // 查詢排程列表 (支援動態篩選)
     @PostMapping("/events/search")
-    public ResponseEntity<List<CalendarEvent>> getEvents(@RequestBody CalendarQueryDTO query) {
+    public ResponseEntity<List<CalendarEvent>> getEvents(@RequestBody(required = false) CalendarQueryDTO query) {
         List<CalendarEvent> events = service.getFilteredEvents(query);
         return ResponseEntity.ok(events);
     }

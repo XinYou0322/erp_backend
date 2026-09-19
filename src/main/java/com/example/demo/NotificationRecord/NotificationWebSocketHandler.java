@@ -23,7 +23,7 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         Long userId = getUserIdFromSession(session);
-        if (userId != null) {
+        if (userId != null && userId >= 0L) {
             userSessions.put(userId, session);
         }
     }
@@ -31,7 +31,7 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         Long userId = getUserIdFromSession(session);
-        if (userId != null) {
+        if (userId != null && userId >= 0L) {
             userSessions.remove(userId);
         }
     }
@@ -57,9 +57,14 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
             if (uri != null && uri.getQuery() != null) {
                 String query = uri.getQuery();
                 for (String param : query.split("&")) {
-                    String[] pair = param.split("=");
+                    String[] pair = param.split("=", 2);
                     if (pair.length > 1 && "userId".equals(pair[0])) {
-                        return Long.parseLong(pair[1]);
+                        try {
+                            Long userId = Long.parseLong(pair[1].trim());
+                            return userId >= 0 ? userId : null;
+                        } catch (NumberFormatException e) {
+                            return null;
+                        }
                     }
                 }
             }

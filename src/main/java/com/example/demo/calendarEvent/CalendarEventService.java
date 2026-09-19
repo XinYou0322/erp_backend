@@ -14,8 +14,16 @@ public class CalendarEventService {
     @Autowired
     private CalendarEventRepository repository;
 
+    // 0. 取得所有排程列表
+    public List<CalendarEvent> getAllEvents() {
+        return repository.findAll();
+    }
+
     // 1. 取得條件篩選後的排程清單
     public List<CalendarEvent> getFilteredEvents(CalendarQueryDTO query) {
+        if (query == null) {
+            return getAllEvents();
+        }
         Specification<CalendarEvent> spec = CalendarEventSpecifications.filterEvents(query);
         return repository.findAll(spec);
     }
@@ -46,7 +54,8 @@ public class CalendarEventService {
             event.setEndTime(updatedEvent.getEndTime());
             event.setLocation(updatedEvent.getLocation());
             event.setOrganizer(updatedEvent.getOrganizer());
-            event.setAttendees(updatedEvent.getAttendees());
+            event.setAttendees(
+                    updatedEvent.getAttendees() != null ? updatedEvent.getAttendees() : new java.util.ArrayList<>());
             event.setPriority(updatedEvent.getPriority());
             event.setStatus(updatedEvent.getStatus());
             event.setRelatedRef(updatedEvent.getRelatedRef());
