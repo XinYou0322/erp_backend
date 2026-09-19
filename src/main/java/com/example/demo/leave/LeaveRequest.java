@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.example.demo.leave.enums.LeaveStatus;
+import com.example.demo.leave.enums.LeaveType;
 import com.example.demo.users.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -36,7 +38,7 @@ public class LeaveRequest {
     @Column(nullable = false)
     private LocalDate endDate;
 
-    @Column(nullable = false, length = 500)
+    @Column(columnDefinition = "NVARCHAR(500)")
     private String reason;
 
     @Enumerated(EnumType.STRING)

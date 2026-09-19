@@ -47,16 +47,13 @@ public class SuppliersDTO {
     for (Suppliers supplier : suppliersList) {
         // 將每個 Suppliers 物件轉換為 SuppliersDTO 物件
         SuppliersDTO dto = new SuppliersDTO();
-
         dto.setId(supplier.getId());
         dto.setName(supplier.getName());
         dto.setPhone(supplier.getPhone());
         dto.setAddress(supplier.getAddress());
         dto.setEmail(supplier.getEmail());
-
         dtoList.add(dto);
     }
-
     return dtoList;
 }
     //DTO → Entity

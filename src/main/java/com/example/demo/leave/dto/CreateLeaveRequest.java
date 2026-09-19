@@ -2,7 +2,7 @@ package com.example.demo.leave.dto;
 
 import java.time.LocalDate;
 
-import com.example.demo.leave.LeaveType;
+import com.example.demo.leave.enums.LeaveType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -12,7 +12,7 @@ import lombok.Data;
 public class CreateLeaveRequest {
     private LeaveType leaveType;
 
-    private Long documentId;
+    // private Long documentId;
 
     private Long applicantId;
 

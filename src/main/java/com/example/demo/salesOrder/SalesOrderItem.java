@@ -2,7 +2,7 @@ package com.example.demo.salesOrder;
 
 import java.math.BigDecimal;
 
-import org.hibernate.annotations.ManyToAny;
+import org.hibernate.annotations.Nationalized;
 
 import com.example.demo.products.Products;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -41,18 +41,18 @@ public class SalesOrderItem {
 	@JoinColumn(name = "product_id", nullable = false)
 	private Products product;
 
-//    // 快照欄位：商品日後改名或改價，舊訂單仍保留結帳當下內容。
-//	  //結帳當下商品編號
-//    @Column(name = "product_sku", nullable = false, length = 50)
-//    private String productSku;
-//
-//	  //結帳當下商品名稱
-//    @Nationalized
-//    @Column(name = "product_name", nullable = false, length = 100)
-//    private String productName;
+    // 快照欄位：商品日後改名或改價，舊訂單仍保留結帳當下內容。
+	//結帳當下商品編號
+    @Column(name = "product_sku", nullable = false, length = 50)
+    private String productSku;
+
+	//結帳當下商品名稱
+    @Nationalized
+    @Column(name = "product_name", nullable = false, length = 100)
+    private String productName;
 	
 	@Column(nullable = false)
-	private Integer quantity;
+	private BigDecimal quantity;
 	
 	//結帳當下的單價
 	@Column(name = "unit_price", nullable = false, precision = 18, scale = 2)

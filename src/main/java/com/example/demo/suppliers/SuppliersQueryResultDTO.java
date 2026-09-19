@@ -6,7 +6,7 @@ import lombok.Data;
 @Data 
 public class SuppliersQueryResultDTO {
      // 查到的供應商
-    private List<SuppliersDTO> suppliers;
+    private List<SupplierRespoDTO> suppliers;
 
     // 查不到的 ID
     private List<Long> notFoundIds;

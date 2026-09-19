@@ -1,4 +1,4 @@
-package com.example.demo.inventorylog;
+package com.example.demo.inventorylog.DTO;
 
 import java.math.BigDecimal;
 

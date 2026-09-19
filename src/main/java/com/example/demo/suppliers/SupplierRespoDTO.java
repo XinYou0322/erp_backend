@@ -1,5 +1,8 @@
 package com.example.demo.suppliers;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.example.demo.suppliersNotes.SupplierNotes;
 import com.example.demo.suppliersNotes.SuppliersNotesRespoDTO;
 
@@ -32,8 +35,9 @@ public class SupplierRespoDTO {
         return fromEntity(supplier, null);
     }
 	
-	// Entity → ResponseDTO
-    public static SupplierRespoDTO fromEntity(Suppliers supplier,SupplierNotes note) {
+	//單筆
+	// Entity → ResponseDTO 
+    public static SupplierRespoDTO fromEntity(Suppliers supplier,SuppliersNotesRespoDTO note) {
 
         SupplierRespoDTO dto = new SupplierRespoDTO();
 
@@ -47,9 +51,12 @@ public class SupplierRespoDTO {
         dto.setStatus(supplier.getStatus());
         
         if (note != null) {
-            dto.setNote(SuppliersNotesRespoDTO.fromEntity(note)); 
+            dto.setNote(note);
         }
         
         return dto;
     }
+    
+
+
 }

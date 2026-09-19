@@ -1,6 +1,9 @@
 package com.example.demo.inventorylog;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +13,9 @@ import com.example.demo.bom.Bom;
 import com.example.demo.bom.BomRepository;
 import com.example.demo.inventories.Inventory;
 import com.example.demo.inventories.InventoryRepository;
+import com.example.demo.inventorylog.DTO.InventoryAdjustmentItemDTO;
+import com.example.demo.inventorylog.DTO.InventoryAdjustmentRequestDTO;
+import com.example.demo.inventorylog.DTO.InventoryLogResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -169,8 +175,47 @@ public class InventoryLogService {
         return dto;
     }
     
-    
+   
+    public List<InventoryLogResponseDTO> getLogsByDateRange(
+            LocalDate startDate,
+            LocalDate endDate) {
 
+        // 1. 檢查日期
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException(
+                "開始日期不得晚於結束日期"
+            );
+        }
+
+        // 2. 使用台灣時區
+        ZoneId zoneId = ZoneId.of("Asia/Taipei");
+
+        // 3. 開始日期 00:00
+        Instant start = startDate
+            .atStartOfDay(zoneId)
+            .toInstant();
+
+        // 4. 結束日期的隔天 00:00
+        Instant end = endDate
+            .plusDays(1)
+            .atStartOfDay(zoneId)
+            .toInstant();
+
+        // 5. 查詢資料
+        List<InventoryLog> logs =
+            inventoryLogRepository
+                .findByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                    start,
+                    end
+                );
+
+        // 6. Entity → DTO
+        return logs.stream()
+            .map(this::convertToDTO)
+            .toList();
+    }
+    
+    
     @Transactional
     public void adjustInventory(
             InventoryAdjustmentRequestDTO request) {
@@ -288,6 +333,8 @@ public class InventoryLogService {
                     log
             );
         }
+        
+        
     }
         
         

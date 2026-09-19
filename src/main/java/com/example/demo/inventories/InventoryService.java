@@ -1,7 +1,9 @@
 package com.example.demo.inventories;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -263,7 +265,6 @@ public final MaterialRepository materialRepository;
 
 
                     return new InventorySummaryDTO(
-
                             material.getId(),
                             material.getCode(),
                             material.getName(),
@@ -274,6 +275,7 @@ public final MaterialRepository materialRepository;
 
                             safetyStock,
                             status,
+                            material.getStatus(),
 
                             nearestExpiryDate,
 
@@ -339,7 +341,97 @@ public final MaterialRepository materialRepository;
 
         return inventoryRepository.save(exist);
     }
+    @Transactional
 
+public void batchInventory(
+        InventoryBatchRequestDTO request) {
+
+    	 if (request == null ||
+    		        request.getItems() == null ||
+    		        request.getItems().isEmpty()) {
+
+    		        throw new IllegalArgumentException(
+    		            "進貨資料不得為空"
+    		        );
+    		    }
+    	
+    	
+    for (
+        InventoryBatchRequestDTO.Item item
+        : request.getItems()
+    ) {
+    	if (item.getMaterialId() == null) {
+    	    throw new IllegalArgumentException(
+    	        "原物料不得為空"
+    	    );
+    	}
+
+    	if (item.getQuantity() == null ||
+    	    item.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+
+    	    throw new IllegalArgumentException(
+    	        "進貨數量必須大於 0"
+    	    );
+    	}
+        Material material =
+            materialRepository
+                .findById(item.getMaterialId())
+                .orElseThrow(
+                    () -> new RuntimeException(
+                        "找不到原物料"
+                    )
+                );
+
+
+        // 1. 新增库存批次
+        Inventory inventory =
+            new Inventory();
+        BigDecimal actualQuantity;
+        inventory.setMaterial(material);
+        if ("CONVERSION".equals(material.getCostMode())) {
+            if (material.getConversionQuantity() == null ||
+                    material.getConversionQuantity()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
+
+                    throw new IllegalArgumentException(
+                        "原物料換算數量設定錯誤"
+                    );
+                }
+        	  actualQuantity =
+                item.getQuantity()
+                    .multiply(
+                        material.getConversionQuantity()
+                    );
+
+        } else {
+
+            actualQuantity =
+                item.getQuantity();
+
+        }
+        inventory.setExpiryDate(item.getExpiryDate());
+        inventory.setQuantity(actualQuantity);
+        inventoryRepository.save(inventory);
+
+
+        // 2. 新增库存异动纪录
+        InventoryLog log =
+            new InventoryLog();
+
+        log.setMaterial(material);
+
+        log.setQuantity(
+        		actualQuantity
+        );
+
+        log.setAction(
+            "STOCK_IN"
+        );
+        log.setCreatedAt(Instant.now());
+
+        inventoryLogRepository.save(log);
+    }
+}
     // 刪除一批（例如整批報廢或輸入錯誤）
     public void delete(Long id) {
         inventoryRepository.deleteById(id);

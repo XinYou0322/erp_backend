@@ -92,7 +92,14 @@ public class InventoryController {
         }
     
     
-    
+    @PostMapping("/api/inventory/batch")
+    public ResponseEntity<?> batchInventory(
+            @RequestBody InventoryBatchRequestDTO request) {
+
+        inventoryService.batchInventory(request);
+
+        return ResponseEntity.ok().build();
+    }
     
     
 }

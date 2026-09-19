@@ -27,7 +27,7 @@ public class InventorySummaryDTO {
     
     private BigDecimal safetyStock;
     private String status;
-    
+    private String materialStatus;
     
     // 最近到期日
     private LocalDate nearestExpiryDate;
