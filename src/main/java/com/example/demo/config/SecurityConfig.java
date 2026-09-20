@@ -78,133 +78,115 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration configuration) throws Exception {
 
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration) throws Exception {
+                return configuration.getAuthenticationManager();
+        }
 
-        return configuration.getAuthenticationManager();
-    }
+        @Bean
+        public SecurityFilterChain securityFilterChain(
+                        HttpSecurity http,
+                        UserDetailsService userDetailsService) throws Exception {
 
+                http
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            UserDetailsService userDetailsService) throws Exception {
+                                // 【我新增】啟用 CORS
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-        http
+                                // 關閉 CSRF
+                                .csrf(AbstractHttpConfigurer::disable)
 
-                // 【我新增】啟用 CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .authorizeHttpRequests(auth -> auth
 
-                // 關閉 CSRF
-                .csrf(AbstractHttpConfigurer::disable)
+                                                // 原本就允許的 API
+                                                .requestMatchers(
+                                                                "/api/users/login",
+                                                                "/api/users/register",
+                                                                "/api/users/check-username",
+                                                                "/api/users/check-email",
+                                                                "/api/users/now",
+                                                                "/api/roles",
+                                                                "/api/users/all",
+                                                                "/swagger-ui/**",
+                                                                "/v3/api-docs/**",
+                                                                "/error")
+                                                .permitAll()
 
-                .authorizeHttpRequests(auth -> auth
+                                                // 原本的角色限制
+                                                .requestMatchers("/api/roles/**")
+                                                .hasAnyRole("ADMIN", "MANAGER")
 
-                        // 原本就允許的 API
-                        .requestMatchers(
-                                "/api/users/login",
-                                "/api/users/register",
-                                "/api/users/check-username",
-                                "/api/users/check-email",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/error")
-                        .permitAll()
+                                                .requestMatchers("/api/users/**")
+                                                .hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
 
+                                                // 【我新增】
+                                                // 目前 ERP 一般 API 先允許通過
+                                                .requestMatchers("/api/Supplier/**").permitAll()
 
-                        // 原本的角色限制
-                        .requestMatchers("/api/roles/**")
-                        .hasAnyRole("ADMIN", "MANAGER")
+                                                // 【我新增】
+                                                // 通知 API
+                                                .requestMatchers("/api/notifications/**").permitAll()
 
-                        .requestMatchers("/api/users/**")
-                        .hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
+                                                // 【我新增】
+                                                // WebSocket
+                                                .requestMatchers("/ws/**").permitAll()
 
+                                                // 其他沒有設定的路徑
+                                                .anyRequest().permitAll())
 
-                        // 【我新增】
-                        // 目前 ERP 一般 API 先允許通過
-                        .requestMatchers("/api/Supplier/**").permitAll()
+                                .userDetailsService(userDetailsService)
 
-                        // 【我新增】
-                        // 通知 API
-                        .requestMatchers("/api/notifications/**").permitAll()
+                                .formLogin(AbstractHttpConfigurer::disable)
 
-                        // 【我新增】
-                        // WebSocket
-                        .requestMatchers("/ws/**").permitAll()
+                                .httpBasic(AbstractHttpConfigurer::disable);
 
+                return http.build();
+        }
 
-                        // 其他沒有設定的路徑
-                        .anyRequest().permitAll()
-                )
+        // =========================================================
+        // 【我新增】CORS 設定
+        // =========================================================
 
-                .userDetailsService(userDetailsService)
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
 
-                .formLogin(AbstractHttpConfigurer::disable)
+                CorsConfiguration configuration = new CorsConfiguration();
 
-                .httpBasic(AbstractHttpConfigurer::disable);
+                // Vue 前端網址
+                configuration.setAllowedOrigins(
+                                List.of("http://localhost:5173"));
 
+                // 允許的 HTTP Method
+                configuration.setAllowedMethods(
+                                List.of(
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "DELETE",
+                                                "PATCH",
+                                                "OPTIONS"));
 
-        return http.build();
-    }
+                // 允許所有 Header
+                configuration.setAllowedHeaders(
+                                List.of("*"));
 
+                // 如果使用 HttpSession / Cookie，需要開啟
+                configuration.setAllowCredentials(true);
 
-    // =========================================================
-    // 【我新增】CORS 設定
-    // =========================================================
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+                // 所有路徑套用這份 CORS
+                source.registerCorsConfiguration(
+                                "/**",
+                                configuration);
 
-        CorsConfiguration configuration = new CorsConfiguration();
-
-
-        // Vue 前端網址
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
-        );
-
-
-        // 允許的 HTTP Method
-        configuration.setAllowedMethods(
-                List.of(
-                        "GET",
-                        "POST",
-                        "PUT",
-                        "DELETE",
-                        "PATCH",
-                        "OPTIONS"
-                )
-        );
-
-
-        // 允許所有 Header
-        configuration.setAllowedHeaders(
-                List.of("*")
-        );
-
-
-        // 如果使用 HttpSession / Cookie，需要開啟
-        configuration.setAllowCredentials(true);
-
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-
-        // 所有路徑套用這份 CORS
-        source.registerCorsConfiguration(
-                "/**",
-                configuration
-        );
-
-
-        return source;
-    }
+                return source;
+        }
 }
