@@ -114,6 +114,7 @@ public class SecurityConfig {
                                                                 "/api/users/now",
                                                                 "/api/roles",
                                                                 "/api/users/all",
+                                                                "/api/users/switch-test-user/**",
                                                                 "/swagger-ui/**",
                                                                 "/v3/api-docs/**",
                                                                 "/error")

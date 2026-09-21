@@ -224,4 +224,28 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "使用者刪除成功"));
     }
 
+    @PostMapping("/switch-test-user/{id}")
+    public ResponseEntity<?> switchTestUser(@PathVariable Long id, HttpServletRequest request) {
+        // 透過服務撈出你想切換的那個使用者完整資料
+        UserResponseDTO targetUser = usersService.getUserById(id);
+
+        // 更新當前請求的 Session 資料
+        HttpSession session = request.getSession(true);
+        session.setAttribute("userId", targetUser.getId());
+        session.setAttribute("currentUser", targetUser);
+
+        // 同步更新 Spring Security 上下文
+        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleName(
+                targetUser.getRole() != null ? targetUser.getRole().getName() : "");
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(
+                targetUser.getUsername(),
+                null,
+                authorities));
+        SecurityContextHolder.setContext(context);
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
+        return ResponseEntity.ok(Map.of("message", "後端 Session 切換成功", "user", targetUser));
+    }
+
 }
