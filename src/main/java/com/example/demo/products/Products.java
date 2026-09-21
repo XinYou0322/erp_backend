@@ -59,4 +59,7 @@ public class Products {
     // 商品狀態，例如 ACTIVE / INACTIVE
     @Column(nullable = false, length = 50)
     private String status;
+    
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 }
