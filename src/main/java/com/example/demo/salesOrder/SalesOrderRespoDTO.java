@@ -27,7 +27,6 @@ public class SalesOrderRespoDTO {
 
 	    private String note;
 
-	    private List<SalesOrderItemRespoDTO> items;
 	    
 	    public static SalesOrderRespoDTO fromEntity(SalesOrders order) {
 
