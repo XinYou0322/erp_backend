@@ -25,20 +25,42 @@ public class NotificationController {
     @Autowired
     private NotificationService notificationService;
 
+    private Long normalizeUserId(Object rawUserId) {
+        if (rawUserId == null) {
+            return null;
+        }
+        if (rawUserId instanceof Number numberValue) {
+            long userId = numberValue.longValue();
+            return userId >= 0 ? userId : null;
+        }
+        if (rawUserId instanceof String stringValue) {
+            String trimmed = stringValue.trim();
+            if (trimmed.isEmpty()) {
+                return null;
+            }
+            try {
+                long parsed = Long.parseLong(trimmed);
+                return parsed >= 0 ? parsed : null;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     // 提取共用方法：支援從 Session 或 Request Header 取得 userId
     private Long getValidatedUserId(HttpServletRequest request) {
-        // 1. 優先從 Session 讀取
         jakarta.servlet.http.HttpSession session = request.getSession(false);
-        if (session != null && session.getAttribute("userId") != null) {
-            return (Long) session.getAttribute("userId");
+        if (session != null) {
+            Long sessionUserId = normalizeUserId(session.getAttribute("userId"));
+            if (sessionUserId != null) {
+                return sessionUserId;
+            }
         }
-        // 2. 備援：支援前端自訂請求標頭 (X-User-Id)
+
         String headerUserId = request.getHeader("X-User-Id");
         if (headerUserId != null && !headerUserId.isBlank()) {
-            try {
-                return Long.parseLong(headerUserId);
-            } catch (NumberFormatException ignored) {
-            }
+            return normalizeUserId(headerUserId);
         }
         return null;
     }
@@ -116,9 +138,8 @@ public class NotificationController {
     }
 
     @PostMapping("/trigger-sample")
-    public ResponseEntity<Void> triggerSample(@RequestBody Map<String, Long> payload) {
-        // 模擬觸發測試通知，通常由系統後台或測試調用，保留傳入指定 userId
-        Long userId = payload.get("userId");
+    public ResponseEntity<Void> triggerSample(@RequestBody Map<String, Object> payload) {
+        Long userId = normalizeUserId(payload != null ? payload.get("userId") : null);
         if (userId == null) {
             return ResponseEntity.badRequest().build();
         }
