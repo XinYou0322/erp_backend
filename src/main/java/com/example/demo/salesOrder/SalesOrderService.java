@@ -4,10 +4,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
@@ -23,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 public class SalesOrderService {
 	
 	private final SalesOrderRepository salesOrderRepo;
+	private final SalesOrderItemRepository salesOrderItemRepo;
 	private final UsersRepository userRepo;
 	private final ProductRepository proRepo;
 	
@@ -41,124 +50,261 @@ public class SalesOrderService {
      	}
 	
 	//---新增---
+	@Transactional
 	public SalesOrderRespoDTO createSalesOrder(SalesOrderCreDTO salesOrderCreDTO
-			,Long loginUserId
-			){
-		//找登入者
-		User loginUser = userRepo.findById(loginUserId)
-                .orElseThrow(() ->
-                        new RuntimeException("找不到登入使用者"));
-		//建銷售單
-		SalesOrders salesOrder = new SalesOrders();
-		//set單號
-		salesOrder.setOrderNumber(generateOrderNumber());
-		//set付款方式
-		salesOrder.setPaymentMethod(salesOrderCreDTO.getPaymentMethod());
-		//setNote
-		salesOrder.setNote(salesOrderCreDTO.getNote());
-		//set人
-		salesOrder.setCreatedBy(loginUser);
-		
-		//總金額
-		BigDecimal totalAmount = BigDecimal.ZERO;
-		
-		Set<Long> productIds = new HashSet<>();
+		,Long loginUserId
+		){
+	//找登入者
+	User loginUser = userRepo.findById(loginUserId)
+            .orElseThrow(() ->
+                    new RuntimeException("找不到登入使用者"));
+	//建銷售單
+	SalesOrders salesOrder = new SalesOrders();
+	//set單號
+	salesOrder.setOrderNumber(generateOrderNumber());
+	//set付款方式
+	salesOrder.setPaymentMethod(salesOrderCreDTO.getPaymentMethod());
+	//setNote
+	salesOrder.setNote(salesOrderCreDTO.getNote());
+	//set人
+	salesOrder.setCreatedBy(loginUser);
+	
+	//總金額
+	BigDecimal totalAmount = BigDecimal.ZERO;
+	
+	Set<Long> productIds = new HashSet<>();
 
-		for (int i = 0; i < salesOrderCreDTO.getItems().size(); i++) {
+	for (int i = 0; i < salesOrderCreDTO.getItems().size(); i++) {
 
-		    SalesOrderItemCreDTO itemDTO =
-		            salesOrderCreDTO.getItems().get(i);
+	    SalesOrderItemCreDTO itemDTO =
+	            salesOrderCreDTO.getItems().get(i);
 
-		    Long productId = itemDTO.getProductId();
+	    Long productId = itemDTO.getProductId();
 
-		    //檢查商品是否重複
-		    if (productIds.contains(productId)) {
-		        throw new RuntimeException(
-		                "商品 ID：" + productId + " 重複出現"
-		        );
-		    }
+	    //檢查商品是否重複
+	    if (productIds.contains(productId)) {
+	        throw new RuntimeException(
+	                "商品 ID：" + productId + " 重複出現"
+	        );
+	    }
 
-		    // 沒重複就記錄起來
-		    productIds.add(productId);
-		    
-            // 找商品
-            Products product = proRepo.findById(itemDTO.getProductId())
-            		.orElseThrow(() ->new RuntimeException("找不到商品"));
-                    
-            // 商品目前售價
-            BigDecimal unitPrice = product.getSellingPrice();
+	    // 沒重複就記錄起來
+	    productIds.add(productId);
+	    
+        // 找商品
+        Products product = proRepo.findById(itemDTO.getProductId())
+        		.orElseThrow(() ->new RuntimeException("找不到商品"));
+                
+        // 商品目前售價
+        BigDecimal unitPrice = product.getSellingPrice();
 
-            // 數量
-            BigDecimal quantity = itemDTO.getQuantity();
-                    
-            // 小計 = 單價 × 數量
-            BigDecimal subtotal = unitPrice.multiply(quantity);
-                   
-            // 加到總額
-            totalAmount = totalAmount.add(subtotal);
-                    
-            // 4. 建立銷售明細
-            SalesOrderItem item =  new SalesOrderItem();
-                   
-            item.setSalesOrder(salesOrder);
+        // 數量
+        BigDecimal quantity = itemDTO.getQuantity();
+                
+        // 小計 = 單價 × 數量
+        BigDecimal subtotal = unitPrice.multiply(quantity);
+               
+        // 加到總額
+        totalAmount = totalAmount.add(subtotal);
+                
+        // 4. 建立銷售明細
+        SalesOrderItem item =  new SalesOrderItem();
+               
+        item.setSalesOrder(salesOrder);
 
-            item.setProduct(product);
+        item.setProduct(product);
 
-            item.setQuantity(quantity);
+        item.setQuantity(quantity);
 
-            // 記錄結帳當下的商品資料
-            item.setProductSku(product.getSku());
+        // 記錄結帳當下的商品資料
+        item.setProductSku(product.getSku());
 
-            item.setProductName(product.getName());
+        item.setProductName(product.getName());
 
             item.setUnitPrice(unitPrice);
 
+            //subtotal 在 SalesOrderItem Entity 中不可為 null，必須存入本次計算的小計。
+            item.setSubtotal(subtotal);
+
             // 加入主單
             salesOrder.getItems().add(item);
-        }
+    }
 
-        // 5. 設定後端計算完成的總額
-        salesOrder.setTotalAmount(totalAmount);
-        
-        // 6. 儲存
+    // 5. 設定後端計算完成的總額
+    salesOrder.setTotalAmount(totalAmount);
+    
+        // 6. 儲存銷售單主檔
         SalesOrders savedOrder =
                 salesOrderRepo.save(salesOrder);
+
+        //SalesOrders.items 沒有 Cascade，主檔 save 不會自動儲存明細。
+        // 因此先讓主檔取得 id，再逐筆儲存每一筆 SalesOrderItem。
+        for (SalesOrderItem item : salesOrder.getItems()) {
+            salesOrderItemRepo.save(item);
+        }
 
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
     }	
 	//---報廢---
+	@Transactional
 	public SalesOrderRespoDTO voidSalesOrder(
-			Long salesOrderId,
-			Long loginUserId,
-			String voidReason
-			) {
-		SalesOrders salesOrder = salesOrderRepo.findById(salesOrderId).orElseThrow(() ->
-        								new RuntimeException("找不到銷售單"));
-		
-		if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
-			throw new RuntimeException("此銷售單已經作廢");
-		}
-		
-		User loginUser = userRepo.findById(loginUserId)
-                .orElseThrow(() ->
-                        new RuntimeException("找不到登入使用者"));
-		
-		salesOrder.setStatus(SalesOrderStatus.VOIDED);
-		salesOrder.setVoidedBy(loginUser);
-		salesOrder.setVoidReason(voidReason);
-		salesOrder.setVoidedAt(LocalDateTime.now());
-		SalesOrders savedOrder = salesOrderRepo.save(salesOrder);
-		
-		return SalesOrderRespoDTO.fromEntity(savedOrder);
+		Long salesOrderId,
+		Long loginUserId,
+		String voidReason
+		) {
+	SalesOrders salesOrder = salesOrderRepo.findById(salesOrderId).orElseThrow(() ->
+    								new RuntimeException("找不到銷售單"));
+	
+	if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
+		throw new RuntimeException("此銷售單已經作廢");
 	}
+	
+	User loginUser = userRepo.findById(loginUserId)
+            .orElseThrow(() ->
+                    new RuntimeException("找不到登入使用者"));
+	
+	salesOrder.setStatus(SalesOrderStatus.VOIDED);
+	salesOrder.setVoidedBy(loginUser);
+	salesOrder.setVoidReason(voidReason);
+	salesOrder.setVoidedAt(LocalDateTime.now());
+	SalesOrders savedOrder = salesOrderRepo.save(salesOrder);
+	
+	return SalesOrderRespoDTO.fromEntity(savedOrder);
+}
 
 	//---查詢---
-	public SalesOrderRespoDTO findSalesOrderById(Long salesOrderId) {
-		
-		SalesOrders salesOrder = salesOrderRepo.findById(salesOrderId).orElseThrow(() ->
-		new RuntimeException("找不到銷售單"));
-		
-		return SalesOrderRespoDTO.fromEntity(salesOrder);
+
+
+	//單筆
+	//明細頁會讀取 items、product 與 createdBy 等 LAZY 關聯。
+	@Transactional(readOnly = true)
+	public SalesOrderDetailRespoDTO findById(Long id) {
+
+    SalesOrders order = salesOrderRepo.findById(id)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("找不到銷售單"));
+
+    return SalesOrderDetailRespoDTO.fromEntity(order);
+}
+	//分頁
+	@Transactional(readOnly = true)
+	public Page<SalesOrderListRespoDTO> findSalesOrderPage(
+	        String keyword,
+	        SalesOrderStatus status,
+	        PaymentMethod paymentMethod,
+	        Long createdById,
+	        LocalDate startDate,
+	        LocalDate endDate,
+	        BigDecimal minAmount,
+	        BigDecimal maxAmount,
+	        int page,
+	        int size) {
+	
+	    // 限制每頁只能 10 / 30 / 50 筆
+	    if (size != 5
+	            && size != 10
+	            && size != 30
+	            && size != 50) {
+	        size = 10;
+	    }
+	
+	    //  不可以是負數
+	    if (page < 0) {
+	        page = 0;
+	    }
+	    
+	    // 日期區間檢查
+	    if (startDate != null
+	            && endDate != null
+	            && startDate.isAfter(endDate)) {
+	        throw new IllegalArgumentException("開始日期不能晚於結束日期");
+	    }
+	
+	    // 金額區間檢查
+	    if (minAmount != null
+	            && minAmount.compareTo(BigDecimal.ZERO) < 0) {
+	        throw new IllegalArgumentException("最低金額不能小於 0");
+	    }
+	
+	    if (maxAmount != null
+	            && maxAmount.compareTo(BigDecimal.ZERO) < 0) {
+	
+	        throw new IllegalArgumentException("最高金額不能小於 0");
+	    }
+	
+	    // minAmount > maxAmount
+	    if (minAmount != null
+	            && maxAmount != null
+	            && minAmount.compareTo(maxAmount) > 0) {
+	
+	        throw new IllegalArgumentException("最低金額不能大於最高金額");
+	    }
+	
+	    // 日期轉換
+	    // LocalDate → LocalDateTime
+	    LocalDateTime startDateTime = null;
+	    LocalDateTime endDateTime = null;
+	
+	    if (startDate != null) {
+	        startDateTime = startDate.atStartOfDay();
+	    }
+	
+	    if (endDate != null) {
+	
+	    	// endDate = 2026-09-30 = createdAt < 2026-10-01 00:00
+			//所以 9/30 一整天都會被包含
+	        endDateTime = endDate
+	                        .plusDays(1)
+	                        .atStartOfDay();
+	    }
+	
+	    // 處理搜尋關鍵字
+	    String searchKeyword = null;
+	
+	    if (keyword != null
+	            && !keyword.trim().isEmpty()) {
+	        searchKeyword =
+	                keyword.trim();
+	    }
+	
+	    // 建立分頁
+	    Pageable pageable =
+	            PageRequest.of(
+	                    page,
+	                    size,
+	                    // 最新的銷售單排最前面
+	                    Sort.by( Sort.Direction.DESC,
+	                            "createdAt")
+	            );
+	
+	    //Repository 查詢
+	    Page<SalesOrders> salesOrderPage = salesOrderRepo.searchSalesOrders(
+	                    status,
+	                    paymentMethod,
+	                    createdById,
+	                    startDateTime,
+	                    endDateTime,
+	                    minAmount,
+	                    maxAmount,
+	                    searchKeyword,
+	                    pageable);
+	
+	    // Entity → DTO
+	    List<SalesOrderListRespoDTO> dtoList = new ArrayList<>();
+	
+	    for (SalesOrders salesOrder
+	            : salesOrderPage.getContent()) {
+	
+	        SalesOrderListRespoDTO dto = SalesOrderListRespoDTO
+	                        .fromEntity(salesOrder);
+	        dtoList.add(dto);
+	    }
+	    //Page<DTO>
+	    return new PageImpl<SalesOrderListRespoDTO>(
+	            dtoList,
+	            pageable,
+	            salesOrderPage.getTotalElements()
+	    );
 	}
 	
 //	// 全部查詢

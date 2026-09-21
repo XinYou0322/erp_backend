@@ -24,4 +24,5 @@ public class ProductResponseDTO {
     private String unit;
 
     private String status;
+    private String imageUrl;
 }
