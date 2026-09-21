@@ -129,4 +129,43 @@ public class NotificationService {
 
         createAndSendNotification(userId, pick[0], pick[1], pick[2], pick[3], pick[4]);
     }
+
+    /**
+     * 3. 建立打卡簽到/簽退通知
+     * 歸類在 security (資安考勤)，跳轉至 /attendance
+     */
+    @Transactional
+    public void createClockAlert(Long userId, String type, String userName, String time) {
+        String title = "IN".equalsIgnoreCase(type) ? "員工簽到成功" : "員工簽退成功";
+        String alertType = "IN".equalsIgnoreCase(type) ? "success" : "info";
+        String content = "IN".equalsIgnoreCase(type)
+                ? String.format("同仁【%s】已於 %s 完成今日上班打卡簽到。", userName, time)
+                : String.format("同仁【%s】已於 %s 完成今日下班打卡簽退。", userName, time);
+
+        // 呼叫核心中樞，自動處理儲存與 WebSocket 推播
+        createAndSendNotification(userId, title, content, "security", alertType, "/attendance");
+    }
+
+    /**
+     * 4. 建立原物料變動通知 (新增/進貨)
+     * 新增歸類在 inventory (庫存物料)，進貨歸類在 supplier (採購供鏈)
+     */
+    @Transactional
+    public void createMaterialAlert(Long userId, String eventType, String materialName, Map<String, Object> payload) {
+        if ("CREATE".equalsIgnoreCase(eventType)) {
+            String creator = (String) payload.getOrDefault("creator", "管理員");
+            String content = String.format("由【%s】新增了原物料：%s，已建檔至物料清單。", creator, materialName);
+
+            // 新增原物料：跳轉至 /material
+            createAndSendNotification(userId, "成功建立新原物料項目", content, "inventory", "success", "/material");
+
+        } else if ("IMPORT".equalsIgnoreCase(eventType)) {
+            String quantity = String.valueOf(payload.getOrDefault("quantity", "0"));
+            String batchNo = (String) payload.getOrDefault("batchNo", "N/A");
+            String content = String.format("原物料【%s】已成功進貨入庫 %s kg！批號：%s。", materialName, quantity, batchNo);
+
+            // 進貨入庫：跳轉至 /bom
+            createAndSendNotification(userId, "原物料進貨入庫通知", content, "supplier", "success", "/bom");
+        }
+    }
 }
