@@ -59,7 +59,7 @@ public class ProductService {
 
 		    product.setUnit(dto.getUnit());
 		    product.setStatus(dto.getStatus());
-
+		    product.setImageUrl(dto.getImageUrl());
 
 		    return productRepo.save(product);
 		}
@@ -118,7 +118,7 @@ public class ProductService {
 		    product.setSellingPrice(dto.getSellingPrice());
 		    product.setUnit(dto.getUnit());
 		    product.setStatus(dto.getStatus());
-
+		    product.setImageUrl(dto.getImageUrl());
 		    Products saved =
 		            productRepo.save(product);
 
@@ -150,8 +150,44 @@ private ProductResponseDTO convertToDTO(Products product) {
 
     dto.setUnit(product.getUnit());
     dto.setStatus(product.getStatus());
-
+    dto.setImageUrl(product.getImageUrl());
     return dto;
+}
+public ProductResponseDTO updateStatus(
+        Long id,
+        String status) {
+
+    Products product = productRepo.findById(id)
+            .orElseThrow(() ->
+                    new IllegalArgumentException(
+                            "找不到商品 id=" + id
+                    )
+            );
+
+    if (!"ACTIVE".equals(status)
+            && !"INACTIVE".equals(status)) {
+        throw new IllegalArgumentException(
+                "商品狀態只能是 ACTIVE 或 INACTIVE"
+        );
+    }
+
+    product.setStatus(status);
+
+    Products saved = productRepo.save(product);
+
+    return convertToDTO(saved);
+}
+
+public ProductResponseDTO updateImage(Long id, String imageUrl) {
+    if (imageUrl == null || !imageUrl.startsWith("/uploads/products/")) {
+        throw new IllegalArgumentException("商品圖片路徑無效");
+    }
+
+    Products product = productRepo.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("找不到商品 id=" + id));
+
+    product.setImageUrl(imageUrl);
+    return convertToDTO(productRepo.save(product));
 }
 
 public void delete(Long id) {
