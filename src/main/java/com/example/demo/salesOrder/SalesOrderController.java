@@ -1,5 +1,10 @@
 package com.example.demo.salesOrder;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,15 +57,77 @@ public class SalesOrderController {
     }
     
 	//---查詢---
-    @GetMapping("/api/SalesOrder/find/{salesOrderId}")
-    public ResponseEntity<SalesOrderRespoDTO> findSupplierById(
-        @PathVariable Long salesOrderId) {
+    @GetMapping("/api/SalesOrder/find/{Id}")
+    public ResponseEntity<SalesOrderDetailRespoDTO> findSupplierById(
+        @PathVariable Long Id) {
 
     return ResponseEntity.ok(
-    		salesOrderService.findSalesOrderById(salesOrderId)
+    		salesOrderService.findById(Id)
     );
     }
+
+    //分頁
+    @GetMapping("/api/SalesOrder/page")
+    public ResponseEntity<Page<SalesOrderListRespoDTO>>
+            findSalesOrderPage(
+
+            // 關鍵字:單號 / 商品名稱 / 商品 SKU
+            @RequestParam(required = false)
+            String keyword,
+
+            // 狀態
+            @RequestParam(required = false)
+            SalesOrderStatus status,
+
+            // 金流
+            @RequestParam(required = false)
+            PaymentMethod paymentMethod,
+
+            // 建立人
+            @RequestParam(required = false)
+            Long createdById,
+
+            // 開始日期
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+
+            // 結束日期
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate,
+            
+            // 最低金額
+            @RequestParam(required = false)
+            BigDecimal minAmount,
+
+            // 最高金額
+            @RequestParam(required = false)
+            BigDecimal maxAmount,
+
+            // 第幾頁從 0 開始
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            // 每頁幾筆 10/30/50
+            @RequestParam(defaultValue = "10")
+            int size
+    ) {
+        Page<SalesOrderListRespoDTO> result =
+                salesOrderService.findSalesOrderPage(
+                        keyword,
+                        status,
+                        paymentMethod,
+                        createdById,
+                        startDate,
+                        endDate,
+                        minAmount,
+                        maxAmount,
+                        page,
+                        size
+                );
+
+        return ResponseEntity.ok(result);
+    }
     
-	
-	//
 }
