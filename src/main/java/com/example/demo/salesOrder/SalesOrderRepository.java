@@ -49,14 +49,16 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long>{
         @Param("end") LocalDateTime end);
 
 	
-	// 最近七天營收
+	// 最近七天營收（不含今天）
 	@Query("""
-	SELECT CAST(s.createdAt AS date), SUM(s.totalAmount)
-	FROM SalesOrders s
-	WHERE s.status='COMPLETED'
-	AND s.createdAt>=:start
-	GROUP BY CAST(s.createdAt AS date)
-	ORDER BY CAST(s.createdAt AS date)
-	""")
-	List<Object[]> getWeeklyRevenue(@Param("start") LocalDateTime start);
+		SELECT CAST(s.createdAt AS date), SUM(s.totalAmount)
+		FROM SalesOrders s
+		WHERE s.status='COMPLETED'
+		AND s.createdAt>=:start
+		AND s.createdAt<:end
+		GROUP BY CAST(s.createdAt AS date)
+		ORDER BY CAST(s.createdAt AS date)
+		""")
+	List<Object[]> getWeeklyRevenue(@Param("start") LocalDateTime start,
+									@Param("end") LocalDateTime end);
 }

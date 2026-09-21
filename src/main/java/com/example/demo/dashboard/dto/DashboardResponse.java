@@ -12,5 +12,9 @@ public class DashboardResponse {
     private BigDecimal averageOrderAmount;
 
     private List<RevenueTrendResponse> weeklyRevenue;
-    private List<TopProductResponse> topProducts;
+    private List<TopProductResponse> topProducts;//長銷商品
+    private List<TopProductResponse> recentTopProducts; // 最近7天熱門
+    private List<TopRevenueResponse> topRevenueProducts;
+    private List<TopRevenueResponse> recentTopRevenueProducts;
+    private List<HourlySalesResponse> hourlySales;
 }
