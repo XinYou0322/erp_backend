@@ -6,7 +6,12 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.bom.Bom;
+import com.example.demo.bom.BomRepository;
+import com.example.demo.materials.Material;
+import com.example.demo.materials.MaterialRepository;
 import com.example.demo.productcategory.ProductCategory;
 import com.example.demo.productcategory.ProductCategoryRepository;
 
@@ -19,50 +24,86 @@ public class ProductService {
 		private final ProductRepository productRepo;
 
 		private final ProductCategoryRepository categoryRepo;
-		public Products create(ProductRequestDTO dto) {
+		private final MaterialRepository materialRepo;
+		private final BomRepository bomRepo;
+        @Transactional
+        public Products create(ProductRequestDTO dto) {
+            ProductCategory category = categoryRepo.findById(dto.getCategoryId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "找不到商品分類 id=" + dto.getCategoryId()));
+            if (!Boolean.TRUE.equals(category.getActive())) {
+                throw new IllegalArgumentException("此商品分類已停用");
+            }
 
-		    // 先找使用者選擇的分類
-		    ProductCategory category =
-		            categoryRepo.findById(dto.getCategoryId())
-		                    .orElseThrow(() ->
-		                            new IllegalArgumentException(
-		                                    "找不到商品分類 id=" + dto.getCategoryId()
-		                            )
-		                            
-		                            
-		                         
-		                            
-		                            
-		                    );
-	
-		    // 不允許使用已停用分類
-		    if (!category.getActive()) {
+            ProductType type = dto.getProductType() == null
+                    ? ProductType.RECIPE : dto.getProductType();
+            if (type == ProductType.RETAIL) {
+                return createRetailProduct(dto, category);
+            }
+            return createRecipeProduct(dto, category);
+        }
 
-		        throw new IllegalArgumentException(
-		                "此商品分類已停用"
-		        );
-		    }
+        private Products createRecipeProduct(ProductRequestDTO dto, ProductCategory category) {
+            Products product = newProduct(dto, category, ProductType.RECIPE);
+            product.setCostPrice(BigDecimal.ZERO);
+            return productRepo.save(product);
+        }
 
+        private Products createRetailProduct(ProductRequestDTO dto, ProductCategory category) {
+            if (dto.getSku() == null || dto.getSku().isBlank()
+                    || dto.getName() == null || dto.getName().isBlank()
+                    || dto.getUnit() == null || dto.getUnit().isBlank()) {
+                throw new IllegalArgumentException("零售商品編號、名稱與單位不得為空");
+            }
+            if (dto.getSku().length() > 50) {
+                throw new IllegalArgumentException("零售商品編號不得超過 50 字");
+            }
+            if (dto.getRetailCost() == null
+                    || dto.getRetailCost().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("零售商品成本不得為空或小於 0");
+            }
+            if (dto.getStatus() == null
+                    || (!"ACTIVE".equals(dto.getStatus()) && !"INACTIVE".equals(dto.getStatus()))) {
+                throw new IllegalArgumentException("商品狀態只能是 ACTIVE 或 INACTIVE");
+            }
+            if (materialRepo.findByCode(dto.getSku()).isPresent()) {
+                throw new IllegalArgumentException("原物料編號已存在：" + dto.getSku());
+            }
 
-		    Products product = new Products();
+            Material material = new Material();
+            material.setCode(dto.getSku());
+            material.setName(dto.getName());
+            material.setUnit(dto.getUnit());
+            material.setCostMode("DIRECT");
+            material.setCost(dto.getRetailCost());
+            material.setSafetyStock(BigDecimal.ZERO);
+            material.setStatus(dto.getStatus());
+            material = materialRepo.save(material);
 
-		    product.setSku(dto.getSku());
-		    product.setName(dto.getName());
+            Products product = newProduct(dto, category, ProductType.RETAIL);
+            product.setCostPrice(dto.getRetailCost());
+            product = productRepo.save(product);
 
-		    // 重點：Entity 放進 Product
-		    product.setCategory(category);
+            Bom bom = new Bom();
+            bom.setProduct(product);
+            bom.setMaterial(material);
+            bom.setQuantity(BigDecimal.ONE);
+            bomRepo.save(bom);
+            return product;
+        }
 
-		    product.setSellingPrice(dto.getSellingPrice());
-
-		    // 成本之後由 BOM 計算
-		    product.setCostPrice(BigDecimal.ZERO);
-
-		    product.setUnit(dto.getUnit());
-		    product.setStatus(dto.getStatus());
-		    product.setImageUrl(dto.getImageUrl());
-
-		    return productRepo.save(product);
-		}
+        private Products newProduct(ProductRequestDTO dto, ProductCategory category, ProductType type) {
+            Products product = new Products();
+            product.setSku(dto.getSku());
+            product.setName(dto.getName());
+            product.setCategory(category);
+            product.setSellingPrice(dto.getSellingPrice());
+            product.setUnit(dto.getUnit());
+            product.setStatus(dto.getStatus());
+            product.setProductType(type);
+            product.setImageUrl(dto.getImageUrl());
+            return product;
+        }
 		public ProductResponseDTO findById(Long id) {
 
 		    Products product =
@@ -111,6 +152,11 @@ public class ProductService {
 		                "此商品分類已停用"
 		        );
 		    }
+		    ProductType currentType = product.getProductType() == null
+		            ? ProductType.RECIPE : product.getProductType();
+		    if (dto.getProductType() != null && dto.getProductType() != currentType) {
+		        throw new IllegalArgumentException("不能透過一般商品編輯變更商品類型");
+		    }
 
 		    product.setSku(dto.getSku());
 		    product.setName(dto.getName());
@@ -118,6 +164,8 @@ public class ProductService {
 		    product.setSellingPrice(dto.getSellingPrice());
 		    product.setUnit(dto.getUnit());
 		    product.setStatus(dto.getStatus());
+		    // 舊資料尚未回填類型時，第一次編輯補為配方商品。
+		    product.setProductType(currentType);
 		    product.setImageUrl(dto.getImageUrl());
 		    Products saved =
 		            productRepo.save(product);
@@ -150,6 +198,8 @@ private ProductResponseDTO convertToDTO(Products product) {
 
     dto.setUnit(product.getUnit());
     dto.setStatus(product.getStatus());
+    dto.setProductType(product.getProductType() == null
+            ? ProductType.RECIPE : product.getProductType());
     dto.setImageUrl(product.getImageUrl());
     return dto;
 }
