@@ -19,5 +19,8 @@ public class ProductRequestDTO {
     private String unit;
 
     private String status;
+    private ProductType productType;
+    // 零售商品對應原物料的單位成本
+    private BigDecimal retailCost;
     private String imageUrl;
 }

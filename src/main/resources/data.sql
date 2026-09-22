@@ -78,16 +78,12 @@ BEGIN TRY
         description nvarchar(255)
     );
 
-    INSERT INTO @RoleSeed (role_name, description)
+      INSERT INTO @RoleSeed (role_name, description)
     VALUES
-        (N'店長',   N'門市最高管理權限'),
-        (N'副店長', N'協助店長管理門市'),
-        (N'經理',   N'採購、銷售與簽核管理'),
-        (N'組長',   N'負責小組管理與日常簽核'),
-        (N'副組長', N'協助組長執行管理工作'),
-        (N'班長',   N'負責當班人員與交接'),
-        (N'正職',   N'一般全職門市員工'),
-        (N'PT',     N'兼職門市員工');
+        (N'店長', N'系統管理員 (Admin)'),
+        (N'經理', N'營運經理 / 店長 (Manager)'),
+        (N'正職', N'現場員工 / 收銀員 (Employee)'),
+        (N'訪客', N'訪客 / 外部審計 (Guest)');
 
     INSERT INTO roles (name, description)
     SELECT rs.role_name, rs.description

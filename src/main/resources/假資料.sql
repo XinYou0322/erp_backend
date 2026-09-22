@@ -50,14 +50,10 @@ BEGIN TRY
 
     INSERT INTO @RoleSeed (role_name, description)
     VALUES
-        (N'店長',   N'門市最高管理權限'),
-        (N'副店長', N'協助店長管理門市'),
-        (N'經理',   N'採購、銷售與簽核管理'),
-        (N'組長',   N'負責小組管理與日常簽核'),
-        (N'副組長', N'協助組長執行管理工作'),
-        (N'班長',   N'負責當班人員與交接'),
-        (N'正職',   N'一般全職門市員工'),
-        (N'PT',     N'兼職門市員工');
+        (N'店長', N'系統管理員 (Admin)'),
+        (N'經理', N'營運經理 / 店長 (Manager)'),
+        (N'正職', N'現場員工 / 收銀員 (Employee)'),
+        (N'訪客', N'訪客 / 外部審計 (Guest)');
 
     INSERT INTO roles (name, description)
     SELECT rs.role_name, rs.description
@@ -68,6 +64,12 @@ BEGIN TRY
         FROM roles r
         WHERE r.name = rs.role_name
     );
+
+    UPDATE r
+    SET r.description = rs.description
+    FROM roles r
+    INNER JOIN @RoleSeed rs ON rs.role_name = r.name
+    WHERE r.description IS NULL OR r.description <> rs.description;
 
     /* ======================================================================
        2. 使用者
@@ -87,21 +89,22 @@ BEGIN TRY
         (username, display_name, email, role_name, user_status, created_days_ago)
     VALUES
         ('store_manager01',    N'陳志明', 'store.manager01@example.com',    N'店長',   'ACTIVE',   180),
-        ('deputy_manager01',   N'林雅雯', 'deputy.manager01@example.com',   N'副店長', 'ACTIVE',   170),
+        ('deputy_manager01',   N'林雅雯', 'deputy.manager01@example.com',   N'經理',   'ACTIVE',   170),
         ('purchase_manager01', N'王建國', 'purchase.manager01@example.com', N'經理',   'ACTIVE',   160),
         ('sales_manager01',    N'張淑芬', 'sales.manager01@example.com',    N'經理',   'ACTIVE',   150),
-        ('team_leader01',      N'黃俊傑', 'team.leader01@example.com',      N'組長',   'ACTIVE',   140),
-        ('assistant_leader01', N'吳柏翰', 'assistant.leader01@example.com', N'副組長', 'ACTIVE',   130),
-        ('shift_leader01',     N'劉冠廷', 'shift.leader01@example.com',     N'班長',   'ACTIVE',   120),
+        ('team_leader01',      N'黃俊傑', 'team.leader01@example.com',      N'經理',   'ACTIVE',   140),
+        ('assistant_leader01', N'吳柏翰', 'assistant.leader01@example.com', N'經理',   'ACTIVE',   130),
+        ('shift_leader01',     N'劉冠廷', 'shift.leader01@example.com',     N'正職',   'ACTIVE',   120),
         ('staff01',            N'王小明', 'staff01@example.com',            N'正職',   'ACTIVE',   110),
         ('staff02',            N'李佳穎', 'staff02@example.com',            N'正職',   'ACTIVE',   100),
         ('staff03',            N'張志豪', 'staff03@example.com',            N'正職',   'ACTIVE',    90),
         ('staff04',            N'黃雅婷', 'staff04@example.com',            N'正職',   'ACTIVE',    80),
         ('staff05',            N'陳柏宇', 'staff05@example.com',            N'正職',   'ACTIVE',    70),
         ('staff06',            N'林佩芸', 'staff06@example.com',            N'正職',   'INACTIVE',  60),
-        ('pt01',               N'周子晴', 'pt01@example.com',               N'PT',     'ACTIVE',    50),
-        ('pt02',               N'許家豪', 'pt02@example.com',               N'PT',     'ACTIVE',    40),
-        ('pt03',               N'郭欣怡', 'pt03@example.com',               N'PT',     'LOCKED',    30);
+        ('pt01',               N'周子晴', 'pt01@example.com',               N'正職',   'ACTIVE',    50),
+        ('pt02',               N'許家豪', 'pt02@example.com',               N'正職',   'ACTIVE',    40),
+        ('pt03',               N'郭欣怡', 'pt03@example.com',               N'正職',   'LOCKED',    30),
+        ('guest_auditor01',    N'外部審計員', 'guest.auditor01@example.com', N'訪客',   'ACTIVE',    20);
 
     INSERT INTO users
         (username, password, name, email, role_id, avatar, status, created_at)
@@ -124,6 +127,14 @@ BEGIN TRY
         WHERE u.username = us.username
            OR u.email = us.email
     );
+
+    -- 重跑腳本時，也把既有測試帳號的角色更新到四種系統角色。
+    UPDATE u
+    SET u.role_id = r.id
+    FROM users u
+    INNER JOIN @UserSeed us ON us.username = u.username
+    INNER JOIN roles r ON r.name = us.role_name
+    WHERE u.role_id <> r.id;
 
     /* ======================================================================
        3. 商品分類
