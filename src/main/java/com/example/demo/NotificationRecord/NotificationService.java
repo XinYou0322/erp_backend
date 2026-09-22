@@ -53,35 +53,40 @@ public class NotificationService {
             return;
         }
 
-        StringBuilder detail = new StringBuilder();
-        int limit = Math.min(materials.size(), 3);
-        for (int i = 0; i < limit; i++) {
-            Map<String, Object> item = materials.get(i);
+        // 巡迴檢查前端或 ERP 系統發送過來的所有低庫存物料
+        for (Map<String, Object> item : materials) {
+            // 1. 安全解析前端 DTO 傳遞過來的欄位
+            String code = String.valueOf(item.getOrDefault("code", "unknown"));
             String name = String.valueOf(item.getOrDefault("name", "原物料"));
-            Object stock = item.getOrDefault("stock", 0);
-            Object minStock = item.getOrDefault("minStock", 0);
-            if (i > 0) {
-                detail.append("、");
-            }
-            detail.append(name)
-                    .append("（")
-                    .append(stock)
-                    .append("/")
-                    .append(minStock)
-                    .append("）");
+
+            // 安全轉換庫存數值 (相容 Integer, Double, Long, String 等型態)
+            Object rawStock = item.getOrDefault("stock", 0);
+            Object rawMinStock = item.getOrDefault("minStock", 0);
+            double stock = rawStock instanceof Number ? ((Number) rawStock).doubleValue()
+                    : Double.parseDouble(String.valueOf(rawStock));
+            double minStock = rawMinStock instanceof Number ? ((Number) rawMinStock).doubleValue()
+                    : Double.parseDouble(String.valueOf(rawMinStock));
+
+            String unit = String.valueOf(item.getOrDefault("unit", "g"));
+
+            // 2. 判斷是否為「總量完全歸零 (如 asd 品項)」的危急狀態
+            boolean isCritical = (stock <= 0);
+
+            // 3. 建立精緻的各別通知內容與標題
+            String title = isCritical ? name + " 庫存緊急缺料" : name + " 庫存水位告急";
+
+            // 格式化庫存數字，去掉結尾無用的 .0 (如 4000.0 g 變 4000 g)
+            String stockStr = stock % 1 == 0 ? String.format("%.0f", stock) : String.valueOf(stock);
+            String minStockStr = minStock % 1 == 0 ? String.format("%.0f", minStock) : String.valueOf(minStock);
+
+            String content = String.format("【%s】當前可用庫存僅存 %s %s，已低於安全庫存警戒線 (%s %s)，建議立即安排採購。",
+                    name, stockStr, unit, minStockStr, unit);
+
+            String type = isCritical ? "danger" : "warning"; // 0庫存用紅色 danger，低於安全水位用 warning
+
+            // 4. 🚀 呼叫現有的核心中樞方法：自動完成資料庫儲存，並獲取合法的 Long ID，同步透過 WebSocket 推播給前端
+            createAndSendNotification(userId, title, content, "inventory", type, "/material");
         }
-
-        if (materials.size() > 3) {
-            detail.append("……");
-        }
-
-        String title = "庫存告急";
-        String content = String.format(
-                "目前有 %d 項原物料低於安全水位：%s，建議立即補貨。",
-                materials.size(),
-                detail);
-
-        createAndSendNotification(userId, title, content, "inventory", "warning", "/material");
     }
 
     /**
