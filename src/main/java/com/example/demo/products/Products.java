@@ -59,6 +59,11 @@ public class Products {
     // 商品狀態，例如 ACTIVE / INACTIVE
     @Column(nullable = false, length = 50)
     private String status;
+
+    // 舊資料的 null 在服務層視為 RECIPE；完成資料回填後可改為不可為空。
+    @Enumerated(EnumType.STRING)
+    @Column(name = "product_type", length = 20)
+    private ProductType productType = ProductType.RECIPE;
     
     @Column(name = "image_url", length = 500)
     private String imageUrl;
