@@ -27,6 +27,9 @@ public class Role {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "role_level", nullable = false)
+    private Integer roleLevel;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

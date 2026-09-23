@@ -57,8 +57,10 @@ public class UserController {
         session.setAttribute("userId", userResponse.getId());
         session.setAttribute("currentUser", userResponse);
 
-        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleName(
-                userResponse.getRole() != null ? userResponse.getRole().getName() : "");
+        // ✨ 修正這裡：直接傳入 Integer 型態的 roleLevel
+        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleLevel(
+                userResponse.getRoleLevel());
+
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(new UsernamePasswordAuthenticationToken(
                 userResponse.getUsername(),
@@ -234,9 +236,10 @@ public class UserController {
         session.setAttribute("userId", targetUser.getId());
         session.setAttribute("currentUser", targetUser);
 
-        // 同步更新 Spring Security 上下文
-        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleName(
-                targetUser.getRole() != null ? targetUser.getRole().getName() : "");
+        // ✨ 修正這裡：直接傳入 Integer 型態的 roleLevel 去獲取權限
+        var authorities = com.example.demo.auth.RoleAuthorityMapper.fromRoleLevel(
+                targetUser.getRoleLevel());
+
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(new UsernamePasswordAuthenticationToken(
                 targetUser.getUsername(),

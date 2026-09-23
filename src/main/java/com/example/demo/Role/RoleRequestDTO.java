@@ -16,4 +16,7 @@ public class RoleRequestDTO {
     @Size(max = 255, message = "角色描述長度不能超過 255 個字元")
     private String description;
 
+    @jakarta.validation.constraints.NotNull(message = "角色等級不能為空")
+    private Integer roleLevel;
+
 }

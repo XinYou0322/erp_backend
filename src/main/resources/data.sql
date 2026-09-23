@@ -75,18 +75,19 @@ BEGIN TRY
     DECLARE @RoleSeed TABLE
     (
         role_name nvarchar(50) PRIMARY KEY,
-        description nvarchar(255)
+        description nvarchar(255),
+        role_level int
     );
 
-      INSERT INTO @RoleSeed (role_name, description)
+      INSERT INTO @RoleSeed (role_name, description, role_level)
     VALUES
-        (N'店長', N'系統管理員 (Admin)'),
-        (N'經理', N'營運經理 / 店長 (Manager)'),
-        (N'正職', N'現場員工 / 收銀員 (Employee)'),
-        (N'訪客', N'訪客 / 外部審計 (Guest)');
+        (N'店長', N'系統管理員 (Admin)', 1),
+        (N'經理', N'營運經理 / 店長 (Manager)', 2),
+        (N'正職', N'現場員工 / 收銀員 (Employee)', 3),
+        (N'訪客', N'訪客 / 外部審計 (Guest)', 4);
 
-    INSERT INTO roles (name, description)
-    SELECT rs.role_name, rs.description
+    INSERT INTO roles (name, description, role_level)
+    SELECT rs.role_name, rs.description, rs.role_level
     FROM @RoleSeed rs
     WHERE NOT EXISTS
     (
@@ -130,13 +131,13 @@ BEGIN TRY
         ('pt03',               N'郭欣怡', 'pt03@example.com',               N'PT',     'LOCKED',    30);
 
     INSERT INTO users
-        (username, password, name, email, role_id, avatar, status, created_at)
+        (username, password, name, email, role_level, avatar, status, created_at)
     SELECT
         us.username,
         @TestPasswordHash,
         us.display_name,
         us.email,
-        r.id,
+        r.role_level,
         NULL,
         us.user_status,
         DATEADD(DAY, -us.created_days_ago, @NowUtc)

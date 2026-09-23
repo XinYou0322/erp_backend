@@ -30,6 +30,7 @@ public class RoleService {
         Role role = new Role();
         role.setRoleName(dto.getRoleName());
         role.setDescription(dto.getDescription());
+        role.setRoleLevel(dto.getRoleLevel());
 
         Role saved = roleRepository.save(role);
         return RoleResponseDTO.fromEntity(saved);
@@ -91,6 +92,8 @@ public class RoleService {
             dbRole.setRoleName(dto.getRoleName());
         }
         dbRole.setDescription(dto.getDescription());
+        dbRole.setRoleLevel(dto.getRoleLevel());
+
         Role saved = roleRepository.save(dbRole);
         return RoleResponseDTO.fromEntity(saved);
     }
@@ -114,9 +117,9 @@ public class RoleService {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到指定角色"));
 
-        // 刪除前主動檢查是否有使用者使用該角色
-        if (userRepository.existsByRoleId(id)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "無法刪除角色：目前仍有使用者關聯至此角色");
+        // ✨ 修正這裡：改用該角色的 roleLevel 去檢查是否存在關聯的使用者
+        if (userRepository.existsByRoleLevel(role.getRoleLevel())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "無法刪除角色：目前仍有使用者關聯至此角色等級");
         }
 
         try {

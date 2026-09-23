@@ -1,5 +1,6 @@
 package com.example.demo.auth;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -17,21 +18,22 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UsersRepository usersRepository;
+        private final UsersRepository usersRepository;
 
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        com.example.demo.users.User user = usersRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("使用者不存在: " + username));
+        @Override
+        public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+                com.example.demo.users.User user = usersRepository.findByUsername(username)
+                                .orElseThrow(() -> new UsernameNotFoundException("使用者不存在: " + username));
 
-        List<GrantedAuthority> authorities = RoleAuthorityMapper.fromRoleName(
-                user.getRole() != null ? user.getRole().getRoleName() : "");
+                // ✨ 修正這裡：直接傳入 Integer 型態的 roleLevel 獲取 Spring Security 的 GrantedAuthority 集合
+                Collection<? extends GrantedAuthority> authorities = RoleAuthorityMapper.fromRoleLevel(
+                                user.getRoleLevel());
 
-        return User.withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities(authorities)
-                .accountLocked(user.getStatus() == com.example.demo.users.UserStatus.LOCKED)
-                .disabled(user.getStatus() == com.example.demo.users.UserStatus.INACTIVE)
-                .build();
-    }
+                return User.withUsername(user.getUsername())
+                                .password(user.getPassword())
+                                .authorities(authorities)
+                                .accountLocked(user.getStatus() == com.example.demo.users.UserStatus.LOCKED)
+                                .disabled(user.getStatus() == com.example.demo.users.UserStatus.INACTIVE)
+                                .build();
+        }
 }

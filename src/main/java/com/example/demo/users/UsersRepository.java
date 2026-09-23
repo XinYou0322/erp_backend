@@ -13,11 +13,9 @@ import org.springframework.stereotype.Repository;
 public interface UsersRepository extends JpaRepository<User, Long> {
 
     // 登入驗證與 JWT 簽發時使用
-    @EntityGraph(attributePaths = { "role" })
     Optional<User> findByUsername(String username);
 
     // 登入驗證時支援使用 帳號 (Username) 或 信箱 (Email)
-    @EntityGraph(attributePaths = { "role" })
     Optional<User> findByUsernameOrEmail(String username, String email);
 
     // 檢查帳號是否已存在（註冊/新增員工時使用）
@@ -34,20 +32,17 @@ public interface UsersRepository extends JpaRepository<User, Long> {
     // List<User> findByDepartmentId(Long departmentId);
 
     // 檢查是否有使用者關聯特定角色
-    boolean existsByRoleId(Long roleId);
+    boolean existsByRoleLevel(Integer roleLevel);
 
     // 查詢全部使用者（解決 N+1）
     @Override
-    @EntityGraph(attributePaths = { "role" })
     List<User> findAll();
 
     // 分頁查詢（解決 N+1）
     @Override
-    @EntityGraph(attributePaths = { "role" })
     Page<User> findAll(Pageable pageable);
 
     // 關鍵字搜尋（姓名或帳號模糊查詢，支援分頁）
-    @EntityGraph(attributePaths = { "role" })
     Page<User> findByNameContainingIgnoreCaseOrUsernameContainingIgnoreCase(String name, String username,
             Pageable pageable);
 
