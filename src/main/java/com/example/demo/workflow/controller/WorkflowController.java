@@ -19,6 +19,7 @@ import com.example.demo.workflow.dto.WorkflowLogResponse;
 import com.example.demo.workflow.dto.WorkflowResponse;
 import com.example.demo.workflow.entity.Workflow;
 import com.example.demo.workflow.entity.WorkflowLog;
+import com.example.demo.workflow.enums.DocumentType;
 import com.example.demo.workflow.repository.WorkflowLogRepository;
 import com.example.demo.workflow.service.WorkflowService;
 
@@ -82,6 +83,18 @@ public class WorkflowController {
             @Valid @RequestBody ApproveWorkflowRequest request) {
 
         Workflow workflow = workflowService.reject(id, request);
+        return ResponseEntity.ok(WorkflowResponse.from(workflow));
+    }
+
+    // 透過單據資訊獲取 Workflow 資訊
+    @GetMapping("/by-document/{documentType}/{documentId}")
+    public ResponseEntity<?> getWorkflowByDocument(
+            @PathVariable DocumentType documentType,
+            @PathVariable Long documentId) {
+        
+        Workflow workflow = workflowService.getWorkflowByDocument(documentType, documentId);
+        
+        // 使用WorkflowResponse.from() 方法轉換
         return ResponseEntity.ok(WorkflowResponse.from(workflow));
     }
 

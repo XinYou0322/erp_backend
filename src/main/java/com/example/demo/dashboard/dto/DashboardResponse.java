@@ -10,6 +10,7 @@ public class DashboardResponse {
     private BigDecimal todayRevenue;
     private Long todayOrders;
     private BigDecimal averageOrderAmount;
+    private Double revenueChangeRate;
 
     private List<RevenueTrendResponse> weeklyRevenue;
     private List<TopProductResponse> topProducts;//長銷商品
