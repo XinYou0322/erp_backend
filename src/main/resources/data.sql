@@ -607,6 +607,19 @@ BEGIN TRY
         ('MAT006',  -600.0000,'MANUAL_USE',   N'[假資料] 奶茶粉備料',              1),
         ('MAT008',  -700.0000,'MANUAL_USE',   N'[假資料] 珍珠煮製領料',            1),
         ('MAT011',  -350.0000,'MANUAL_USE',   N'[假資料] 檸檬飲品備料',            1),
+        /* created_days_ago = 0：每次啟動時皆以當天時間建立今日領料紀錄 */
+        ('MAT001',  -900.0000,'MANUAL_USE',   N'[今日領料] 早班阿薩姆紅茶備茶',    0),
+        ('MAT002',  -800.0000,'MANUAL_USE',   N'[今日領料] 早班茉香綠茶備茶',      0),
+        ('MAT003',  -650.0000,'MANUAL_USE',   N'[今日領料] 四季春青茶備茶',        0),
+        ('MAT005', -1200.0000,'MANUAL_USE',   N'[今日領料] 鮮奶飲品製作',          0),
+        ('MAT006',  -500.0000,'MANUAL_USE',   N'[今日領料] 奶茶粉調製',            0),
+        ('MAT007',  -700.0000,'MANUAL_USE',   N'[今日領料] 果糖補充',              0),
+        ('MAT008',  -600.0000,'MANUAL_USE',   N'[今日領料] 黑糖珍珠煮製',          0),
+        ('MAT009',  -350.0000,'MANUAL_USE',   N'[今日領料] 椰果配料補充',          0),
+        ('MAT011',  -300.0000,'MANUAL_USE',   N'[今日領料] 檸檬飲品調製',          0),
+        ('MAT016',  -180.0000,'MANUAL_USE',   N'[今日領料] 700ml 飲料杯領用',     0),
+        ('MAT017',  -180.0000,'MANUAL_USE',   N'[今日領料] 封口膜領用',            0),
+        ('MAT018',  -180.0000,'MANUAL_USE',   N'[今日領料] 粗吸管領用',            0),
         ('MAT008',  -150.0000,'WASTE',        N'[假資料] 珍珠煮製失敗耗損',        0),
         ('MAT005',  -300.0000,'EXPIRED',      N'[假資料] 鮮奶逾期報廢',            0),
         ('MAT011',  -200.0000,'ADJUSTMENT_OUT',N'[假資料] 盤點短少調整',           0),
@@ -794,7 +807,7 @@ BEGIN TRY
         ON pos.order_no = po.order_number;
 
     /* ======================================================================
-       13. 銷售單（36 筆）
+       13. 銷售單（原有 36 筆 + 啟動當日 12 筆）
 
        SalesOrderStatus：COMPLETED / VOIDED
        PaymentMethod：CASH / CREDIT_CARD / MOBILE_PAYMENT
@@ -864,6 +877,67 @@ BEGIN TRY
         WHERE so.order_number = CONCAT('DEMO-SO-', RIGHT('000' + CONVERT(varchar(3), ns.n), 3))
     );
 
+    /* 每次啟動時，依 @Today 建立 12 張當日銷售單。 */
+    DECLARE @TodaySalesOrderSeed TABLE
+    (
+        order_key int PRIMARY KEY,
+        payment_method varchar(30),
+        creator_username varchar(50),
+        created_minute_of_day int,
+        note nvarchar(200)
+    );
+
+    INSERT INTO @TodaySalesOrderSeed
+        (order_key, payment_method, creator_username, created_minute_of_day, note)
+    VALUES
+        ( 1,'CASH',          'staff01',            495,N'[今日假資料] 早班現金訂單'),
+        ( 2,'CREDIT_CARD',   'staff02',            530,N'[今日假資料] 早餐時段信用卡訂單'),
+        ( 3,'MOBILE_PAYMENT','staff03',            565,N'[今日假資料] 行動支付訂單'),
+        ( 4,'CASH',          'staff04',            610,N'[今日假資料] 上午現金訂單'),
+        ( 5,'CREDIT_CARD',   'staff05',            655,N'[今日假資料] 上午信用卡訂單'),
+        ( 6,'MOBILE_PAYMENT','purchase_manager01', 700,N'[今日假資料] 午間行動支付訂單'),
+        ( 7,'CASH',          'sales_manager01',    750,N'[今日假資料] 午間現金訂單'),
+        ( 8,'CREDIT_CARD',   'staff01',            805,N'[今日假資料] 下午信用卡訂單'),
+        ( 9,'MOBILE_PAYMENT','staff02',            860,N'[今日假資料] 下午行動支付訂單'),
+        (10,'CASH',          'staff03',            915,N'[今日假資料] 傍晚現金訂單'),
+        (11,'CREDIT_CARD',   'staff04',            970,N'[今日假資料] 傍晚信用卡訂單'),
+        (12,'MOBILE_PAYMENT','staff05',           1030,N'[今日假資料] 晚班行動支付訂單');
+
+    INSERT INTO sales_orders
+        (order_number, status, payment_method, total_amount,
+         created_by_user_id, voided_by_user_id, created_at, voided_at,
+         note, void_reason)
+    SELECT
+        CONCAT(
+            'TODAY-SO-',
+            CONVERT(char(8), @Today, 112),
+            '-',
+            RIGHT('00' + CONVERT(varchar(2), ts.order_key), 2)
+        ),
+        'COMPLETED',
+        ts.payment_method,
+        0.00,
+        creator.id,
+        NULL,
+        DATEADD(MINUTE, ts.created_minute_of_day, CAST(@Today AS datetime2)),
+        NULL,
+        ts.note,
+        NULL
+    FROM @TodaySalesOrderSeed ts
+    INNER JOIN users creator
+        ON creator.username = ts.creator_username
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM sales_orders so
+        WHERE so.order_number = CONCAT(
+            'TODAY-SO-',
+            CONVERT(char(8), @Today, 112),
+            '-',
+            RIGHT('00' + CONVERT(varchar(2), ts.order_key), 2)
+        )
+    );
+
     /* ======================================================================
        14. 銷售單明細
        一般訂單 2 筆明細；每 3 張中的第 3 張會有 3 筆明細。
@@ -914,6 +988,60 @@ BEGIN TRY
           AND soi.product_id = apn.id
     );
 
+    /* 當日訂單明細：每張訂單使用不同的商品組合與數量。 */
+    DECLARE @TodaySalesOrderItemSeed TABLE
+    (
+        order_key int,
+        product_sku varchar(50),
+        quantity decimal(18,4),
+        PRIMARY KEY (order_key, product_sku)
+    );
+
+    INSERT INTO @TodaySalesOrderItemSeed
+        (order_key, product_sku, quantity)
+    VALUES
+        ( 1,'P001',2.0000),( 1,'P008',1.0000),
+        ( 2,'P002',1.0000),( 2,'P011',2.0000),( 2,'P014',1.0000),
+        ( 3,'P003',2.0000),( 3,'P007',1.0000),( 3,'P019',1.0000),
+        ( 4,'P004',1.0000),( 4,'P005',2.0000),
+        ( 5,'P006',1.0000),( 5,'P010',2.0000),( 5,'P018',1.0000),
+        ( 6,'P009',2.0000),( 6,'P012',1.0000),( 6,'P016',2.0000),
+        ( 7,'P013',1.0000),( 7,'P015',2.0000),( 7,'P020',1.0000),
+        ( 8,'P001',1.0000),( 8,'P007',2.0000),( 8,'P017',1.0000),( 8,'P019',2.0000),
+        ( 9,'P002',2.0000),( 9,'P008',2.0000),( 9,'P010',1.0000),
+        (10,'P003',1.0000),(10,'P009',1.0000),(10,'P014',2.0000),(10,'P018',1.0000),
+        (11,'P004',2.0000),(11,'P011',1.0000),(11,'P016',1.0000),(11,'P020',2.0000),
+        (12,'P005',1.0000),(12,'P012',2.0000),(12,'P013',1.0000),(12,'P015',1.0000),(12,'P017',2.0000);
+
+    INSERT INTO sales_order_items
+        (sales_order_id, product_id, product_sku, product_name,
+         quantity, unit_price, subtotal)
+    SELECT
+        so.id,
+        p.id,
+        p.sku,
+        p.name,
+        tsi.quantity,
+        p.selling_price,
+        p.selling_price * tsi.quantity
+    FROM @TodaySalesOrderItemSeed tsi
+    INNER JOIN sales_orders so
+        ON so.order_number = CONCAT(
+            'TODAY-SO-',
+            CONVERT(char(8), @Today, 112),
+            '-',
+            RIGHT('00' + CONVERT(varchar(2), tsi.order_key), 2)
+        )
+    INNER JOIN products p
+        ON p.sku = tsi.product_sku
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM sales_order_items soi
+        WHERE soi.sales_order_id = so.id
+          AND soi.product_id = p.id
+    );
+
     -- 依明細小計回寫銷售單總額。
     UPDATE so
     SET so.total_amount = totals.total_amount
@@ -927,7 +1055,8 @@ BEGIN TRY
         GROUP BY soi.sales_order_id
     ) totals
         ON totals.sales_order_id = so.id
-    WHERE so.order_number LIKE 'DEMO-SO-%';
+    WHERE so.order_number LIKE 'DEMO-SO-%'
+       OR so.order_number LIKE 'TODAY-SO-%';
 
     /* ======================================================================
        15. 請假單
