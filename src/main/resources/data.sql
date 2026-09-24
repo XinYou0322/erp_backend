@@ -1520,6 +1520,24 @@ BEGIN TRY
           AND ea.attendee_name = eas.attendee_name
     );
 
+    /* ======================================================================
+       系統功能設定
+       ====================================================================== */
+    IF OBJECT_ID(N'dbo.system_settings', N'U') IS NOT NULL
+       AND NOT EXISTS
+    (
+        SELECT 1
+        FROM system_settings
+        WHERE setting_key = 'RETAIL_MODE_ENABLED'
+    )
+    BEGIN
+        INSERT INTO system_settings
+            (setting_key, setting_value, description, updated_at, updated_by_user_id)
+        VALUES
+            ('RETAIL_MODE_ENABLED', 'false',
+             N'是否啟用零售商品模式', @NowLocal, NULL);
+    END;
+
     COMMIT TRANSACTION;
 
     PRINT N'ERP 假資料建立完成。';
