@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.dashboard.dto.DashboardResponse;
 import com.example.demo.dashboard.dto.HourlySalesResponse;
+import com.example.demo.dashboard.dto.RevenueDetailRequest;
 import com.example.demo.dashboard.dto.RevenueDetailResponse;
 import com.example.demo.dashboard.dto.RevenueTrendResponse;
 import com.example.demo.dashboard.dto.TopProductResponse;
@@ -30,178 +33,189 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DashboardService {
 
-    private final SalesOrderRepository salesRepo;
-    private final SalesOrderItemRepository itemRepo;
+        private final SalesOrderRepository salesRepo;
+        private final SalesOrderItemRepository itemRepo;
 
-    public DashboardResponse getDashboard() {
+        public DashboardResponse getDashboard() {
 
-        LocalDate today = LocalDate.now();
-        LocalDateTime start = today.atStartOfDay();
-        LocalDateTime end = today.atTime(LocalTime.MAX);
+                LocalDateTime now = LocalDateTime.now();
+                LocalDate today = now.toLocalDate();
+                LocalDate yesterday = today.minusDays(1);
 
-        DashboardResponse response = new DashboardResponse();
+                DashboardResponse response = new DashboardResponse();
 
-        // 今日營收
-        BigDecimal todayRevenue = salesRepo.getRevenueBetween(start, end);
-        response.setTodayRevenue(todayRevenue);
+                // 1. 今日至今 (Today to Date): 今日 00:00 ~ 現在
+                LocalDateTime todayStart = today.atStartOfDay();
+                LocalDateTime todayEnd = now;
 
-        // 計算較昨日 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate yesterday = today.minusDays(1);
-        BigDecimal yesterdaySamePeriod = salesRepo.getRevenueBetween(
-        yesterday.atStartOfDay(),
-        now.minusDays(1));
+                BigDecimal todayRevenue = salesRepo.getRevenueBetween(todayStart, todayEnd);
+                response.setTodayRevenue(todayRevenue);
 
-        response.setRevenueChangeRate(calcChangeRate(todayRevenue, yesterdaySamePeriod));
+                // 2. 昨日至今 (Yesterday to Date): 昨日 00:00 ~ 昨日現在
+                LocalDateTime yesterdayStart = yesterday.atStartOfDay();
+                LocalDateTime yesterdayEnd = now.minusDays(1);
 
-        // 今日訂單
-        response.setTodayOrders(salesRepo.countOrdersBetween(start, end));
+                BigDecimal yesterdaySamePeriod = salesRepo.getRevenueBetween(yesterdayStart, yesterdayEnd);
 
-        // 平均客單價
-        Double avg = salesRepo.getAverageOrderBetween(start, end);
-        response.setAverageOrderAmount(BigDecimal.valueOf(avg));
+                // 3. 計算環比 (成長率)
+                response.setRevenueChangeRate(calcChangeRate(todayRevenue, yesterdaySamePeriod));
 
-        LocalDateTime weekStart = today.minusDays(7).atStartOfDay();
-        LocalDateTime weekEnd = today.atStartOfDay(); // 今天0點，不含今天
-        LocalDateTime startDate = LocalDate.now().minusDays(6).atStartOfDay();
+                // 4. 今日至今訂單數
+                response.setTodayOrders(salesRepo.countOrdersBetween(todayStart, todayEnd));
 
-        // 七天營收
-        List<RevenueTrendResponse> rawTrend = salesRepo.getWeeklyRevenue(weekStart, weekEnd).stream()
-        .map(r -> new RevenueTrendResponse(
-                ((java.sql.Date) r[0]).toLocalDate(),
-                (BigDecimal) r[1]))
-        .toList();
+                // 5. 今日至今平均客單價
+                Double avg = salesRepo.getAverageOrderBetween(todayStart, todayEnd);
+                response.setAverageOrderAmount(avg != null ? BigDecimal.valueOf(avg) : BigDecimal.ZERO);
 
-        Map<LocalDate, BigDecimal> revenueByDate = rawTrend.stream()
-                .collect(Collectors.toMap(RevenueTrendResponse::getDate, RevenueTrendResponse::getRevenue));
+                LocalDateTime weekStart = today.minusDays(6).atStartOfDay(); // 包含今天共7天
+                LocalDateTime weekEnd = today.atTime(LocalTime.MAX);
+                LocalDateTime startDateForRecent = today.minusDays(6).atStartOfDay();
 
-        List<RevenueTrendResponse> trend = IntStream.range(0, 7)
-                .mapToObj(i -> {
-                    LocalDate date = today.minusDays(7 - i); // i=0 -> 7天前, i=6 -> 昨天
-                    BigDecimal revenue = revenueByDate.getOrDefault(date, BigDecimal.ZERO);
-                    return new RevenueTrendResponse(date, revenue);
-                })
-                .toList();
+                // 七天營收趨勢
+                List<RevenueTrendResponse> rawTrend = salesRepo.getWeeklyRevenue(weekStart, weekEnd).stream()
+                                .map(r -> new RevenueTrendResponse(((java.sql.Date) r[0]).toLocalDate(),
+                                                (BigDecimal) r[1]))
+                                .toList();
 
-        // 全部熱門商品 Top5
-        List<TopProductResponse> top = itemRepo.findTopProducts(PageRequest.of(0, 5)).stream()
-                .map(r -> new TopProductResponse(
-                        (String) r[0],
-                        (BigDecimal) r[1]))
-                .toList();
+                Map<LocalDate, BigDecimal> revenueByDate = rawTrend.stream()
+                                .collect(Collectors.toMap(RevenueTrendResponse::getDate,
+                                                RevenueTrendResponse::getRevenue));
 
-        // 最近七天熱門商品 Top5
-        List<TopProductResponse> recentTop = itemRepo
-                .findTopProductsSince(startDate, PageRequest.of(0, 5))
-                .stream()
-                .map(r -> new TopProductResponse(
-                        (String) r[0],
-                        (BigDecimal) r[1]))
-                .toList();
+                List<RevenueTrendResponse> trend = IntStream.range(0, 7)
+                                .mapToObj(i -> {
+                                        LocalDate date = today.minusDays(6 - i);
+                                        BigDecimal revenue = revenueByDate.getOrDefault(date, BigDecimal.ZERO);
+                                        return new RevenueTrendResponse(date, revenue);
+                                })
+                                .toList();
 
-        // ===== 營收排行（新增）=====
+                // 熱門商品 Top5 (全部 & 近七天)
+                List<TopProductResponse> top = itemRepo.findTopProducts(PageRequest.of(0, 5)).stream()
+                                .map(r -> new TopProductResponse((String) r[0], (BigDecimal) r[1])).toList();
 
-        List<TopRevenueResponse> topRevenue = itemRepo
-                .findTopProductsByRevenue(SalesOrderStatus.COMPLETED, PageRequest.of(0, 5)).stream()
-                .map(r -> new TopRevenueResponse(
-                        (String) r[0],
-                        (BigDecimal) r[1]))
-                .toList();
+                List<TopProductResponse> recentTop = itemRepo
+                                .findTopProductsSince(startDateForRecent, PageRequest.of(0, 5)).stream()
+                                .map(r -> new TopProductResponse((String) r[0], (BigDecimal) r[1])).toList();
 
-        List<TopRevenueResponse> recentTopRevenue = itemRepo.findTopProductsByRevenueSince(
-                SalesOrderStatus.COMPLETED,
-                weekStart,
-                PageRequest.of(0, 5))
-                .stream()
-                .map(r -> new TopRevenueResponse(
-                        (String) r[0],
-                        (BigDecimal) r[1]))
-                .toList();
+                // 營收排行 Top5
+                List<TopRevenueResponse> topRevenue = itemRepo
+                                .findTopProductsByRevenue(SalesOrderStatus.COMPLETED, PageRequest.of(0, 5)).stream()
+                                .map(r -> new TopRevenueResponse((String) r[0], (BigDecimal) r[1])).toList();
 
-        List<HourlySalesResponse> hourlySales = itemRepo.findHourlySales(SalesOrderStatus.COMPLETED.name(), today)
-                .stream()
-                .map(r -> new HourlySalesResponse(
-                        ((Number) r[0]).intValue(),
-                        (BigDecimal) r[1]))
-                .toList();
+                List<TopRevenueResponse> recentTopRevenue = itemRepo
+                                .findTopProductsByRevenueSince(SalesOrderStatus.COMPLETED, weekStart,
+                                                PageRequest.of(0, 5))
+                                .stream()
+                                .map(r -> new TopRevenueResponse((String) r[0], (BigDecimal) r[1])).toList();
 
-        // 放進 DashboardResponse
-        response.setWeeklyRevenue(trend);
-        response.setTopProducts(top);
-        response.setRecentTopProducts(recentTop);
-        response.setTopRevenueProducts(topRevenue);
-        response.setRecentTopRevenueProducts(recentTopRevenue);
-        response.setHourlySales(hourlySales);
+                // 每小時銷售
+                List<HourlySalesResponse> hourlySales = itemRepo
+                                .findHourlySales(SalesOrderStatus.COMPLETED.name(), today).stream()
+                                .map(r -> new HourlySalesResponse(((Number) r[0]).intValue(), (BigDecimal) r[1]))
+                                .toList();
 
-        return response;
-    }
+                response.setWeeklyRevenue(trend);
+                response.setTopProducts(top);
+                response.setRecentTopProducts(recentTop);
+                response.setTopRevenueProducts(topRevenue);
+                response.setRecentTopRevenueProducts(recentTopRevenue);
+                response.setHourlySales(hourlySales);
 
-   
+                return response;
+        }
 
-   public RevenueDetailResponse getRevenueDetail(String range) {
-    LocalDate today = LocalDate.now();
-    LocalDate startDate;
-//     LocalDate prevStart;
-//     LocalDate prevEnd;
-    LocalDateTime now = LocalDateTime.now();
-    LocalDateTime prevStart;
-    LocalDateTime prevEnd;
+        public RevenueDetailResponse getRevenueDetail(RevenueDetailRequest request) {
 
-    // 1. 定義本期與上期的區間
-    if ("month".equalsIgnoreCase(range)) {
-    startDate = today.withDayOfMonth(1);
-    // 上月同期：上月 1 號 → 上月的「現在這個時間點」
-    prevStart = now.minusMonths(1).toLocalDate().withDayOfMonth(1).atStartOfDay();
-    prevEnd = now.minusMonths(1);
-    } else {
-        startDate = today.minusDays(6);
-        // 前 7 天同期：把本期窗口整體往前移 7 天
-        prevStart = now.minusDays(13).toLocalDate().atStartOfDay();
-        prevEnd = now.minusDays(7);
-    }
+                LocalDate startDate = request.getStartDate();
+                LocalDate endDate = request.getEndDate();
+                String groupBy = request.getGroupBy(); // "DAY", "MONTH", "YEAR"
 
-    LocalDateTime start = startDate.atStartOfDay();
-    LocalDateTime end = today.atTime(LocalTime.MAX);
+                if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+                        throw new IllegalArgumentException("無效的日期區間：開始日期不能晚於結束日期");
+                }
 
-    // 2. 本期與上期總營收（複用現有 query）
-    BigDecimal totalRevenue = salesRepo.getRevenueBetween(start, end);
-    BigDecimal previousRevenue = salesRepo.getRevenueBetween(prevStart, prevEnd);
+                LocalDateTime start = startDate.atStartOfDay();
+                LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
-    // 3. 計算環比百分比
-    Double changeRate = calcChangeRate(totalRevenue, previousRevenue);
+                // 1. 計算「上期」區間：長度與本期相同，且緊接在本期開始之前
+                long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
+                LocalDateTime prevEnd = start.minusNanos(1); // 本期開始的前一瞬間
+                LocalDateTime prevStart = prevEnd.minusDays(daysBetween).toLocalDate().atStartOfDay();
 
-    // 4. 取得每日營收原始資料 
-    List<Object[]> rawTrend = salesRepo.getWeeklyRevenue(start, end); 
-    
-    Map<LocalDate, BigDecimal> revenueMap = rawTrend.stream()
-            .collect(Collectors.toMap(
-                    r -> ((java.sql.Date) r[0]).toLocalDate(),
-                    r -> (BigDecimal) r[1]
-            ));
+                // 2. 取得本期與上期總營收
+                BigDecimal totalRevenue = salesRepo.getRevenueBetween(start, end);
+                BigDecimal previousRevenue = salesRepo.getRevenueBetween(prevStart, prevEnd);
 
-    // 5. 補齊沒有訂單的日期，並直接使用 RevenueTrendResponse
-    long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(startDate, today);
-    List<RevenueTrendResponse> dailyTrend = new ArrayList<>();
-    
-    for (int i = 0; i <= daysBetween; i++) {
-        LocalDate currentDate = startDate.plusDays(i);
-        BigDecimal rev = revenueMap.getOrDefault(currentDate, BigDecimal.ZERO);
-        
-        dailyTrend.add(new RevenueTrendResponse(currentDate, rev));
-    }
+                // 3. 計算環比百分比
+                Double changeRate = calcChangeRate(totalRevenue, previousRevenue);
 
-    return new RevenueDetailResponse(
-            range, totalRevenue, previousRevenue, changeRate, dailyTrend);
-}
+                // 4. 根據分組維度取得原始資料
+                List<Object[]> rawTrend;
+                if ("MONTH".equals(groupBy)) {
+                        rawTrend = salesRepo.getRevenueGroupedByMonth(start, end);
+                } else if ("YEAR".equals(groupBy)) {
+                        rawTrend = salesRepo.getRevenueGroupedByYear(start, end);
+                } else {
+                        rawTrend = salesRepo.getRevenueGroupedByDay(start, end);
+                }
 
-// 計算環比百分比
-private Double calcChangeRate(BigDecimal current, BigDecimal previous) {
-    if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
-        return null; // 上期沒營收，無法計算
-    }
-    return current.subtract(previous)
-            .multiply(BigDecimal.valueOf(100))
-            .divide(previous, 1, RoundingMode.HALF_UP) // 保留一位小數
-            .doubleValue();
-}
+                // 5. 將資料轉換為 Map，並將年/月統一轉換為 LocalDate (年初或月初) 以便複用 RevenueTrendResponse
+                Map<LocalDate, BigDecimal> revenueMap = rawTrend.stream()
+                                .collect(Collectors.toMap(
+                                                r -> {
+                                                        if ("YEAR".equals(groupBy)) {
+                                                                int year = ((Number) r[0]).intValue();
+                                                                return LocalDate.of(year, 1, 1);
+                                                        } else if ("MONTH".equals(groupBy)) {
+                                                                int year = ((Number) r[0]).intValue();
+                                                                int month = ((Number) r[1]).intValue();
+                                                                return LocalDate.of(year, month, 1);
+                                                        } else {
+                                                                return ((java.sql.Date) r[0]).toLocalDate();
+                                                        }
+                                                },
+                                                r -> (BigDecimal) r[r.length - 1] // 假設最後一個欄位是 SUM 的金額
+                                ));
+                // 6. 補齊區間內沒有訂單的日期/月份/年份，確保前端圖表連續
+                List<RevenueTrendResponse> trendList = new ArrayList<>();
+
+                if ("YEAR".equals(groupBy)) {
+                        for (int y = startDate.getYear(); y <= endDate.getYear(); y++) {
+                                LocalDate date = LocalDate.of(y, 1, 1);
+                                trendList.add(new RevenueTrendResponse(date,
+                                                revenueMap.getOrDefault(date, BigDecimal.ZERO)));
+                        }
+                } else if ("MONTH".equals(groupBy)) {
+                        YearMonth current = YearMonth.from(startDate);
+                        YearMonth endYm = YearMonth.from(endDate);
+                        while (!current.isAfter(endYm)) {
+                                LocalDate date = current.atDay(1);
+                                trendList.add(new RevenueTrendResponse(date,
+                                                revenueMap.getOrDefault(date, BigDecimal.ZERO)));
+                                current = current.plusMonths(1);
+                        }
+                } else { // DAY
+                        long days = ChronoUnit.DAYS.between(startDate, endDate);
+                        for (int i = 0; i <= days; i++) {
+                                LocalDate currentDate = startDate.plusDays(i);
+                                trendList.add(new RevenueTrendResponse(currentDate,
+                                                revenueMap.getOrDefault(currentDate, BigDecimal.ZERO)));
+                        }
+                }
+
+                return new RevenueDetailResponse(groupBy.toLowerCase(), totalRevenue, previousRevenue, changeRate,
+                                trendList);
+
+        }
+
+        // 計算環比百分比
+        private Double calcChangeRate(BigDecimal current, BigDecimal previous) {
+                if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
+                        return null; // 上期沒營收，無法計算
+                }
+                return current.subtract(previous)
+                                .multiply(BigDecimal.valueOf(100))
+                                .divide(previous, 1, RoundingMode.HALF_UP) // 保留一位小數
+                                .doubleValue();
+        }
 }
