@@ -383,55 +383,50 @@ public void batchInventory(
                 );
 
 
-        // 1. 新增库存批次
-        Inventory inventory =
-            new Inventory();
-        BigDecimal actualQuantity;
-        inventory.setMaterial(material);
-        if ("CONVERSION".equals(material.getCostMode())) {
-            if (material.getConversionQuantity() == null ||
-                    material.getConversionQuantity()
-                        .compareTo(BigDecimal.ZERO) <= 0) {
-
-                    throw new IllegalArgumentException(
-                        "原物料換算數量設定錯誤"
-                    );
-                }
-        	  actualQuantity =
-                item.getQuantity()
-                    .multiply(
-                        material.getConversionQuantity()
-                    );
-
-        } else {
-
-            actualQuantity =
-                item.getQuantity();
-
-        }
-        inventory.setExpiryDate(item.getExpiryDate());
-        inventory.setQuantity(actualQuantity);
-        inventoryRepository.save(inventory);
-
-
-        // 2. 新增库存异动纪录
-        InventoryLog log =
-            new InventoryLog();
-
-        log.setMaterial(material);
-
-        log.setQuantity(
-        		actualQuantity
-        );
-
-        log.setAction(
-            "STOCK_IN"
-        );
-        log.setCreatedAt(Instant.now());
-
-        inventoryLogRepository.save(log);
+        receive(material, item.getQuantity(), item.getExpiryDate(), null);
     }
 }
+
+    /**
+     * 建立一筆進貨批次與庫存異動。quantity 使用採購單位，並沿用既有換算規則。
+     */
+    public Inventory receive(
+            Material material,
+            BigDecimal quantity,
+            LocalDate expiryDate,
+            Long referenceId) {
+        if (material == null) {
+            throw new IllegalArgumentException("原物料不得為空");
+        }
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("進貨數量必須大於 0");
+        }
+
+        BigDecimal actualQuantity = quantity;
+        if ("CONVERSION".equals(material.getCostMode())) {
+            if (material.getConversionQuantity() == null
+                    || material.getConversionQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("原物料換算數量設定錯誤");
+            }
+            actualQuantity = quantity.multiply(material.getConversionQuantity());
+        }
+
+        Inventory inventory = new Inventory();
+        inventory.setMaterial(material);
+        inventory.setExpiryDate(expiryDate);
+        inventory.setQuantity(actualQuantity);
+        Inventory savedInventory = inventoryRepository.save(inventory);
+
+        InventoryLog log = new InventoryLog();
+        log.setMaterial(material);
+        log.setQuantity(actualQuantity);
+        log.setAction("STOCK_IN");
+        log.setRefId(referenceId);
+        log.setCreatedAt(Instant.now());
+        inventoryLogRepository.save(log);
+
+        return savedInventory;
+    }
     // 刪除一批（例如整批報廢或輸入錯誤）
     public void delete(Long id) {
         inventoryRepository.deleteById(id);

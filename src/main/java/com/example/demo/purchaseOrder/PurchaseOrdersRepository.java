@@ -1,16 +1,45 @@
 package com.example.demo.purchaseOrder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, Long> {
 	
 	boolean existsBySupplierId(Long id);
+
+    @EntityGraph(attributePaths = { "supplier", "items", "items.material" })
+    List<PurchaseOrders> findByExpectedDeliveryDateAndStatusInOrderByOrderNumberAsc(
+            LocalDate expectedDeliveryDate,
+            Collection<PurchaseOrdersStatus> statuses);
+
+    @Query("""
+            SELECT po
+            FROM PurchaseOrders po
+            WHERE po.status IN :statuses
+            ORDER BY
+                CASE WHEN po.expectedDeliveryDate IS NULL THEN 1 ELSE 0 END,
+                po.expectedDeliveryDate ASC,
+                po.orderNumber ASC
+            """)
+    List<PurchaseOrders> findReceivableOrderByExpectedDeliveryDate(
+            @Param("statuses") Collection<PurchaseOrdersStatus> statuses);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT po FROM PurchaseOrders po WHERE po.id = :id")
+    Optional<PurchaseOrders> findByIdForReceiving(@Param("id") Long id);
 
     @Query(
             value = """
