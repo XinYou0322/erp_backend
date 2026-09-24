@@ -113,21 +113,21 @@ BEGIN TRY
         (username, display_name, email, role_name, user_status, created_days_ago)
     VALUES
         ('store_manager01',    N'陳志明', 'store.manager01@example.com',    N'店長',   'ACTIVE',   180),
-        ('deputy_manager01',   N'林雅雯', 'deputy.manager01@example.com',   N'副店長', 'ACTIVE',   170),
+        ('deputy_manager01',   N'林雅雯', 'deputy.manager01@example.com',   N'經理',   'ACTIVE',   170),
         ('purchase_manager01', N'王建國', 'purchase.manager01@example.com', N'經理',   'ACTIVE',   160),
         ('sales_manager01',    N'張淑芬', 'sales.manager01@example.com',    N'經理',   'ACTIVE',   150),
-        ('team_leader01',      N'黃俊傑', 'team.leader01@example.com',      N'組長',   'ACTIVE',   140),
-        ('assistant_leader01', N'吳柏翰', 'assistant.leader01@example.com', N'副組長', 'ACTIVE',   130),
-        ('shift_leader01',     N'劉冠廷', 'shift.leader01@example.com',     N'班長',   'ACTIVE',   120),
+        ('team_leader01',      N'黃俊傑', 'team.leader01@example.com',      N'正職',   'ACTIVE',   140),
+        ('assistant_leader01', N'吳柏翰', 'assistant.leader01@example.com', N'正職',   'ACTIVE',   130),
+        ('shift_leader01',     N'劉冠廷', 'shift.leader01@example.com',     N'正職',   'ACTIVE',   120),
         ('staff01',            N'王小明', 'staff01@example.com',            N'正職',   'ACTIVE',   110),
         ('staff02',            N'李佳穎', 'staff02@example.com',            N'正職',   'ACTIVE',   100),
         ('staff03',            N'張志豪', 'staff03@example.com',            N'正職',   'ACTIVE',    90),
         ('staff04',            N'黃雅婷', 'staff04@example.com',            N'正職',   'ACTIVE',    80),
         ('staff05',            N'陳柏宇', 'staff05@example.com',            N'正職',   'ACTIVE',    70),
         ('staff06',            N'林佩芸', 'staff06@example.com',            N'正職',   'INACTIVE',  60),
-        ('pt01',               N'周子晴', 'pt01@example.com',               N'PT',     'ACTIVE',    50),
-        ('pt02',               N'許家豪', 'pt02@example.com',               N'PT',     'ACTIVE',    40),
-        ('pt03',               N'郭欣怡', 'pt03@example.com',               N'PT',     'LOCKED',    30);
+        ('pt01',               N'周子晴', 'pt01@example.com',               N'正職',   'ACTIVE',    50),
+        ('pt02',               N'許家豪', 'pt02@example.com',               N'正職',   'ACTIVE',    40),
+        ('pt03',               N'郭欣怡', 'pt03@example.com',               N'正職',   'LOCKED',    30);
 
     INSERT INTO users
         (username, password, name, email, role_id, avatar, status, created_at)
@@ -411,43 +411,43 @@ BEGIN TRY
     INSERT INTO @SupplierSeed
         (supplier_no, supplier_name, calling_code, phone, extension, address, email, supplier_status)
     VALUES
-        ( 1,N'台灣茗茶原料有限公司','+886','02-2788-1101','101',N'台北市南港區忠孝東路七段120號','tea01@erp-supplier.com','ACTIVE'),
-        ( 2,N'清香茶業有限公司',    '+886','02-2678-2202',NULL, N'新北市鶯歌區中正一路88號',      'tea02@erp-supplier.com','ACTIVE'),
-        ( 3,N'四季春茶葉行',        '+886','04-2235-3303','203',N'台中市北屯區崇德路二段156號',   'tea03@erp-supplier.com','ACTIVE'),
-        ( 4,N'伯爵茶品國際有限公司','+886','04-2326-4404',NULL, N'台中市西區公益路180號',         'tea04@erp-supplier.com','ACTIVE'),
-        ( 5,N'香濃食品原料有限公司','+886','06-2535-5505','305',N'台南市永康區中正南路420號',    'powder05@erp-supplier.com','ACTIVE'),
-        ( 6,N'每日鮮乳食品有限公司','+886','08-7654-6606',NULL, N'屏東縣屏東市牧場路20號',        'milk06@erp-supplier.com','ACTIVE'),
-        ( 7,N'牧場直送乳品行',      '+886','05-3627-7707',NULL, N'嘉義縣太保市乳品路66號',        'milk07@erp-supplier.com','ACTIVE'),
-        ( 8,N'甘蔗堂糖業股份有限公司','+886','07-3388-8808','108',N'高雄市前鎮區糖業路35號',      'sugar08@erp-supplier.com','ACTIVE'),
-        ( 9,N'黑糖職人食品行',      '+886','06-2999-9909',NULL, N'台南市安平區健康三街52號',      'sugar09@erp-supplier.com','ACTIVE'),
-        (10,N'珍珠王食品有限公司',  '+886','04-2510-1010','210',N'台中市豐原區食品街10號',       'pearl10@erp-supplier.com','ACTIVE'),
-        (11,N'南洋椰果食品社',      '+886','07-3511-1111',NULL, N'高雄市楠梓區加工路77號',        'jelly11@erp-supplier.com','ACTIVE'),
-        (12,N'古早味仙草企業社',    '+886','03-5222-1212',NULL, N'新竹市北區中山路260號',         'grass12@erp-supplier.com','ACTIVE'),
-        (13,N'手作布丁原料公司',    '+886','04-2233-1313','313',N'台中市南屯區工業路90號',       'pudding13@erp-supplier.com','ACTIVE'),
-        (14,N'綠源蘆薈農產行',      '+886','05-3744-1414',NULL, N'嘉義縣新港鄉農產路18號',        'aloe14@erp-supplier.com','ACTIVE'),
-        (15,N'屏東鮮檸檬合作社',    '+886','08-7755-1515',NULL, N'屏東縣九如鄉果園路45號',        'lemon15@erp-supplier.com','ACTIVE'),
-        (16,N'百香果農產有限公司',  '+886','049-276-1616',NULL,N'南投縣埔里鎮農園路39號',        'passion16@erp-supplier.com','ACTIVE'),
-        (17,N'熱帶芒果產銷班',      '+886','08-8666-1717',NULL, N'屏東縣枋山鄉芒果路120號',       'mango17@erp-supplier.com','PENDING'),
-        (18,N'永續包材有限公司',    '+886','03-4777-1818','118',N'桃園市觀音區工業五路8號',      'cup18@erp-supplier.com','ACTIVE'),
-        (19,N'富利封口膜企業社',    '+886','02-2888-1919',NULL, N'台北市士林區承德路四段210號',   'film19@erp-supplier.com','ACTIVE'),
-        (20,N'大口徑吸管有限公司',  '+886','07-3999-2020',NULL, N'高雄市三民區民族一路500號',     'straw20@erp-supplier.com','ACTIVE'),
-        (21,N'北區綜合原料商行',    '+886','02-2211-2121','121',N'新北市新店區中央路77號',       'north21@erp-supplier.com','ACTIVE'),
-        (22,N'中區食品配送公司',    '+886','04-2322-2222',NULL, N'台中市西屯區物流路188號',       'central22@erp-supplier.com','ACTIVE'),
-        (23,N'南區冷鏈物流公司',    '+886','07-3333-2323','223',N'高雄市前鎮區冷鏈路35號',       'south23@erp-supplier.com','ACTIVE'),
-        (24,N'東部農產合作社',      '+886','03-8444-2424',NULL, N'花蓮縣吉安鄉中央路二段88號',    'east24@erp-supplier.com','PENDING'),
-        (25,N'海岸咖啡豆貿易公司',  '+886','02-2555-2525','125',N'台北市大同區迪化街一段66號',  'coffee25@erp-supplier.com','ACTIVE'),
-        (26,N'可可風味食品公司',    '+886','06-2666-2626',NULL, N'台南市仁德區可可路26號',        'cocoa26@erp-supplier.com','ACTIVE'),
-        (27,N'新創食品測試供應商',  '+886','02-2777-2727',NULL, N'台北市松山區測試路27號',        'trial27@erp-supplier.com','PENDING'),
-        (28,N'延遲交貨測試供應商',  '+886','04-2888-2828',NULL, N'台中市大里區延遲路28號',        'delay28@erp-supplier.com','SUSPENDED'),
-        (29,N'已停止合作供應商',    '+886','07-2999-2929',NULL, N'高雄市左營區舊合作路29號',      'inactive29@erp-supplier.com','INACTIVE'),
-        (30,N'黑名單測試供應商',    '+886','03-3000-3030',NULL, N'桃園市中壢區風險路30號',        'black30@erp-supplier.com','BLACKLISTED');
+        ( 1,N'台灣茗茶原料有限公司','+886','0227881101','101',N'台北市南港區忠孝東路七段120號','tea01@erp-supplier.com','ACTIVE'),
+        ( 2,N'清香茶業有限公司',    '+886','0226782202',NULL, N'新北市鶯歌區中正一路88號',      'tea02@erp-supplier.com','ACTIVE'),
+        ( 3,N'四季春茶葉行',        '+886','0422353303','203',N'台中市北屯區崇德路二段156號',   'tea03@erp-supplier.com','ACTIVE'),
+        ( 4,N'伯爵茶品國際有限公司','+886','0423264404',NULL, N'台中市西區公益路180號',         'tea04@erp-supplier.com','ACTIVE'),
+        ( 5,N'香濃食品原料有限公司','+886','0625355505','305',N'台南市永康區中正南路420號',    'powder05@erp-supplier.com','ACTIVE'),
+        ( 6,N'每日鮮乳食品有限公司','+886','0876546606',NULL, N'屏東縣屏東市牧場路20號',        'milk06@erp-supplier.com','ACTIVE'),
+        ( 7,N'牧場直送乳品行',      '+886','0536277707',NULL, N'嘉義縣太保市乳品路66號',        'milk07@erp-supplier.com','ACTIVE'),
+        ( 8,N'甘蔗堂糖業股份有限公司','+886','0733888808','108',N'高雄市前鎮區糖業路35號',      'sugar08@erp-supplier.com','ACTIVE'),
+        ( 9,N'黑糖職人食品行',      '+886','0629999909',NULL, N'台南市安平區健康三街52號',      'sugar09@erp-supplier.com','ACTIVE'),
+        (10,N'珍珠王食品有限公司',  '+886','0425101010','210',N'台中市豐原區食品街10號',       'pearl10@erp-supplier.com','ACTIVE'),
+        (11,N'南洋椰果食品社',      '+886','0735111111',NULL, N'高雄市楠梓區加工路77號',        'jelly11@erp-supplier.com','ACTIVE'),
+        (12,N'古早味仙草企業社',    '+886','0352221212',NULL, N'新竹市北區中山路260號',         'grass12@erp-supplier.com','ACTIVE'),
+        (13,N'手作布丁原料公司',    '+886','0422331313','313',N'台中市南屯區工業路90號',       'pudding13@erp-supplier.com','ACTIVE'),
+        (14,N'綠源蘆薈農產行',      '+886','0537441414',NULL, N'嘉義縣新港鄉農產路18號',        'aloe14@erp-supplier.com','ACTIVE'),
+        (15,N'屏東鮮檸檬合作社',    '+886','0877551515',NULL, N'屏東縣九如鄉果園路45號',        'lemon15@erp-supplier.com','ACTIVE'),
+        (16,N'百香果農產有限公司',  '+886','0492761616',NULL,N'南投縣埔里鎮農園路39號',        'passion16@erp-supplier.com','ACTIVE'),
+        (17,N'熱帶芒果產銷班',      '+886','0886661717',NULL, N'屏東縣枋山鄉芒果路120號',       'mango17@erp-supplier.com','PENDING'),
+        (18,N'永續包材有限公司',    '+886','0347771818','118',N'桃園市觀音區工業五路8號',      'cup18@erp-supplier.com','ACTIVE'),
+        (19,N'富利封口膜企業社',    '+886','0228881919',NULL, N'台北市士林區承德路四段210號',   'film19@erp-supplier.com','ACTIVE'),
+        (20,N'大口徑吸管有限公司',  '+886','0739992020',NULL, N'高雄市三民區民族一路500號',     'straw20@erp-supplier.com','ACTIVE'),
+        (21,N'北區綜合原料商行',    '+886','0222112121','121',N'新北市新店區中央路77號',       'north21@erp-supplier.com','ACTIVE'),
+        (22,N'中區食品配送公司',    '+886','0423222222',NULL, N'台中市西屯區物流路188號',       'central22@erp-supplier.com','ACTIVE'),
+        (23,N'南區冷鏈物流公司',    '+886','0733332323','223',N'高雄市前鎮區冷鏈路35號',       'south23@erp-supplier.com','ACTIVE'),
+        (24,N'東部農產合作社',      '+886','0384442424',NULL, N'花蓮縣吉安鄉中央路二段88號',    'east24@erp-supplier.com','PENDING'),
+        (25,N'海岸咖啡豆貿易公司',  '+886','0225552525','125',N'台北市大同區迪化街一段66號',  'coffee25@erp-supplier.com','ACTIVE'),
+        (26,N'可可風味食品公司',    '+886','0626662626',NULL, N'台南市仁德區可可路26號',        'cocoa26@erp-supplier.com','ACTIVE'),
+        (27,N'新創食品測試供應商',  '+886','0227772727',NULL, N'台北市松山區測試路27號',        'trial27@erp-supplier.com','PENDING'),
+        (28,N'延遲交貨測試供應商',  '+886','0428882828',NULL, N'台中市大里區延遲路28號',        'delay28@erp-supplier.com','SUSPENDED'),
+        (29,N'已停止合作供應商',    '+886','0729992929',NULL, N'高雄市左營區舊合作路29號',      'inactive29@erp-supplier.com','INACTIVE'),
+        (30,N'黑名單測試供應商',    '+886','0330003030',NULL, N'桃園市中壢區風險路30號',        'black30@erp-supplier.com','BLACKLISTED');
 
     INSERT INTO suppliers
         (name, country_calling_code, phone, extension, address, email, status)
     SELECT
         ss.supplier_name,
         ss.calling_code,
-        ss.phone,
+        REPLACE(ss.phone, '-', ''),
         ss.extension,
         ss.address,
         ss.email,
@@ -634,11 +634,10 @@ BEGIN TRY
     );
 
     /* ======================================================================
-       11. 採購單（30 筆）
+       11. 採購單（50 筆）
 
        PurchaseOrdersStatus：
-       DRAFT / PENDING_APPROVAL / APPROVED / REJECTED / ORDERED /
-       PARTIALLY_RECEIVED / RECEIVED / CANCELLED
+       DRAFT / PENDING_APPROVAL / APPROVED / REJECTED / RECEIVED / CANCELLED
        ====================================================================== */
     DECLARE @PurchaseOrderSeed TABLE
     (
@@ -665,32 +664,87 @@ BEGIN TRY
         ('DEMO-PO-202609-002','tea02@erp-supplier.com',     'PENDING_APPROVAL',   'staff02','store_manager01', NULL,      2, 1,  5,NULL,NULL,N'等待店長審核'),
         ('DEMO-PO-202609-003','tea03@erp-supplier.com',     'APPROVED',           'staff03','deputy_manager01',NULL,      3, 2,  4,NULL,NULL,N'價格與數量已確認'),
         ('DEMO-PO-202609-004','tea04@erp-supplier.com',     'REJECTED',           'staff01','store_manager01', NULL,      4, 3,  3,NULL,NULL,N'報價高於預算，請重新詢價'),
-        ('DEMO-PO-202609-005','powder05@erp-supplier.com',  'ORDERED',            'staff02','deputy_manager01',NULL,      5, 3,  2,NULL,NULL,N'已向供應商下單'),
-        ('DEMO-PO-202609-006','milk06@erp-supplier.com',    'PARTIALLY_RECEIVED', 'staff03','store_manager01', 'staff04', 6, 1,  1,   1,'/uploads/demo/receipts/po006.pdf',N'部分鮮奶已到貨'),
+        ('DEMO-PO-202609-005','powder05@erp-supplier.com',  'APPROVED',           'staff02','deputy_manager01',NULL,      5, 3,  2,NULL,NULL,N'採購內容已核准'),
+        ('DEMO-PO-202609-006','milk06@erp-supplier.com',    'APPROVED',           'staff03','store_manager01', NULL,      6, 1,  1,NULL,NULL,N'鮮奶採購已核准'),
         ('DEMO-PO-202609-007','milk07@erp-supplier.com',    'RECEIVED',           'staff01','deputy_manager01','staff04', 8, 1, -2,   1,'/uploads/demo/receipts/po007.pdf',N'數量與效期確認完成'),
         ('DEMO-PO-202609-008','sugar08@erp-supplier.com',   'CANCELLED',          'staff02','store_manager01', NULL,     10, 8, -3,NULL,NULL,N'需求異動，取消採購'),
         ('DEMO-PO-202609-009','sugar09@erp-supplier.com',   'DRAFT',              'staff03','deputy_manager01',NULL,      1, 0,  8,NULL,NULL,N'草稿：黑糖原料補貨'),
         ('DEMO-PO-202609-010','pearl10@erp-supplier.com',   'PENDING_APPROVAL',   'staff01','store_manager01', NULL,      2, 1,  6,NULL,NULL,N'旺季前提高珍珠庫存'),
         ('DEMO-PO-202609-011','jelly11@erp-supplier.com',   'APPROVED',           'staff02','deputy_manager01',NULL,      4, 2,  5,NULL,NULL,N'核准椰果補貨'),
         ('DEMO-PO-202609-012','grass12@erp-supplier.com',   'REJECTED',           'staff03','store_manager01', NULL,      6, 5,  4,NULL,NULL,N'請調整最低訂購量'),
-        ('DEMO-PO-202609-013','pudding13@erp-supplier.com', 'ORDERED',            'staff01','deputy_manager01',NULL,      7, 4,  2,NULL,NULL,N'已完成下單'),
-        ('DEMO-PO-202609-014','aloe14@erp-supplier.com',    'PARTIALLY_RECEIVED', 'staff02','store_manager01', 'staff05', 9, 2, -1,   2,'/uploads/demo/receipts/po014.pdf',N'尚有一箱未到貨'),
+        ('DEMO-PO-202609-013','pudding13@erp-supplier.com', 'APPROVED',           'staff01','deputy_manager01',NULL,      7, 4,  2,NULL,NULL,N'布丁原料採購已核准'),
+        ('DEMO-PO-202609-014','aloe14@erp-supplier.com',    'APPROVED',           'staff02','store_manager01', NULL,      9, 2, -1,NULL,NULL,N'蘆薈採購已核准'),
         ('DEMO-PO-202609-015','lemon15@erp-supplier.com',   'RECEIVED',           'staff03','deputy_manager01','staff05',12, 2, -5,   2,'/uploads/demo/receipts/po015.pdf',N'檸檬原料完成收貨'),
         ('DEMO-PO-202609-016','passion16@erp-supplier.com', 'CANCELLED',          'staff01','store_manager01', NULL,     11, 9, -4,NULL,NULL,N'供應商無法如期交貨'),
         ('DEMO-PO-202609-017','mango17@erp-supplier.com',   'PENDING_APPROVAL',   'staff02','deputy_manager01',NULL,      3, 2,  7,NULL,NULL,N'新供應商首次採購待審'),
         ('DEMO-PO-202609-018','cup18@erp-supplier.com',     'APPROVED',           'staff03','store_manager01', NULL,      5, 3,  6,NULL,NULL,N'包材安全庫存補貨'),
-        ('DEMO-PO-202609-019','film19@erp-supplier.com',    'ORDERED',            'staff01','deputy_manager01',NULL,      6, 4,  3,NULL,NULL,N'封口膜已下單'),
+        ('DEMO-PO-202609-019','film19@erp-supplier.com',    'APPROVED',           'staff01','deputy_manager01',NULL,      6, 4,  3,NULL,NULL,N'封口膜採購已核准'),
         ('DEMO-PO-202609-020','straw20@erp-supplier.com',   'RECEIVED',           'staff02','store_manager01', 'staff04',14, 1, -7,   1,'/uploads/demo/receipts/po020.pdf',N'吸管已全數入庫'),
         ('DEMO-PO-202609-021','north21@erp-supplier.com',   'DRAFT',              'staff03','deputy_manager01',NULL,      0, 0, 10,NULL,NULL,N'草稿：北區綜合補貨'),
         ('DEMO-PO-202609-022','central22@erp-supplier.com', 'PENDING_APPROVAL',   'staff01','store_manager01', NULL,      2, 1,  8,NULL,NULL,N'中區配送訂單待核准'),
         ('DEMO-PO-202609-023','south23@erp-supplier.com',   'APPROVED',           'staff02','deputy_manager01',NULL,      4, 2,  7,NULL,NULL,N'冷鏈配送費已確認'),
         ('DEMO-PO-202609-024','east24@erp-supplier.com',    'REJECTED',           'staff03','store_manager01', NULL,      8, 7,  5,NULL,NULL,N'運費超出預算'),
-        ('DEMO-PO-202609-025','coffee25@erp-supplier.com',  'ORDERED',            'staff01','deputy_manager01',NULL,      9, 6,  4,NULL,NULL,N'咖啡豆已安排烘焙'),
-        ('DEMO-PO-202609-026','cocoa26@erp-supplier.com',   'PARTIALLY_RECEIVED', 'staff02','store_manager01', 'staff05',10, 2, -2,   2,'/uploads/demo/receipts/po026.pdf',N'巧克力醬部分到貨'),
+        ('DEMO-PO-202609-025','coffee25@erp-supplier.com',  'APPROVED',           'staff01','deputy_manager01',NULL,      9, 6,  4,NULL,NULL,N'咖啡豆採購已核准'),
+        ('DEMO-PO-202609-026','cocoa26@erp-supplier.com',   'APPROVED',           'staff02','store_manager01', NULL,     10, 2, -2,NULL,NULL,N'巧克力醬採購已核准'),
         ('DEMO-PO-202609-027','trial27@erp-supplier.com',   'RECEIVED',           'staff03','deputy_manager01','staff04',15, 2, -8,   2,'/uploads/demo/receipts/po027.pdf',N'試單已完成驗收'),
         ('DEMO-PO-202609-028','delay28@erp-supplier.com',   'CANCELLED',          'staff01','store_manager01', NULL,     16,10, -9,NULL,NULL,N'因延遲交貨取消訂單'),
         ('DEMO-PO-202609-029','tea01@erp-supplier.com',     'PENDING_APPROVAL',   'staff02','deputy_manager01',NULL,      1, 0,  9,NULL,NULL,N'月底茶葉補貨待審'),
         ('DEMO-PO-202609-030','milk06@erp-supplier.com',    'RECEIVED',           'staff03','store_manager01', 'staff05',18, 1,-10,   1,'/uploads/demo/receipts/po030.pdf',N'鮮奶冷鏈驗收完成');
+
+    -- 補足第 31～50 筆採購單，狀態只使用目前有效的六種狀態。
+    INSERT INTO @PurchaseOrderSeed
+        (order_no, supplier_email, order_status, creator_username, approver_username,
+         receiver_username, created_days_ago, updated_days_ago,
+         expected_day_offset, received_days_ago, receipt_url, decision_remark)
+    SELECT
+        CONCAT('DEMO-PO-202609-', RIGHT('000' + CONVERT(varchar(3), extra.n), 3)),
+        ss.email,
+        status_seed.order_status,
+        CASE extra.n % 3
+            WHEN 0 THEN 'staff01'
+            WHEN 1 THEN 'staff02'
+            ELSE 'staff03'
+        END,
+        CASE extra.n % 2
+            WHEN 0 THEN 'store_manager01'
+            ELSE 'deputy_manager01'
+        END,
+        CASE WHEN status_seed.order_status = 'RECEIVED' THEN 'staff04' ELSE NULL END,
+        1 + (extra.n % 20),
+        extra.n % 5,
+        CASE
+            WHEN status_seed.order_status IN ('RECEIVED', 'CANCELLED') THEN -(1 + extra.n % 9)
+            ELSE 1 + extra.n % 10
+        END,
+        CASE WHEN status_seed.order_status = 'RECEIVED' THEN 1 + extra.n % 3 ELSE NULL END,
+        CASE
+            WHEN status_seed.order_status = 'RECEIVED'
+                THEN CONCAT('/uploads/demo/receipts/po', RIGHT('000' + CONVERT(varchar(3), extra.n), 3), '.pdf')
+            ELSE NULL
+        END,
+        CONCAT(N'[假資料] 採購單第 ', extra.n, N' 筆測試資料')
+    FROM
+    (
+        VALUES
+            (31),(32),(33),(34),(35),(36),(37),(38),(39),(40),
+            (41),(42),(43),(44),(45),(46),(47),(48),(49),(50)
+    ) extra(n)
+    INNER JOIN @SupplierSeed ss
+        ON ss.supplier_no = ((extra.n - 1) % 30) + 1
+    CROSS APPLY
+    (
+        VALUES
+        (
+            CASE extra.n % 6
+                WHEN 0 THEN 'DRAFT'
+                WHEN 1 THEN 'PENDING_APPROVAL'
+                WHEN 2 THEN 'APPROVED'
+                WHEN 3 THEN 'REJECTED'
+                WHEN 4 THEN 'RECEIVED'
+                ELSE 'CANCELLED'
+            END
+        )
+    ) status_seed(order_status);
 
     INSERT INTO purchase_orders
         (order_number, supplier_id, status, created_by_user_id,
@@ -808,7 +862,9 @@ BEGIN TRY
     VALUES
         (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),
         (13),(14),(15),(16),(17),(18),(19),(20),(21),(22),(23),(24),
-        (25),(26),(27),(28),(29),(30),(31),(32),(33),(34),(35),(36);
+        (25),(26),(27),(28),(29),(30),(31),(32),(33),(34),(35),(36),
+        (37),(38),(39),(40),(41),(42),(43),(44),(45),(46),(47),(48),
+        (49),(50);
 
     INSERT INTO sales_orders
         (order_number, status, payment_method, total_amount,
@@ -986,7 +1042,7 @@ BEGIN TRY
        16. 簽核流程
 
        Workflow 的狀態只有：PENDING / APPROVED / REJECTED / CANCELLED。
-       因此 ORDERED、PARTIALLY_RECEIVED、RECEIVED 均代表原簽核已 APPROVED。
+       因此 APPROVED、RECEIVED 均代表原簽核已 APPROVED。
        ====================================================================== */
     INSERT INTO workflows
         (document_type, document_id, status, applicant_id, approver_id, created_at)

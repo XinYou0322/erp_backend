@@ -10,6 +10,7 @@ import com.example.demo.suppliers.SupplierMultiQueryRespoDTO;
 import com.example.demo.suppliers.SupplierRespoDTO;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.springframework.web.bind.annotation.PutMapping;
 
@@ -32,11 +33,22 @@ public class PurchaseOrdersController {
     //---新增---
     // 單筆
   @PostMapping("/api/purchaseOrder/add")
-  public ResponseEntity<PurchaseOrderResponseDTO> addPurchaseOrder(@RequestBody PurchaseOrderCreateDTO dto, @RequestParam Long loginUserId) {
-    
+  public ResponseEntity<PurchaseOrderResponseDTO> addPurchaseOrder(@RequestBody@Valid PurchaseOrderCreateDTO dto, @RequestParam Long loginUserId) {
     
     return ResponseEntity.status(HttpStatus.CREATED).body(purchaseOrdersService.insertPurchaseOrder(dto, loginUserId));
 }
+
+  // 多筆新增
+  @PostMapping("/api/purchaseOrder/addAll")
+  public ResponseEntity<List<PurchaseOrderResponseDTO>> addPurchaseOrders(
+          @Valid @RequestBody
+          @NotEmpty(message = "採購單清單不可為空")
+          List<@Valid PurchaseOrderCreateDTO> dtoList,
+          @RequestParam Long loginUserId) {
+
+      return ResponseEntity.status(HttpStatus.CREATED)
+              .body(purchaseOrdersService.insertPurchaseOrders(dtoList, loginUserId));
+  }
 
   //---查詢---
   @GetMapping("/api/purchaseOrder/find/{id}")
@@ -94,7 +106,16 @@ public class PurchaseOrdersController {
       return ResponseEntity.ok(result);
   }
   
-  
+  //取消
+  @PutMapping("/api/purchaseOrder/{id}/cancel")
+  public ResponseEntity<PurchaseOrderResponseDTO> cancelPurchaseOrder(
+          @PathVariable Long id,
+          @RequestParam Long loginUserId) {
+
+      return ResponseEntity.ok(
+              purchaseOrdersService.cancelPurchaseOrder(id, loginUserId)
+      );
+  }
   
   
   

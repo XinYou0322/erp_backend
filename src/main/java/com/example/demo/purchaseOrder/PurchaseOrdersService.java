@@ -6,9 +6,12 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,7 +26,7 @@ import com.example.demo.materials.MaterialRepository;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItemUpdateDTO;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItemsCreDTO;
-import com.example.demo.purchaseOrderItem.PurchaseOrderItemsRepository;
+import com.example.demo.suppliers.SupplierStatus;
 import com.example.demo.suppliers.Suppliers;
 import com.example.demo.suppliers.SuppliersRepository;
 import com.example.demo.users.User;
@@ -42,16 +45,14 @@ public class PurchaseOrdersService {
     private final SuppliersRepository suppliersRepo;
     private final MaterialRepository materialRepo;
     private final UsersRepository usersRepo;
-    private final PurchaseOrderItemsRepository purchaseOrderItemsRepo;
     private final WorkflowService workflowService;
     
     //---新增---
     // 新增一張採購單
     @Transactional
     public PurchaseOrderResponseDTO insertPurchaseOrder(PurchaseOrderCreateDTO dto,Long loginUserId) {
-    // supplierId → Supplier Entity
-    Suppliers supplier = suppliersRepo.findById(dto.getSupplierId())
-        .orElseThrow(() -> new IllegalArgumentException("找不到此供應商"));
+
+    Suppliers supplier = getActiveSupplier(dto.getSupplierId());
 
     User creator = usersRepo.findById(loginUserId)   
             .orElseThrow(() -> new RuntimeException("找不到登入者資料"));
@@ -68,7 +69,8 @@ public class PurchaseOrdersService {
     purchaseOrder.setStatus(PurchaseOrdersStatus.DRAFT);//草稿
     
     BigDecimal totalAmount = BigDecimal.ZERO;
-    
+    Set<Long> materialIds = new HashSet<>();
+
     //處理明細 
     for (int i = 0; i < dto.getItems().size(); i++) {
 
@@ -76,6 +78,9 @@ public class PurchaseOrdersService {
                 dto.getItems().get(i);
 
         //查詢原物料
+        if (!materialIds.add(itemDTO.getMaterialId())) {
+            throw new IllegalArgumentException("原物料 ID：" + itemDTO.getMaterialId() + " 重複出現");
+        }
         Material material = materialRepo
                 .findById(itemDTO.getMaterialId())
                 .orElseThrow(() -> new RuntimeException("找不到原物料"));
@@ -105,13 +110,38 @@ public class PurchaseOrdersService {
     	PurchaseOrders savedOrder =
             purchaseOrdersRepo.save(purchaseOrder);
 
+        // 使用者選擇「建立後送簽」時，沿用既有送簽驗證與 Workflow 流程。
+        // null 或未傳欄位時一律視為儲存草稿，兼容舊版前端。
+        if (Boolean.FALSE.equals(dto.getSaveAsDraft())) {
+            return submitPurchaseOrder(savedOrder.getId(), loginUserId);
+        }
+
     	//Entity -> DTO
     	return PurchaseOrderResponseDTO.fromEntity(savedOrder);
 }
     
-    //單號 用時間
+    // 一次新增多張採購單；其中任何一張失敗時，整批交易會回滾。
+    @Transactional
+    public List<PurchaseOrderResponseDTO> insertPurchaseOrders(
+            List<PurchaseOrderCreateDTO> dtoList,
+            Long loginUserId) {
+        if (dtoList == null || dtoList.isEmpty()) {
+            throw new IllegalArgumentException("採購單清單不可為空");
+        }
+
+        usersRepo.findById(loginUserId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到登入者資料"));
+
+        List<PurchaseOrderResponseDTO> result = new ArrayList<>();
+        for (PurchaseOrderCreateDTO dto : dtoList) {
+            result.add(insertPurchaseOrder(dto, loginUserId));
+        }
+        return result;
+    }
+
+    //單號
     private String createTemporaryOrderNumber() {
-        return "TMP-" + System.currentTimeMillis(); //目前時間的毫秒數
+        return "TMP-" + UUID.randomUUID();
     }
     //送出
     @Transactional
@@ -131,9 +161,16 @@ public class PurchaseOrdersService {
         if (!purchaseOrder.getCreatedBy().getId().equals(loginUserId)) {
             throw new RuntimeException( "只有採購單申請人可以送出簽核");
         }
+        //建立時是 ACTIVE，不代表送簽時仍 ACTIVE；送簽前再次驗證供應商狀態。
+        if (purchaseOrder.getSupplier().getStatus() != SupplierStatus.ACTIVE) {
+            throw new IllegalStateException("此供應商目前不是合作中狀態，無法送出採購簽核");
+        }
         //檢查預計到貨日
         if (purchaseOrder.getExpectedDeliveryDate() == null) {
             throw new RuntimeException( "請填寫預計到貨日後再送出簽核");
+        }
+        if (purchaseOrder.getExpectedDeliveryDate().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("預計到貨日不可早於今天");
         }
         //檢查採購明細
         if (purchaseOrder.getItems() == null
@@ -161,14 +198,37 @@ public class PurchaseOrdersService {
         return PurchaseOrderResponseDTO
                 .fromEntity(savedPurchaseOrder);
     }
-    
+    //---取消---
+    @Transactional
+    public PurchaseOrderResponseDTO cancelPurchaseOrder(Long purchaseOrderId, Long loginUserId) {
+        PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(purchaseOrderId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到採購單"));
+
+        if (!purchaseOrder.getCreatedBy().getId().equals(loginUserId)) {
+            throw new IllegalStateException("只有採購單申請人可以取消採購單");
+        }
+
+        if (purchaseOrder.getStatus() != PurchaseOrdersStatus.DRAFT
+                && purchaseOrder.getStatus() != PurchaseOrdersStatus.REJECTED
+                && purchaseOrder.getStatus() != PurchaseOrdersStatus.PENDING_APPROVAL) {
+            throw new IllegalStateException("此採購單目前狀態不可取消");
+        }
+
+        // 已送簽但尚未簽核時，同時取消 Workflow，避免簽核中心還留著待審資料。
+        if (purchaseOrder.getStatus() == PurchaseOrdersStatus.PENDING_APPROVAL) {
+            workflowService.cancelWorkflow(purchaseOrderId, DocumentType.ORDER);
+        }
+
+        purchaseOrder.setStatus(PurchaseOrdersStatus.CANCELLED);
+        return PurchaseOrderResponseDTO.fromEntity(purchaseOrdersRepo.save(purchaseOrder));
+    }
     // ---查詢---
     // 單筆
     @Transactional(readOnly = true)
     public PurchaseOrderResponseDTO findPurchaseOrderById(Long id) {
     	PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("找不到採購單，採購單 ID：" + id));
-         return PurchaseOrderResponseDTO.fromEntity(purchaseOrder);
+         return PurchaseOrderResponseDTO.fromEntityWithItems(purchaseOrder);
     }
     // 多筆
     @Transactional(readOnly = true)
@@ -343,146 +403,142 @@ public class PurchaseOrdersService {
  }
   
     // ---修改---
-    public PurchaseOrderResponseDTO updatePurchaseOrder(Long id, PurchaseOrderUpdateDTO updateDTO,Long loginUserId) {
-        // 先確認這筆採購單存不存在
+    @Transactional
+    public PurchaseOrderResponseDTO updatePurchaseOrder(
+            Long id,
+            PurchaseOrderUpdateDTO updateDTO,
+            Long loginUserId) {
+
         PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("找不到採購單"));
-        
+
+        // 只能修改自己建立的採購單
         if (!purchaseOrder.getCreatedBy().getId().equals(loginUserId)) {
-            throw new RuntimeException( "只能修改自己建立的採購單");
+            throw new IllegalStateException("只能修改自己建立的採購單");
         }
-        //檢查狀態 DRAFT/REJECTED
+
+        // 只有草稿、駁回狀態可以修改
         if (purchaseOrder.getStatus() != PurchaseOrdersStatus.DRAFT
                 && purchaseOrder.getStatus() != PurchaseOrdersStatus.REJECTED) {
-
-            throw new RuntimeException("此採購單目前狀態不可修改"
-                    );
-                }           
-        Suppliers supplier = suppliersRepo.findById(updateDTO.getSupplierId())
-                .orElseThrow(() ->
-                        new RuntimeException("找不到供應商"));
-        purchaseOrder.setSupplier(supplier);
-        purchaseOrder.setExpectedDeliveryDate(updateDTO.getExpectedDeliveryDate());
-        purchaseOrder.setDecisionRemark(updateDTO.getDecisionRemark());
-        
-        //紀錄這次前端傳回來的「既有明細 ID」
-        Set<Long> updateItemIds = new HashSet<>();
-        
-        for (int i = 0 ; i < updateDTO.getItems().size() ; i++) {
-        	
-        	PurchaseOrderItemUpdateDTO itemDTO = updateDTO.getItems().get(i);
-        	if (itemDTO.getId() != null) {
-        		updateItemIds.add( itemDTO.getId() );
-        	}
+            throw new IllegalStateException("此採購單目前狀態不可修改");
         }
-        //刪除採購明細
-        Iterator<PurchaseOrderItems> iterator =
-                purchaseOrder.getItems().iterator();
 
+        // 修改供應商
+        Suppliers supplier = getActiveSupplier(updateDTO.getSupplierId());
+        purchaseOrder.setSupplier(supplier);
 
-        while (iterator.hasNext()) {
+        // 修改預計到貨日
+        purchaseOrder.setExpectedDeliveryDate(
+                updateDTO.getExpectedDeliveryDate()
+        );
 
-            PurchaseOrderItems oldItem =
-                    iterator.next();
+        // 修改備註
+        purchaseOrder.setDecisionRemark(
+                updateDTO.getDecisionRemark() == null
+                        ? null
+                        : updateDTO.getDecisionRemark().trim()
+        );
 
-            if (!updateItemIds.contains(oldItem.getId())) {
+        // 建立目前資料庫中的明細 Map
+        Map<Long, PurchaseOrderItems> existingItems = new HashMap<>();
 
-                iterator.remove();
+        for (PurchaseOrderItems item : purchaseOrder.getItems()) {
+            existingItems.put(item.getId(), item);
+        }
+        //驗證前端傳入的明細
+        Set<Long> incomingItemIds = new HashSet<>();
+        Set<Long> materialIds = new HashSet<>();
+
+        for (PurchaseOrderItemUpdateDTO itemDTO : updateDTO.getItems()) {
+
+            // 防止同一個原物料重複加入
+            if (!materialIds.add(itemDTO.getMaterialId())) {
+                throw new IllegalArgumentException(
+                        "原物料 ID：" + itemDTO.getMaterialId() + " 重複出現"
+                );
+            }
+            //代表這筆是「原本就存在的採購明細」
+
+            if (itemDTO.getId() != null) {
+
+                // 防止同一個明細 id 重複傳入
+                if (!incomingItemIds.add(itemDTO.getId())) {
+                    throw new IllegalArgumentException(
+                            "採購明細 ID：" + itemDTO.getId() + " 重複出現"
+                    );
+                }
+
+                // 防止修改到別張採購單的明細
+                if (!existingItems.containsKey(itemDTO.getId())) {
+                    throw new IllegalArgumentException(
+                            "採購明細 ID：" + itemDTO.getId()
+                                    + " 不屬於此採購單"
+                    );
+                }
             }
         }
-        //處理前端傳回來的所有明細
-        for (int i = 0 ; i < updateDTO.getItems().size() ; i++) {
 
-               PurchaseOrderItemUpdateDTO itemDTO = updateDTO.getItems().get(i);
+        // 刪除前端已移除的明細
+        purchaseOrder.getItems().removeIf(
+                oldItem -> !incomingItemIds.contains(oldItem.getId())
+        );
 
-               // 7-1. 查詢原物料
-               Material material = materialRepo.findById(itemDTO.getMaterialId())
-                       .orElseThrow(() -> new RuntimeException("找不到原物料"));
+        // 新增 / 修改採購明細
+        for (PurchaseOrderItemUpdateDTO itemDTO : updateDTO.getItems()) {
 
+            Material material = materialRepo.findById(itemDTO.getMaterialId())
+                    .orElseThrow(() ->
+                            new IllegalArgumentException(
+                                    "找不到原物料，ID："
+                                            + itemDTO.getMaterialId()
+                            )
+                    );
 
-               // 7-2. id == null
-               // 代表使用者新增了一筆明細
-               if (itemDTO.getId() == null) {
+            PurchaseOrderItems item;
+            //代表前端新增了一筆新的明細
 
-                   PurchaseOrderItems newItem = new PurchaseOrderItems();
-                   newItem.setMaterial(material);
-                   newItem.setQuantity(itemDTO.getQuantity());
-                   newItem.setUnitPrice(itemDTO.getPrice());
+            if (itemDTO.getId() == null) {
 
-                   // 使用 Entity 原本寫好的雙向關聯方法
-                   purchaseOrder.addItem(newItem);
-               }
+                item = new PurchaseOrderItems();
 
-               // 7-3. id != null
-               // 代表修改原本存在的明細
+                purchaseOrder.addItem(item);
 
-               else {
-                   PurchaseOrderItems oldItem = null;
+            } else {
+            	//修改原本的明細
+                item = existingItems.get(itemDTO.getId());
+            }
 
-                   // 從目前這張採購單的 items 裡
-                   // 找對應的 item
-                   for (int j = 0 ; j < purchaseOrder.getItems().size() ; j++) {
+            item.setMaterial(material);
+            item.setQuantity(itemDTO.getQuantity());
+            item.setUnitPrice(itemDTO.getPrice());
 
-                       PurchaseOrderItems currentItem = purchaseOrder.getItems().get(j);
+        }
 
-                       if (currentItem.getId() != null
-                               && currentItem.getId().equals(itemDTO.getId())) {
+         //重新計算採購單總金額
+        BigDecimal total = BigDecimal.ZERO;
 
-                           oldItem = currentItem;
-                           break;
-                       }
-                   }
+        for (PurchaseOrderItems item : purchaseOrder.getItems()) {
+            total = total.add(item.getSubtotal());
+        }
 
-                   // 找不到代表：
-                   // 這個 itemId 不屬於目前的採購單
+        purchaseOrder.setTotal(total);
 
-                   if (oldItem == null) {
-                       throw new RuntimeException(
-                               "找不到此採購單的採購明細"
-                       );
-                   }
-                   // 修改原物料
-                   oldItem.setMaterial(material);
+        //統一儲存
 
-                   // 修改數量
-                   oldItem.setQuantity(itemDTO.getQuantity()
-                   );
+        PurchaseOrders savedPurchaseOrder =
+                purchaseOrdersRepo.save(purchaseOrder);
 
-                   // 修改價格
-                   oldItem.setUnitPrice(itemDTO.getPrice()
-                   );
-               }
-           }
+        return PurchaseOrderResponseDTO.fromEntity(savedPurchaseOrder);
+    }
+    private Suppliers getActiveSupplier(Long supplierId) {
+        Suppliers supplier = suppliersRepo.findById(supplierId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到此供應商"));
 
-           // 重新計算總金額
-           BigDecimal total = BigDecimal.ZERO;
-
-           for (int i = 0 ; i < purchaseOrder.getItems().size() ; i++) {
-
-               PurchaseOrderItems item = purchaseOrder.getItems().get(i);
-
-               BigDecimal subtotal = item.getQuantity().multiply( item.getUnitPrice() );
-
-               total = total.add(subtotal);
-           }
-
-           //更新採購單總金額
-           purchaseOrder.setTotal(total);
-
-           // 10. 儲存主單
-
-           // 因為 CascadeType.ALL：
-           // 新增明細 → 自動 INSERT
-           // 修改明細 → 自動 UPDATE
-           // 因為 orphanRemoval = true：
-           // List 移除明細 → 自動 DELETE
-           PurchaseOrders savedPurchaseOrder = purchaseOrdersRepo.save( purchaseOrder );
-
-           // Entity → ResponseDTO
-   
-           return PurchaseOrderResponseDTO.fromEntity(savedPurchaseOrder);
-       }
-    
+        if (supplier.getStatus() != SupplierStatus.ACTIVE) {
+            throw new IllegalStateException("供應商「" + supplier.getName() + "」目前不是合作中狀態");
+        }
+        return supplier;
+    }
     //報廢
 
 //    // 刪除

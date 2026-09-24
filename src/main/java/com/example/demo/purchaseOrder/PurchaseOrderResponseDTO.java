@@ -3,6 +3,11 @@ package com.example.demo.purchaseOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.example.demo.purchaseOrderItem.PurchaseOrderItemResponseDTO;
+import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
 
 import lombok.Data;
 
@@ -41,6 +46,9 @@ public class PurchaseOrderResponseDTO {
     
     private String decisionRemark;
     
+    private List<PurchaseOrderItemResponseDTO> items;
+
+    
     public static PurchaseOrderResponseDTO fromEntity(PurchaseOrders purchaseOrder) {
         PurchaseOrderResponseDTO dto = new PurchaseOrderResponseDTO();
         dto.setId(purchaseOrder.getId());
@@ -56,6 +64,7 @@ public class PurchaseOrderResponseDTO {
         dto.setCreatedAt(purchaseOrder.getCreatedAt());
         dto.setUpdatedAt(purchaseOrder.getUpdatedAt());
         dto.setExpectedDeliveryDate(purchaseOrder.getExpectedDeliveryDate());
+        dto.setReceivedAt(purchaseOrder.getReceivedAt());
         dto.setReceiptUrl(purchaseOrder.getReceiptUrl());
         dto.setDecisionRemark(purchaseOrder.getDecisionRemark());
         
@@ -65,6 +74,16 @@ public class PurchaseOrderResponseDTO {
         	dto.setReceivedByName(purchaseOrder.getReceivedBy().getName() );
 	  
         }
+        return dto;
+    }
+    public static PurchaseOrderResponseDTO fromEntityWithItems(PurchaseOrders purchaseOrder) {
+        PurchaseOrderResponseDTO dto = fromEntity(purchaseOrder);
+
+        List<PurchaseOrderItemResponseDTO> itemDTOList = new ArrayList<>();
+        for (PurchaseOrderItems item : purchaseOrder.getItems()) {
+            itemDTOList.add(PurchaseOrderItemResponseDTO.fromEntity(item));
+        }
+        dto.setItems(itemDTOList);
         return dto;
     }
 }

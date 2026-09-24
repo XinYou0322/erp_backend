@@ -17,6 +17,10 @@ import lombok.Data;
 @Data
 public class PurchaseOrderCreateDTO {
 
+    // true：只儲存草稿；false：建立後立即送出簽核。
+    // 保留預設 true，確保舊版前端未傳此欄位時仍維持原本的草稿行為。
+    private Boolean saveAsDraft = true;
+
     // 供應商 ID
     @NotNull(message = "供應商不可為空")
     @Positive(message = "供應商 ID 必須大於 0")

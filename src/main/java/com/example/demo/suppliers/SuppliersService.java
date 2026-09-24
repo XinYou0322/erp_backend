@@ -94,6 +94,7 @@ public class SuppliersService {
     }
 
     //---修改--- ---暫
+    @Transactional
     public SupplierRespoDTO updateSupplier(Long id, SuppliersUpdateDTO newSupplierDTO) {
 
     // 先確認這筆供應商存不存在
@@ -105,29 +106,40 @@ public class SuppliersService {
     }
     //改電話
     //國際碼或電話，只要其中一個有修改
-    if (newSupplierDTO.getCallingCode() != null
-            || newSupplierDTO.getPhone() != null) {
-    	
-    	
-    	String newCallingCode =
-    	        newSupplierDTO.getCallingCode() != null
-    	                ? newSupplierDTO.getCallingCode()
-    	                : supplier.getCallingCode();
-    	String newPhone =
-    	        newSupplierDTO.getPhone() != null
-    	                ? newSupplierDTO.getPhone()
-    	                : supplier.getPhone();
-    	if (suppliersRepo
-    	        .existsByCallingCodeAndPhoneAndIdNot(
-    	                newCallingCode,
-    	                newPhone,
-    	                id)) {
+	if (newSupplierDTO.getCallingCode() != null
+	        || newSupplierDTO.getPhone() != null) {
+	
+	    String newCallingCode =
+	            newSupplierDTO.getCallingCode() != null
+	                    ? newSupplierDTO.getCallingCode()
+	                    : supplier.getCallingCode();
+	
+	    String newPhone =
+	            newSupplierDTO.getPhone() != null
+	                    ? newSupplierDTO.getPhone()
+	                    : supplier.getPhone();
+	
+	     // 檢查「國際碼 + 電話」是否重複
+	     if (suppliersRepo.existsByCallingCodeAndPhoneAndIdNot(
+	             newCallingCode,
+	             newPhone,
+	             id)) {
+	
+	         throw new IllegalArgumentException("電話已存在");
+	     }
+	
+	     supplier.setCallingCode(newCallingCode);
+	     supplier.setPhone(newPhone);
+	 }
+	 // 修改 / 清除分機
 
-    	    throw new IllegalArgumentException("電話已存在");
-    	}
-    	  supplier.setCallingCode(newCallingCode);
-          supplier.setPhone(newPhone);
-    }
+	 if (newSupplierDTO.isExtensionProvided()) {
+	     // 有傳 extension
+	     // extension = null  → 清除
+	     // extension = "205" → 修改
+	     supplier.setExtension(newSupplierDTO.getExtension());
+	 }
+    
     //改地址
     if(newSupplierDTO.getAddress()!= null){
         supplier.setAddress(newSupplierDTO.getAddress().trim());
@@ -267,104 +279,104 @@ public class SuppliersService {
         );
     }
 
-    //---刪除---
-    //單筆 ---
-    @Transactional
-    public void deleteSupplier(Long id) {
-    	  Optional<Suppliers> optionalSupplier = suppliersRepo.findById(id);
-    
-    	  if (optionalSupplier.isEmpty()) {
-    	        throw new IllegalArgumentException("找不到供應商");
-    	    }
-    	  if (purchaseOrderRepo.existsBySupplierId(id)) {
-    	        throw new IllegalArgumentException(
-    	                "此供應商已有採購紀錄，不能刪除，請改為停用"
-    	        );
-    	    }
-    	  suppliersNotesRepo.deleteBySupplierId(id);
-
-    	  Suppliers supplier = optionalSupplier.get();
-    	  
-    	  suppliersRepo.delete(supplier);
-    
-    }
-    //多筆 ---
-    @Transactional
-    public SupplierDeleteResultDTO deleteSuppliers(List<Long> ids) {
-
-        List<String> deletedSuppliers = new ArrayList<>();
-
-        List<String> purchaseOrderSuppliers = new ArrayList<>();
-
-        List<Long> notFoundIds = new ArrayList<>();
-
-        for (Long id : ids) {
-
-            //找 Supplier
-            Optional<Suppliers> optionalSupplier = suppliersRepo.findById(id);
-
-
-            // 找不到
-            if (optionalSupplier.isEmpty()) { 
-            	notFoundIds.add(id);
-                continue;
-            }
-
-            Suppliers supplier = optionalSupplier.get();
-
-            //檢查是否已有採購紀錄      
-            //有採購紀錄 → 不刪除
-            boolean hasPurchaseOrder =
-                    purchaseOrderRepo.existsBySupplierId(id);
-
-            if (hasPurchaseOrder) {
-                purchaseOrderSuppliers.add( supplier.getName());
-                continue;
-            }
-            suppliersNotesRepo.deleteBySupplierId(id);
-
-            //沒有採購紀錄 → 刪除
-            suppliersRepo.delete(supplier);
-
-            // 記錄成功刪除的供應商名稱
-            deletedSuppliers.add(supplier.getName());
-        }
-        //組裝結果
-        SupplierDeleteResultDTO result = new SupplierDeleteResultDTO();
-
-        result.setDeletedSuppliers( deletedSuppliers);
-
-        result.setPurchaseOrderSuppliers( purchaseOrderSuppliers);
-
-        result.setNotFoundIds( notFoundIds);
-        //組合訊息
-        String message = "";
-        // 有成功刪除
-        if (!deletedSuppliers.isEmpty()) {
-        	message += String.join("、",deletedSuppliers  );
-            message += " 已刪除成功。";
-        }
-
-
-        // 有不能刪除的
-        if (!purchaseOrderSuppliers.isEmpty()) {
-            message += String.join(
-                    "、",
-                    purchaseOrderSuppliers
-            );
-            message += " 已有採購紀錄，不可刪除。";
-        }
-
-        // 有找不到的 ID
-        if (!notFoundIds.isEmpty()) {
-           message += "找不到供應商 ID："
-                    + notFoundIds
-                    + "。";
-        }
-        result.setMessage(message);
-
-        return result;
-    }
+//    //---刪除---
+//    //單筆 ---
+//    @Transactional
+//    public void deleteSupplier(Long id) {
+//    	  Optional<Suppliers> optionalSupplier = suppliersRepo.findById(id);
+//    
+//    	  if (optionalSupplier.isEmpty()) {
+//    	        throw new IllegalArgumentException("找不到供應商");
+//    	    }
+//    	  if (purchaseOrderRepo.existsBySupplierId(id)) {
+//    	        throw new IllegalArgumentException(
+//    	                "此供應商已有採購紀錄，不能刪除，請改為停用"
+//    	        );
+//    	    }
+//    	  suppliersNotesRepo.deleteBySupplierId(id);
+//
+//    	  Suppliers supplier = optionalSupplier.get();
+//    	  
+//    	  suppliersRepo.delete(supplier);
+//    
+//    }
+//    //多筆 ---
+//    @Transactional
+//    public SupplierDeleteResultDTO deleteSuppliers(List<Long> ids) {
+//
+//        List<String> deletedSuppliers = new ArrayList<>();
+//
+//        List<String> purchaseOrderSuppliers = new ArrayList<>();
+//
+//        List<Long> notFoundIds = new ArrayList<>();
+//
+//        for (Long id : ids) {
+//
+//            //找 Supplier
+//            Optional<Suppliers> optionalSupplier = suppliersRepo.findById(id);
+//
+//
+//            // 找不到
+//            if (optionalSupplier.isEmpty()) { 
+//            	notFoundIds.add(id);
+//                continue;
+//            }
+//
+//            Suppliers supplier = optionalSupplier.get();
+//
+//            //檢查是否已有採購紀錄      
+//            //有採購紀錄 → 不刪除
+//            boolean hasPurchaseOrder =
+//                    purchaseOrderRepo.existsBySupplierId(id);
+//
+//            if (hasPurchaseOrder) {
+//                purchaseOrderSuppliers.add( supplier.getName());
+//                continue;
+//            }
+//            suppliersNotesRepo.deleteBySupplierId(id);
+//
+//            //沒有採購紀錄 → 刪除
+//            suppliersRepo.delete(supplier);
+//
+//            // 記錄成功刪除的供應商名稱
+//            deletedSuppliers.add(supplier.getName());
+//        }
+//        //組裝結果
+//        SupplierDeleteResultDTO result = new SupplierDeleteResultDTO();
+//
+//        result.setDeletedSuppliers( deletedSuppliers);
+//
+//        result.setPurchaseOrderSuppliers( purchaseOrderSuppliers);
+//
+//        result.setNotFoundIds( notFoundIds);
+//        //組合訊息
+//        String message = "";
+//        // 有成功刪除
+//        if (!deletedSuppliers.isEmpty()) {
+//        	message += String.join("、",deletedSuppliers  );
+//            message += " 已刪除成功。";
+//        }
+//
+//
+//        // 有不能刪除的
+//        if (!purchaseOrderSuppliers.isEmpty()) {
+//            message += String.join(
+//                    "、",
+//                    purchaseOrderSuppliers
+//            );
+//            message += " 已有採購紀錄，不可刪除。";
+//        }
+//
+//        // 有找不到的 ID
+//        if (!notFoundIds.isEmpty()) {
+//           message += "找不到供應商 ID："
+//                    + notFoundIds
+//                    + "。";
+//        }
+//        result.setMessage(message);
+//
+//        return result;
+//    }
 
         
     

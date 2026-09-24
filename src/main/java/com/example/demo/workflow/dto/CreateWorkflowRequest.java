@@ -17,6 +17,6 @@ public class CreateWorkflowRequest {
 
     private Long approverId; // 目前先保留，以後可改成後端自動找主管
 
-    @NotBlank(message = "申請原因必須填寫")
+//    @NotBlank(message = "申請原因必須填寫")
     private String remark;
 }

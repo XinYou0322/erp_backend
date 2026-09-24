@@ -118,21 +118,21 @@ public class SuppliersController {
 
         return ResponseEntity.ok(result);
     }
-    //---刪除---
-    //單筆
-    @DeleteMapping("/api/Supplier/{id}")
-    public ResponseEntity<Void> deleteSupplier(@PathVariable Long id) {
-
-    suppliersService.deleteSupplier(id);
-
-    return ResponseEntity.noContent().build();
-}
-    //多筆
-    @DeleteMapping("/api/Supplier/delete")
-    public ResponseEntity<SupplierDeleteResultDTO> deleteSuppliers(
-            @RequestBody List<Long> ids) {
-
-
-        return ResponseEntity.ok(suppliersService.deleteSuppliers(ids));
-    }
+//    //---刪除---
+//    //單筆
+//    @DeleteMapping("/api/Supplier/{id}")
+//    public ResponseEntity<Void> deleteSupplier(@PathVariable Long id) {
+//
+//    suppliersService.deleteSupplier(id);
+//
+//    return ResponseEntity.noContent().build();
+//}
+//    //多筆
+//    @DeleteMapping("/api/Supplier/delete")
+//    public ResponseEntity<SupplierDeleteResultDTO> deleteSuppliers(
+//            @RequestBody List<Long> ids) {
+//
+//
+//        return ResponseEntity.ok(suppliersService.deleteSuppliers(ids));
+//    }
 }

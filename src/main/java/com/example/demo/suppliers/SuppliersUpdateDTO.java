@@ -9,8 +9,14 @@ import lombok.Data;
 
 @Data
 public class SuppliersUpdateDTO {
-
+	//[.*] → 前面可以有任意內容
+	//[\\S] → 但至少要出現一個「不是空白」的字元
+	//[.*] → 後面可以有任意內容
     @Size(max = 50, message = "供應商名稱不可以超過 50 個字")
+    @Pattern(
+            regexp = ".*\\S.*", 
+            message = "供應商名稱不可以是空白"
+        )
     private String name;
 
     @Pattern(
@@ -32,9 +38,17 @@ public class SuppliersUpdateDTO {
     private String extension;
     
     @Size(max = 200, message = "地址不可以超過 200 個字")
+    @Pattern(
+            regexp = ".*\\S.*", 
+            message = "地址不可以是空白"
+        )
     private String address;
 
     @Email(message = "Email 格式錯誤")
+    @Pattern(
+            regexp = ".*\\S.*",
+            message = "Email 不可以是空白"
+        )
     private String email;
 
     private SupplierStatus status;

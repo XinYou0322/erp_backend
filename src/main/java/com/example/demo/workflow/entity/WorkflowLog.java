@@ -31,7 +31,8 @@ public class WorkflowLog {
     @JoinColumn(name = "operator_id", nullable = false)
     private User operator;
 
-    @Column(name = "remark", nullable = false, columnDefinition = "nvarchar(max)")
+    @Column(name = "remark",  columnDefinition = "nvarchar(max)")
+    //nullable = false,
     private String remark;
 
     @Column(name = "created_at", nullable = false)

@@ -14,16 +14,17 @@ public class SuppliersNotesRespoDTO {
     private String createdBy;
     
     private LocalDateTime createdAt;
+    
+    private LocalDateTime updatedAt;
 
-    public static SuppliersNotesRespoDTO fromEntity(SupplierNotes SupplierNote) {
-    	
-    	SuppliersNotesRespoDTO dto = new SuppliersNotesRespoDTO();
-    	dto.setId(SupplierNote.getId());
-    	dto.setRemark(SupplierNote.getRemark());
-    	dto.setCreatedBy(SupplierNote.getCreatedBy().getName());
-    	dto.setCreatedAt(SupplierNote.getCreatedAt());
-  
-    	return dto;
-    			
+
+    public static SuppliersNotesRespoDTO fromEntity(SupplierNotes supplierNote) {
+        SuppliersNotesRespoDTO dto = new SuppliersNotesRespoDTO();
+        dto.setId(supplierNote.getId());
+        dto.setRemark(supplierNote.getRemark());
+        dto.setCreatedBy(supplierNote.getCreatedBy().getName());
+        dto.setCreatedAt(supplierNote.getCreatedAt());
+        dto.setUpdatedAt(supplierNote.getUpdatedAt());
+        return dto;
     }
 }
