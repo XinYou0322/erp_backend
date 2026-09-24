@@ -148,31 +148,4 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/low-stock")
-    public ResponseEntity<?> triggerLowStockAlert(@RequestBody java.util.Map<String, Object> request) {
-        // 1. 從 Map 中安全提取 userId
-        Long userId = null;
-        if (request.get("userId") != null) {
-            userId = Long.valueOf(request.get("userId").toString());
-        }
-
-        // 2. 直接安全解構出 materials 陣列列表
-        java.util.List<java.util.Map<String, Object>> materials = new java.util.ArrayList<>();
-        if (request.get("materials") instanceof java.util.List) {
-            java.util.List<?> rawList = (java.util.List<?>) request.get("materials");
-            for (Object obj : rawList) {
-                if (obj instanceof java.util.Map) {
-                    @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> materialMap = (java.util.Map<String, Object>) obj;
-                    materials.add(materialMap);
-                }
-            }
-        }
-
-        // 3. 🚀 核心靈魂：直接呼叫你 Service 裡寫好的現成商業級低庫存中樞方法！
-        // 這會自動幫你動態組裝文案、格式化數字、處理庫存狀態、寫入 DB 並完成 WebSocket 實時推播！
-        notificationService.createLowStockAlert(userId, materials);
-
-        return ResponseEntity.ok().build();
-    }
 }
