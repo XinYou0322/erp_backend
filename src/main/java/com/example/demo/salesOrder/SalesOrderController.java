@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.suppliers.SupplierCreDTO;
 import com.example.demo.suppliers.SupplierRespoDTO;
@@ -32,9 +34,12 @@ public class SalesOrderController {
 	//單筆 ---暫
     @PostMapping("/api/SalesOrder/add")
     public ResponseEntity<SalesOrderRespoDTO> addSalesOrder(@Valid @RequestBody SalesOrderCreDTO salesOrderCreDTO,
-    		 											@RequestParam Long loginUserId//測試用
-    		 											) {
-       //Long loginUserId = userUtil.getUserId();
+	        @SessionAttribute(name = "userId", required = false) Long loginUserId
+	) {
+		 if (loginUserId == null) {
+		        throw new ResponseStatusException(
+		                HttpStatus.UNAUTHORIZED, "請先登入");
+		    }
         return ResponseEntity
             .status(HttpStatus.CREATED).body(salesOrderService.createSalesOrder(salesOrderCreDTO, loginUserId));
         
@@ -44,9 +49,14 @@ public class SalesOrderController {
     @PutMapping("/api/SalesOrder/{salesOrderId}/void")
     public ResponseEntity<SalesOrderRespoDTO> voidSalesOrder(
             @PathVariable Long salesOrderId,
-            @RequestParam Long loginUserId,
+            @SessionAttribute(name = "userId", required = false) Long loginUserId,
             @Valid @RequestBody SalesOrderVoidDTO voidDTO) {
-
+        
+{
+	 if (loginUserId == null) {
+	        throw new ResponseStatusException(
+	                HttpStatus.UNAUTHORIZED, "請先登入");
+	    }
         return ResponseEntity.ok(
                 salesOrderService.voidSalesOrder(
                         salesOrderId,

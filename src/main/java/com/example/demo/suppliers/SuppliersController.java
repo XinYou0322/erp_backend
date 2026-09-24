@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.users.User;
 import com.example.demo.suppliers.SupplierRespoDTO;
@@ -37,31 +39,38 @@ public class SuppliersController {
     private final SuppliersService suppliersService;
 
     //---新增---
-    //單筆 ---暫
+ // 單筆新增
     @PostMapping("/api/Supplier/add")
-    public ResponseEntity<SupplierRespoDTO> addSupplier(@Valid @RequestBody SupplierCreDTO credto,
-    		 											@RequestParam Long loginUserId//測試用
-    		 											) {
-       //Long loginUserId = userUtil.getUserId();
-        return ResponseEntity
-            .status(HttpStatus.CREATED).body(suppliersService.insertSupplier(credto, loginUserId));
-        // return "新增成功";
+    public ResponseEntity<SupplierRespoDTO> addSupplier(
+            @Valid @RequestBody SupplierCreDTO credto,
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
+
+        // 【修改】從 Session 取得登入者，未登入回傳 401。
+        if (loginUserId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "請先登入");
+        } // ← 先結束 if，再執行新增
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(suppliersService.insertSupplier(credto, loginUserId));
     }
 
-    //多筆 ---暫
+    // 多筆新增
     @PostMapping("/api/Suppliers/addAll")
     public ResponseEntity<List<SupplierRespoDTO>> addSuppliers(
-            @Valid@RequestBody@NotEmpty(message = "供應商清單不可為空") 
+            @Valid @RequestBody
+            @NotEmpty(message = "供應商清單不可為空")
             List<@Valid SupplierCreDTO> dtoList,
-            @RequestParam Long loginUserId //測試用
-            ) {
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
 
-    	 //Long loginUserId = userUtil.getUserId();
+        // 【修改】從 Session 取得登入者，未登入回傳 401。
+        if (loginUserId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "請先登入");
+        } // ← 這裡也需要結束 if
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED) 
-                .body(suppliersService.insertSuppliers(dtoList,loginUserId));
-               
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(suppliersService.insertSuppliers(dtoList, loginUserId));
     }
 
 
