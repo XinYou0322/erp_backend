@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +52,7 @@ public class SuppliersNotesService {
 	    SupplierNotes note = new SupplierNotes();
 
 	    note.setSupplier(supplier);
-	    note.setRemark(createDTO.getRemark());
+	    note.setRemark(createDTO.getRemark().trim());
 	    note.setCreatedBy(creator);
 
 	    SupplierNotes savedNote = suppliersNotesRepo.save(note);
@@ -58,6 +61,7 @@ public class SuppliersNotesService {
 	}
 	   
 	   	//---修改---
+	    @Transactional
 	   public SuppliersNotesRespoDTO updateNotes(
 			   Long supplierId,
 			   Long noteId,
@@ -87,7 +91,7 @@ public class SuppliersNotesService {
 		    throw new IllegalArgumentException("你沒有權限修改這筆備註");
 		}
 		//修改 > 儲存
-		note.setRemark(updateDTO.getRemark());
+		note.setRemark(updateDTO.getRemark().trim());
 		SupplierNotes savedNote = suppliersNotesRepo.save(note);
 		//Entity > DTO
 		return SuppliersNotesRespoDTO.fromEntity(savedNote);
@@ -102,7 +106,7 @@ public class SuppliersNotesService {
                    new IllegalArgumentException("找不到此供應商")
            );
 		   List<SupplierNotes> notes =
-		            suppliersNotesRepo.findBySupplierId(supplierId);
+		            suppliersNotesRepo.findBySupplierIdOrderByCreatedAtDesc(supplierId);
 		   
 		   List<SuppliersNotesRespoDTO> dtoList = new ArrayList<>();
 		   for (SupplierNotes note : notes) {
@@ -113,52 +117,69 @@ public class SuppliersNotesService {
 		    }
 		    return dtoList;
 	   }
-	   //---刪除---
-	   @Transactional
-	    public String deleteNote(Long noteId) {
-
-	        Optional<SupplierNotes> optionalNote =
-	                suppliersNotesRepo.findById(noteId);
-
-	        if (optionalNote.isEmpty()) {
-	            return "找不到備註，ID：" + noteId;
+	   // 分頁查詢；頁碼從 0 開始，支援每頁 5、10、30、50 筆。
+	    @Transactional(readOnly = true)
+	    public Page<SuppliersNotesRespoDTO> findSupplierNotesPage(
+	            Long supplierId, int page, int size) {
+	        if (page < 0) {
+	            page = 0;
 	        }
+	        if (size != 4) {
+	            size = 4;
+	        }
+	        suppliersRepo.findById(supplierId)
+	                .orElseThrow(() -> new IllegalArgumentException("找不到此供應商"));
 
-	        SupplierNotes note = optionalNote.get();
+	        // 建立時間相同時，以 ID 確保換頁順序穩定。
+	        var pageable = PageRequest.of(page, size,
+	                Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+	        return suppliersNotesRepo.findBySupplierId(supplierId, pageable)
+	                .map(SuppliersNotesRespoDTO::fromEntity);
+	    }
+	   //---刪除---
+	    @Transactional
+	    public String deleteNote(Long noteId, Long loginUserId) {
+	        SupplierNotes note = suppliersNotesRepo.findById(noteId)
+	                .orElseThrow(() -> new IllegalArgumentException("找不到備註，ID：" + noteId));
 
+	        usersRepo.findById(loginUserId)
+	                .orElseThrow(() -> new IllegalArgumentException("找不到登入者資料"));
+
+	        //原本修改有限制建立者，刪除卻任何人都能刪；統一成只有建立者能刪。
+	        validateNoteOwner(note, loginUserId);
 	        suppliersNotesRepo.delete(note);
 
 	        return "備註刪除成功，ID：" + noteId;
 	    }
-	   @Transactional
-	    public List<String> deleteNotes(List<Long> noteIds) {
+	    private void validateNoteOwner(SupplierNotes note, Long loginUserId) {
+	        if (!note.getCreatedBy().getId().equals(loginUserId)) {
+	            throw new IllegalArgumentException("你沒有權限操作這筆備註");
+	        }
+	    }
+	    @Transactional
+	    public List<String> deleteNotes(List<Long> noteIds, Long loginUserId) {
+	        if (noteIds == null || noteIds.isEmpty()) {
+	            throw new IllegalArgumentException("請提供要刪除的備註 ID");
+	        }
+
+	        usersRepo.findById(loginUserId)
+	                .orElseThrow(() -> new IllegalArgumentException("找不到登入者資料"));
+
+	        List<SupplierNotes> notes = new ArrayList<>();
+	        for (Long noteId : noteIds) {
+	            SupplierNotes note = suppliersNotesRepo.findById(noteId)
+	                    .orElseThrow(() -> new IllegalArgumentException("找不到備註，ID：" + noteId));
+	            validateNoteOwner(note, loginUserId);
+	            notes.add(note);
+	        }
+
+	        //全部檢查通過後才真正刪除，避免多筆刪除出現只刪一半的商業狀態。
+	        suppliersNotesRepo.deleteAll(notes);
 
 	        List<String> result = new ArrayList<>();
-
-	        if (noteIds == null || noteIds.isEmpty()) {
-	            result.add("請提供要刪除的備註 ID");
-	            return result;
+	        for (SupplierNotes note : notes) {
+	            result.add("備註刪除成功，ID：" + note.getId());
 	        }
-
-	        for (Long noteId : noteIds) {
-
-	            Optional<SupplierNotes> optionalNote =
-	                    suppliersNotesRepo.findById(noteId);
-
-	            if (optionalNote.isEmpty()) {
-
-	                result.add("找不到備註，ID：" + noteId);
-
-	            } else {
-
-	                SupplierNotes note = optionalNote.get();
-
-	                suppliersNotesRepo.delete(note);
-
-	                result.add("備註刪除成功，ID：" + noteId);
-	            }
-	        }
-
 	        return result;
 	    }
 

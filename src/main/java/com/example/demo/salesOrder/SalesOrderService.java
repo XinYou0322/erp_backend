@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
-import com.example.demo.suppliers.SuppliersRepository;
-import com.example.demo.suppliersNotes.SuppliersNotesRepository;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
 
@@ -94,10 +92,18 @@ public class SalesOrderService {
         // 找商品
         Products product = proRepo.findById(itemDTO.getProductId())
         		.orElseThrow(() ->new RuntimeException("找不到商品"));
-                
+        
+        //【我新增】停用商品不可再建立新銷售明細。
+        if (!"ACTIVE".equalsIgnoreCase(product.getStatus())) {
+            throw new IllegalStateException("商品「" + product.getName() + "」目前不是可銷售狀態");
+        }
+
         // 商品目前售價
         BigDecimal unitPrice = product.getSellingPrice();
-
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("商品「" + product.getName() + "」尚未設定有效售價");
+        }
+        
         // 數量
         BigDecimal quantity = itemDTO.getQuantity();
                 
@@ -267,7 +273,20 @@ public class SalesOrderService {
 	                keyword.trim();
 	    }
 	
-	    // 建立分頁
+	            // 金額使用數值比較，480 與 480.00 視為相同金額。
+        BigDecimal keywordAmount = null;
+        if (searchKeyword != null && searchKeyword.matches("[0-9]+(?:\\.[0-9]{1,2})?")) {
+            try {
+                BigDecimal parsedAmount = new BigDecimal(searchKeyword);
+                // totalAmount 為 decimal(18,2)，避免超出資料庫金額範圍。
+                if (parsedAmount.compareTo(new BigDecimal("9999999999999999.99")) <= 0) {
+                    keywordAmount = parsedAmount;
+                }
+            } catch (NumberFormatException ignored) {
+                // 非有效金額仍可使用文字欄位搜尋。
+            }
+        }
+        // 建立分頁
 	    Pageable pageable =
 	            PageRequest.of(
 	                    page,
@@ -287,6 +306,7 @@ public class SalesOrderService {
 	                    minAmount,
 	                    maxAmount,
 	                    searchKeyword,
+                    keywordAmount,
 	                    pageable);
 	
 	    // Entity → DTO

@@ -26,7 +26,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 			SELECT DISTINCT so
 			FROM SalesOrders so
 
-			LEFT JOIN so.items item
+	            LEFT JOIN so.items item
+                LEFT JOIN so.createdBy creator
 
 			WHERE
 			    (:status IS NULL
@@ -63,8 +64,19 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 			        OR LOWER(so.orderNumber)
 			           LIKE LOWER(CONCAT('%', :keyword, '%'))
 
-			        OR LOWER(item.productName)
-			           LIKE LOWER(CONCAT('%', :keyword, '%'))
+	                                        OR LOWER(creator.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(creator.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(CAST(so.paymentMethod AS String))
+                       LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR (CASE so.paymentMethod
+                            WHEN com.example.demo.salesOrder.PaymentMethod.CASH THEN '現金'
+                            WHEN com.example.demo.salesOrder.PaymentMethod.CREDIT_CARD THEN '信用卡'
+                            WHEN com.example.demo.salesOrder.PaymentMethod.MOBILE_PAYMENT THEN '行動支付'
+                            ELSE ''
+                        END) LIKE CONCAT('%', :keyword, '%')
+                    OR (:keywordAmount IS NOT NULL AND so.totalAmount = :keywordAmount)
+                    OR LOWER(item.productName)
+	                       LIKE LOWER(CONCAT('%', :keyword, '%'))
 
 			        OR LOWER(item.productSku)
 			           LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -75,7 +87,8 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 					SELECT COUNT(DISTINCT so.id)
 					FROM SalesOrders so
 
-					LEFT JOIN so.items item
+	            LEFT JOIN so.items item
+                LEFT JOIN so.createdBy creator
 
 					WHERE
 					    (:status IS NULL
@@ -112,8 +125,19 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 					        OR LOWER(so.orderNumber)
 					           LIKE LOWER(CONCAT('%', :keyword, '%'))
 
-					        OR LOWER(item.productName)
-					           LIKE LOWER(CONCAT('%', :keyword, '%'))
+	                                        OR LOWER(creator.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(creator.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(CAST(so.paymentMethod AS String))
+                       LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR (CASE so.paymentMethod
+                            WHEN com.example.demo.salesOrder.PaymentMethod.CASH THEN '現金'
+                            WHEN com.example.demo.salesOrder.PaymentMethod.CREDIT_CARD THEN '信用卡'
+                            WHEN com.example.demo.salesOrder.PaymentMethod.MOBILE_PAYMENT THEN '行動支付'
+                            ELSE ''
+                        END) LIKE CONCAT('%', :keyword, '%')
+                    OR (:keywordAmount IS NOT NULL AND so.totalAmount = :keywordAmount)
+                    OR LOWER(item.productName)
+	                       LIKE LOWER(CONCAT('%', :keyword, '%'))
 
 					        OR LOWER(item.productSku)
 					           LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -137,7 +161,9 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 
 			@Param("keyword") String keyword,
 
-			Pageable pageable);
+	            @Param("keywordAmount") BigDecimal keywordAmount,
+            Pageable pageable
+	    );
 
 	// 今日營收
 	@Query("""

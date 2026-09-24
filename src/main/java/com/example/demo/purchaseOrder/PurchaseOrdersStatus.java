@@ -5,8 +5,7 @@ public enum PurchaseOrdersStatus {
     PENDING_APPROVAL,   // 待審核
     APPROVED,           // 已核准
     REJECTED,           // 已駁回
-    ORDERED,            // 已下單
-    PARTIALLY_RECEIVED, // 部分到貨
+//    ORDERED,            // 已下單
     RECEIVED,           // 已全部到貨
     CANCELLED           // 已取消
 }

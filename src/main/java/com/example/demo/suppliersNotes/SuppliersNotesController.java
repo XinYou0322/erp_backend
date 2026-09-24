@@ -2,6 +2,7 @@ package com.example.demo.suppliersNotes;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.demo.suppliers.SupplierCreDTO;
 import com.example.demo.suppliers.SupplierRespoDTO;
@@ -34,9 +37,12 @@ public class SuppliersNotesController {
 	public ResponseEntity<SuppliersNotesRespoDTO> addNote(
 	        @PathVariable Long supplierId,
 	        @Valid @RequestBody SuppliersNotesCreDTO createDTO,
-	        @RequestParam Long loginUserId
+	        @SessionAttribute(name = "userId", required = false) Long loginUserId
 	) {
-
+		 if (loginUserId == null) {
+		        throw new ResponseStatusException(
+		                HttpStatus.UNAUTHORIZED, "請先登入");
+		    }
 		//Long loginUserId = userUtil.getUserId();
 	    SuppliersNotesRespoDTO result =
 	            suppliersNotesService.createNote(
@@ -55,10 +61,12 @@ public class SuppliersNotesController {
 	        @PathVariable Long supplierId,
 	        @PathVariable Long noteId,
 	        @Valid @RequestBody SuppliersNotesCreDTO updateDTO,
-	        @RequestParam Long loginUserId
+	        @SessionAttribute(name = "userId", required = false) Long loginUserId
 	) {
-		
-		//Long loginUserId = userUtil.getUserId();
+		 if (loginUserId == null) {
+		        throw new ResponseStatusException(
+		                HttpStatus.UNAUTHORIZED, "請先登入");
+		    }
         
 		
         return ResponseEntity.ok(suppliersNotesService.updateNotes(supplierId, noteId, updateDTO, loginUserId)
@@ -67,32 +75,38 @@ public class SuppliersNotesController {
     }
 	//---查詢---
 	@GetMapping("/api/supplierNote/supplier/{supplierId}")
-	public ResponseEntity<List<SuppliersNotesRespoDTO>> findSupplierAllNoteById(
-	        @PathVariable("supplierId") Long supplierId) {
-
-	    List<SuppliersNotesRespoDTO> noteList =
-	            suppliersNotesService.findSupplierAllNoteById(supplierId);
-
-	    return ResponseEntity.ok(noteList);
-	}
+    public ResponseEntity<Page<SuppliersNotesRespoDTO>> findSupplierNotesPage(
+            @PathVariable("supplierId") Long supplierId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "4") int size) {
+        return ResponseEntity.ok(
+                suppliersNotesService.findSupplierNotesPage(supplierId, page, size));
+    }
 	//---刪除---
 	//單筆
-	 @DeleteMapping("/api/supplierNote/{noteId}")
-	    public ResponseEntity<String> deleteNote(
-	            @PathVariable Long noteId) {
-
-	        String result = suppliersNotesService.deleteNote(noteId);
-
-	        return ResponseEntity.ok(result);
-	    }
-	 @DeleteMapping("/api/supplierNote/Many")
-	    public ResponseEntity<List<String>> deleteNotes(
-	            @RequestBody List<Long> noteIds) {
-
-	        List<String> result =
-	                suppliersNotesService.deleteNotes(noteIds);
-
-	        return ResponseEntity.ok(result);
-	    }
+    @DeleteMapping("/api/supplierNote/{noteId}")
+    public ResponseEntity<String> deleteNote(
+            @PathVariable Long noteId,
+            //【我新增】刪除也必須知道操作者，才能套用與修改相同的權限規則。
+	        @SessionAttribute(name = "userId", required = false) Long loginUserId
+	) {
+		 if (loginUserId == null) {
+		        throw new ResponseStatusException(
+		                HttpStatus.UNAUTHORIZED, "請先登入");
+		    }
+        return ResponseEntity.ok(suppliersNotesService.deleteNote(noteId, loginUserId));
+    }
+    @DeleteMapping("/api/supplierNote/Many")
+    public ResponseEntity<List<String>> deleteNotes(
+            @RequestBody List<Long> noteIds,
+            //【我新增】多筆刪除同樣驗證登入者是否為備註建立者。
+	        @SessionAttribute(name = "userId", required = false) Long loginUserId
+	) {
+		 if (loginUserId == null) {
+		        throw new ResponseStatusException(
+		                HttpStatus.UNAUTHORIZED, "請先登入");
+		    }
+        return ResponseEntity.ok(suppliersNotesService.deleteNotes(noteIds, loginUserId));
+    }
 
 }

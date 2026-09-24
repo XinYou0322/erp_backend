@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 public class PurchaseOrderItemUpdateDTO {
 	
+	 @Positive(message = "採購明細 ID 必須大於 0")
 	 private Long id;
 	
 	 @NotNull(message = "原物料不可為空")
