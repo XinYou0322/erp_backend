@@ -23,13 +23,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.security.access.prepost.PreAuthorize;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 @RestController 
 @RequiredArgsConstructor
 public class PurchaseOrdersController {
     private final PurchaseOrdersService purchaseOrdersService;
+    private final PurchaseOrderReceivingService purchaseOrderReceivingService;
    
 
     //---新增---
@@ -116,6 +122,35 @@ public class PurchaseOrdersController {
 
 
       return ResponseEntity.ok(result);
+  }
+
+  @GetMapping("/api/purchaseOrder/receivable")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<List<ReceivablePurchaseOrderDTO>> findReceivablePurchaseOrders(
+          @RequestParam(required = false)
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+      try {
+          return ResponseEntity.ok(purchaseOrderReceivingService.findReceivable(date));
+      } catch (IllegalStateException exception) {
+          throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+      }
+  }
+
+  @PostMapping("/api/purchaseOrder/{id}/receive")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<PurchaseOrderResponseDTO> receivePurchaseOrder(
+          @PathVariable Long id,
+          @Valid @RequestBody(required = false) PurchaseOrderReceiveRequestDTO request,
+          HttpServletRequest servletRequest) {
+      HttpSession session = servletRequest.getSession(false);
+      Long userId = session == null ? null : (Long) session.getAttribute("userId");
+      try {
+          return ResponseEntity.ok(purchaseOrderReceivingService.receive(id, request, userId));
+      } catch (IllegalArgumentException exception) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+      } catch (IllegalStateException exception) {
+          throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+      }
   }
   
   //取消

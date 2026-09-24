@@ -58,8 +58,10 @@ public class PurchaseOrderResponseDTO {
         dto.setStatus(purchaseOrder.getStatus());
         dto.setCreatedByUserId(purchaseOrder.getCreatedBy().getId());
         dto.setCreatedByName(purchaseOrder.getCreatedBy().getName());
-        dto.setApprovedByUserId(purchaseOrder.getApprovedBy().getId());
-        dto.setApprovedByName(purchaseOrder.getApprovedBy().getName());
+        if (purchaseOrder.getApprovedBy() != null) {
+            dto.setApprovedByUserId(purchaseOrder.getApprovedBy().getId());
+            dto.setApprovedByName(purchaseOrder.getApprovedBy().getName());
+        }
         dto.setTotal(purchaseOrder.getTotal());
         dto.setCreatedAt(purchaseOrder.getCreatedAt());
         dto.setUpdatedAt(purchaseOrder.getUpdatedAt());
