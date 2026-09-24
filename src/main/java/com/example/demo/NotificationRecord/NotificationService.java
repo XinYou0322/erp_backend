@@ -10,8 +10,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.materials.Material;
+import com.example.demo.materials.MaterialRepository;
+
 @Service
 public class NotificationService {
+
+    @Autowired
+    private MaterialRepository materialRepository;
 
     @Autowired
     private NotificationRepository notifRepository;
@@ -122,17 +128,81 @@ public class NotificationService {
     /**
      * 對接前端測試按鈕: triggerSampleAlert
      */
-    public void triggerSampleAlert(Long userId) {
-        String[][] samples = {
-                { "庫存告急", "生豆 [衣索比亞 耶加雪菲] 目前庫存僅剩 12kg！", "inventory", "danger", "/inventory/materials" },
-                { "簽核審批待辦", "採購單 #PO-20260907001 待經理簽核審查。", "workflow", "warning", "/workflow/approvals" },
-                { "採購供鏈通知", "供應商「大宗生豆進口商」已建立出貨單。", "supplier", "info", "/supplier/shipments" },
-                { "資安稽核警告", "帳號於非正常辦公時段嘗試匯出客戶清單。", "security", "danger", "/security/audit-logs" }
-        };
-        int idx = new Random().nextInt(samples.length);
-        String[] pick = samples[idx];
 
-        createAndSendNotification(userId, pick[0], pick[1], pick[2], pick[3], pick[4]);
+    public void triggerSampleAlert(Long userId) {
+        if (userId == null)
+            return;
+
+        try {
+            // 1. 從資料庫撈出所有原物料項目
+            List<?> allMaterials = materialRepository.findAll();
+            boolean hasAlert = false;
+
+            // 利用 Jackson ObjectMapper 將實體物件轉成 Map，直接繞過編譯時的 Getter 限制！
+            tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
+
+            for (Object rawObj : allMaterials) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> m = mapper.convertValue(rawObj, Map.class);
+
+                // 2. 動態安全讀取物料名稱與計量單位
+                String name = m.get("name") != null ? m.get("name").toString() : "未知物料";
+                String unit = m.get("unit") != null ? m.get("unit").toString() : "g";
+
+                // 3. 多重欄位名稱相容機制：目前庫存 (支援 stock, availableStock)
+                double stock = 0.0;
+                if (m.get("stock") != null) {
+                    stock = Double.parseDouble(m.get("stock").toString());
+                } else if (m.get("availableStock") != null) {
+                    stock = Double.parseDouble(m.get("availableStock").toString());
+                }
+
+                // 4. 多重欄位名稱相容機制：安全庫存 (支援 safetyStock, minStock)
+                double safetyStock = 0.0;
+                if (m.get("safetyStock") != null) {
+                    safetyStock = Double.parseDouble(m.get("safetyStock").toString());
+                } else if (m.get("minStock") != null) {
+                    safetyStock = Double.parseDouble(m.get("minStock").toString());
+                }
+
+                // 5. ⚖️ 動態判定：只要當前庫存低於安全庫存，就自動通報！
+                if (stock < safetyStock) {
+                    boolean isCritical = (stock <= 0);
+                    String title = isCritical ? name + " 庫存緊急缺料" : name + " 庫存水位告急";
+
+                    // 格式化數字去掉無用的 .0 (如 2500.0 變成 2500)
+                    String stockStr = stock % 1 == 0 ? String.format("%.0f", stock) : String.valueOf(stock);
+                    String safetyStockStr = safetyStock % 1 == 0 ? String.format("%.0f", safetyStock)
+                            : String.valueOf(safetyStock);
+
+                    String content = String.format("【%s】當前可用庫存僅存 %s %s，已低於安全庫存警戒線 (%s %s)，建議立即安排採購。",
+                            name, stockStr, unit, safetyStockStr, unit);
+
+                    String type = isCritical ? "danger" : "warning";
+
+                    // 6. 🚀 呼叫核心中樞：自動寫入資料庫並即時推播
+                    createAndSendNotification(userId, title, content, "inventory", type, "/material");
+                    hasAlert = true;
+                }
+            }
+
+            // 💡 降級防禦：如果目前沒有任何原物料低於安全水位，就發送正常狀態通報
+            if (!hasAlert) {
+                createAndSendNotification(userId, "庫存通報引擎自主檢測", "【系統通報】經全庫存即時掃描，目前全廠原物料均處於安全水位之上，無缺料風險。", "inventory",
+                        "success", "/material");
+            }
+
+        } catch (Exception e) {
+            System.err.println("動態掃描低庫存失敗，降級執行隨機模擬: " + e.getMessage());
+            // 如果反射發生意外，自動降級執行原來的隨機抽樣通報，確保功能不崩潰
+            String[][] samples = {
+                    { "庫存告急", "生豆 [衣索比亞 耶加雪菲] 目前庫存僅剩 12kg！", "inventory", "danger", "/material" },
+                    { "簽核審批待辦", "採購單 #PO-20260907001 待經理簽核審查。", "workflow", "warning", "/workflow/approvals" }
+            };
+            int idx = new java.util.Random().nextInt(samples.length);
+            String[] pick = samples[idx];
+            createAndSendNotification(userId, pick[0], pick[1], pick[2], pick[3], pick[4]);
+        }
     }
 
     /**
