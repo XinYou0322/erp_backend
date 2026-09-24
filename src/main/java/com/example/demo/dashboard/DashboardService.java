@@ -1,9 +1,11 @@
 package com.example.demo.dashboard;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.dashboard.dto.DashboardResponse;
 import com.example.demo.dashboard.dto.HourlySalesResponse;
+import com.example.demo.dashboard.dto.RevenueDetailResponse;
 import com.example.demo.dashboard.dto.RevenueTrendResponse;
 import com.example.demo.dashboard.dto.TopProductResponse;
 import com.example.demo.dashboard.dto.TopRevenueResponse;
@@ -39,7 +42,17 @@ public class DashboardService {
         DashboardResponse response = new DashboardResponse();
 
         // 今日營收
-        response.setTodayRevenue(salesRepo.getRevenueBetween(start, end));
+        BigDecimal todayRevenue = salesRepo.getRevenueBetween(start, end);
+        response.setTodayRevenue(todayRevenue);
+
+        // 計算較昨日 
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate yesterday = today.minusDays(1);
+        BigDecimal yesterdaySamePeriod = salesRepo.getRevenueBetween(
+        yesterday.atStartOfDay(),
+        now.minusDays(1));
+
+        response.setRevenueChangeRate(calcChangeRate(todayRevenue, yesterdaySamePeriod));
 
         // 今日訂單
         response.setTodayOrders(salesRepo.countOrdersBetween(start, end));
@@ -122,4 +135,73 @@ public class DashboardService {
 
         return response;
     }
+
+   
+
+   public RevenueDetailResponse getRevenueDetail(String range) {
+    LocalDate today = LocalDate.now();
+    LocalDate startDate;
+//     LocalDate prevStart;
+//     LocalDate prevEnd;
+    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime prevStart;
+    LocalDateTime prevEnd;
+
+    // 1. 定義本期與上期的區間
+    if ("month".equalsIgnoreCase(range)) {
+    startDate = today.withDayOfMonth(1);
+    // 上月同期：上月 1 號 → 上月的「現在這個時間點」
+    prevStart = now.minusMonths(1).toLocalDate().withDayOfMonth(1).atStartOfDay();
+    prevEnd = now.minusMonths(1);
+    } else {
+        startDate = today.minusDays(6);
+        // 前 7 天同期：把本期窗口整體往前移 7 天
+        prevStart = now.minusDays(13).toLocalDate().atStartOfDay();
+        prevEnd = now.minusDays(7);
+    }
+
+    LocalDateTime start = startDate.atStartOfDay();
+    LocalDateTime end = today.atTime(LocalTime.MAX);
+
+    // 2. 本期與上期總營收（複用現有 query）
+    BigDecimal totalRevenue = salesRepo.getRevenueBetween(start, end);
+    BigDecimal previousRevenue = salesRepo.getRevenueBetween(prevStart, prevEnd);
+
+    // 3. 計算環比百分比
+    Double changeRate = calcChangeRate(totalRevenue, previousRevenue);
+
+    // 4. 取得每日營收原始資料 
+    List<Object[]> rawTrend = salesRepo.getWeeklyRevenue(start, end); 
+    
+    Map<LocalDate, BigDecimal> revenueMap = rawTrend.stream()
+            .collect(Collectors.toMap(
+                    r -> ((java.sql.Date) r[0]).toLocalDate(),
+                    r -> (BigDecimal) r[1]
+            ));
+
+    // 5. 補齊沒有訂單的日期，並直接使用 RevenueTrendResponse
+    long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(startDate, today);
+    List<RevenueTrendResponse> dailyTrend = new ArrayList<>();
+    
+    for (int i = 0; i <= daysBetween; i++) {
+        LocalDate currentDate = startDate.plusDays(i);
+        BigDecimal rev = revenueMap.getOrDefault(currentDate, BigDecimal.ZERO);
+        
+        dailyTrend.add(new RevenueTrendResponse(currentDate, rev));
+    }
+
+    return new RevenueDetailResponse(
+            range, totalRevenue, previousRevenue, changeRate, dailyTrend);
+}
+
+// 計算環比百分比
+private Double calcChangeRate(BigDecimal current, BigDecimal previous) {
+    if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
+        return null; // 上期沒營收，無法計算
+    }
+    return current.subtract(previous)
+            .multiply(BigDecimal.valueOf(100))
+            .divide(previous, 1, RoundingMode.HALF_UP) // 保留一位小數
+            .doubleValue();
+}
 }

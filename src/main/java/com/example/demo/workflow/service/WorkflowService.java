@@ -204,4 +204,11 @@ public class WorkflowService {
         }
     }
 
+    //透過單據類型與單據ID，查詢對應的 Workflow
+    @Transactional(readOnly = true)
+    public Workflow getWorkflowByDocument(DocumentType documentType, Long documentId) {
+        return worksRepo.findByDocumentTypeAndDocumentId(documentType, documentId)
+                .orElseThrow(() -> new EntityNotFoundException("找不到對應的 Workflow"));
+    }
+
 }
