@@ -52,7 +52,7 @@ public class SalesOrderController {
             @SessionAttribute(name = "userId", required = false) Long loginUserId,
             @Valid @RequestBody SalesOrderVoidDTO voidDTO) {
         
-{
+
 	 if (loginUserId == null) {
 	        throw new ResponseStatusException(
 	                HttpStatus.UNAUTHORIZED, "請先登入");

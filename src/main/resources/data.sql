@@ -704,9 +704,7 @@ BEGIN TRY
         ('DEMO-PO-202609-028','delay28@erp-supplier.com',   'CANCELLED',          'staff01','store_manager01', NULL,     16,10, -9,NULL,NULL,N'因延遲交貨取消訂單'),
         ('DEMO-PO-202609-029','tea01@erp-supplier.com',     'PENDING_APPROVAL',   'staff02','deputy_manager01',NULL,      1, 0,  9,NULL,NULL,N'月底茶葉補貨待審'),
         ('DEMO-PO-202609-030','milk06@erp-supplier.com',    'RECEIVED',           'staff03','store_manager01', 'staff05',18, 1,-10,   1,'/uploads/demo/receipts/po030.pdf',N'鮮奶冷鏈驗收完成');
-('DEMO-PO-TODAY-001', 'tea01@erp-supplier.com',     'APPROVED',           'staff01','store_manager01', NULL,      2, 0,  0,NULL,NULL,N'[今日到貨] 茶葉原料，等待收貨入庫'),
-        ('DEMO-PO-TODAY-002', 'milk06@erp-supplier.com',    'ORDERED',            'staff02','store_manager01', NULL,      1, 0,  0,NULL,NULL,N'[今日到貨] 鮮奶原料，已向供應商下單'),
-        ('DEMO-PO-TODAY-003', 'cup18@erp-supplier.com',     'APPROVED',           'staff03','store_manager01', NULL,      3, 0,  0,NULL,NULL,N'[今日到貨] 包裝材料，等待收貨入庫');
+
     -- 補足第 31～50 筆採購單，狀態只使用目前有效的六種狀態。
     INSERT INTO @PurchaseOrderSeed
         (order_no, supplier_email, order_status, creator_username, approver_username,

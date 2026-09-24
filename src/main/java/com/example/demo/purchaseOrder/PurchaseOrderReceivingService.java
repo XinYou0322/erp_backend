@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class PurchaseOrderReceivingService {
 
     private static final Set<PurchaseOrdersStatus> RECEIVABLE_STATUSES =
-            Set.of(PurchaseOrdersStatus.APPROVED, PurchaseOrdersStatus.ORDERED);
+            Set.of(PurchaseOrdersStatus.APPROVED);
 
     private final PurchaseOrdersRepository purchaseOrdersRepository;
     private final UsersRepository usersRepository;
