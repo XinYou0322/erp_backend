@@ -47,15 +47,12 @@ public class UsersService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email 已被使用");
         }
 
-        Role role = roleRepository.findById(dto.getRoleId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到指定角色"));
-
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setRole(role);
+        user.setRoleLevel(dto.getRoleLevel());
         user.setAvatar(dto.getAvatar());
         // user.setDepartmentId(dto.getDepartmentId());
         user.setStatus(UserStatus.ACTIVE);
@@ -66,13 +63,14 @@ public class UsersService {
 
     // 4. 註冊 (保留舊版多參數方法，委託呼叫 createUser 避免代碼重複)
     @Transactional
-    public User register(String username, String password, String name, String email, Long roleId, Long departmentId) {
+    public User register(String username, String password, String name, String email, Integer roleLevel,
+            Long departmentId) {
         UserRegisterDTO dto = new UserRegisterDTO();
         dto.setUsername(username);
         dto.setPassword(password);
         dto.setName(name);
         dto.setEmail(email);
-        dto.setRoleId(roleId);
+        dto.setRoleLevel(roleLevel);
         // dto.setDepartmentId(departmentId);
 
         createUser(dto);
@@ -164,9 +162,6 @@ public class UsersService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email 已被其他使用者使用");
         }
 
-        Role role = roleRepository.findById(dto.getRoleId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到指定角色"));
-
         dbUser.setName(dto.getName());
         dbUser.setEmail(dto.getEmail());
         if (dto.getAvatar() != null) {
@@ -174,7 +169,7 @@ public class UsersService {
         }
         // dbUser.setDepartmentId(dto.getDepartmentId());
         dbUser.setStatus(dto.getStatus());
-        dbUser.setRole(role);
+        dbUser.setRoleLevel(dto.getRoleLevel());
 
         User saved = userRepository.save(dbUser);
         return userMapper.toDto(saved);
@@ -186,8 +181,8 @@ public class UsersService {
         User dbUser = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到使用者"));
 
-        Long roleId = updateDetails.getRole() != null ? updateDetails.getRole().getId()
-                : (dbUser.getRole() != null ? dbUser.getRole().getId() : null);
+        Integer roleLevel = updateDetails.getRoleLevel() != null ? updateDetails.getRoleLevel()
+                : dbUser.getRoleLevel();
 
         UserUpdateDTO dto = new UserUpdateDTO();
         dto.setName(updateDetails.getName() != null ? updateDetails.getName() : dbUser.getName());
@@ -196,7 +191,7 @@ public class UsersService {
         // updateDetails.getDepartmentId()
         // : dbUser.getDepartmentId());
         dto.setStatus(updateDetails.getStatus() != null ? updateDetails.getStatus() : dbUser.getStatus());
-        dto.setRoleId(roleId);
+        dto.setRoleLevel(roleLevel);
 
         updateUser(id, dto);
         return userRepository.findById(id)

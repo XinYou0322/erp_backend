@@ -14,12 +14,18 @@ public class RoleResponseDTO {
     private Long id;
     private String roleName;
     private String description;
+    private Integer roleLevel;
 
     public static RoleResponseDTO fromEntity(Role role) {
         if (role == null) {
             return null;
         }
-        return new RoleResponseDTO(role.getId(), role.getRoleName(), role.getDescription());
+
+        return new RoleResponseDTO(
+                role.getId(),
+                role.getRoleName(),
+                role.getDescription(),
+                role.getRoleLevel());
     }
 
 }

@@ -50,9 +50,8 @@ public class User {
     private String email;
 
     @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @Column(name = "role_level", nullable = false)
+    private Integer roleLevel;
 
     @Setter
     @Column(length = 500)

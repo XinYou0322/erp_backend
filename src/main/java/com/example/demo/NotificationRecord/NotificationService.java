@@ -20,7 +20,7 @@ public class NotificationService {
     private NotificationWebSocketHandler webSocketHandler;
 
     public int getUnreadCount(Long userId) {
-        return notifRepository.countByUserIdAndReadFalse(userId);
+        return notifRepository.countVisibleUnread(userId);
     }
 
     public List<NotificationRecord> getFilteredNotifications(Long userId, String category, Boolean onlyUnread, int page,
@@ -47,48 +47,6 @@ public class NotificationService {
         notifRepository.clearNotifications(userId, category);
     }
 
-    @Transactional
-    public void createLowStockAlert(Long userId, List<Map<String, Object>> materials) {
-        if (userId == null || materials == null || materials.isEmpty()) {
-            return;
-        }
-
-        // 巡迴檢查前端或 ERP 系統發送過來的所有低庫存物料
-        for (Map<String, Object> item : materials) {
-            // 1. 安全解析前端 DTO 傳遞過來的欄位
-            String code = String.valueOf(item.getOrDefault("code", "unknown"));
-            String name = String.valueOf(item.getOrDefault("name", "原物料"));
-
-            // 安全轉換庫存數值 (相容 Integer, Double, Long, String 等型態)
-            Object rawStock = item.getOrDefault("stock", 0);
-            Object rawMinStock = item.getOrDefault("minStock", 0);
-            double stock = rawStock instanceof Number ? ((Number) rawStock).doubleValue()
-                    : Double.parseDouble(String.valueOf(rawStock));
-            double minStock = rawMinStock instanceof Number ? ((Number) rawMinStock).doubleValue()
-                    : Double.parseDouble(String.valueOf(rawMinStock));
-
-            String unit = String.valueOf(item.getOrDefault("unit", "g"));
-
-            // 2. 判斷是否為「總量完全歸零 (如 asd 品項)」的危急狀態
-            boolean isCritical = (stock <= 0);
-
-            // 3. 建立精緻的各別通知內容與標題
-            String title = isCritical ? name + " 庫存緊急缺料" : name + " 庫存水位告急";
-
-            // 格式化庫存數字，去掉結尾無用的 .0 (如 4000.0 g 變 4000 g)
-            String stockStr = stock % 1 == 0 ? String.format("%.0f", stock) : String.valueOf(stock);
-            String minStockStr = minStock % 1 == 0 ? String.format("%.0f", minStock) : String.valueOf(minStock);
-
-            String content = String.format("【%s】當前可用庫存僅存 %s %s，已低於安全庫存警戒線 (%s %s)，建議立即安排採購。",
-                    name, stockStr, unit, minStockStr, unit);
-
-            String type = isCritical ? "danger" : "warning"; // 0庫存用紅色 danger，低於安全水位用 warning
-
-            // 4. 🚀 呼叫現有的核心中樞方法：自動完成資料庫儲存，並獲取合法的 Long ID，同步透過 WebSocket 推播給前端
-            createAndSendNotification(userId, title, content, "inventory", type, "/material");
-        }
-    }
-
     /**
      * 核心中樞：當 ERP 發生任何業務事件時，呼叫此方法寫入 DB 並即時推播
      */
@@ -108,7 +66,7 @@ public class NotificationService {
         // 包裝成與前端通訊的即時資料包
         Map<String, Object> wsPayload = new HashMap<>();
         wsPayload.put("action", "NEW_NOTIFICATION");
-        wsPayload.put("unreadCount", notifRepository.countByUserIdAndReadFalse(userId));
+        wsPayload.put("unreadCount", notifRepository.countVisibleUnread(userId));
         wsPayload.put("notification", saved);
 
         // 執行即時推播
@@ -122,19 +80,16 @@ public class NotificationService {
     /**
      * 對接前端測試按鈕: triggerSampleAlert
      */
+
     public void triggerSampleAlert(Long userId) {
         String[][] samples = {
-                { "庫存告急", "生豆 [衣索比亞 耶加雪菲] 目前庫存僅剩 12kg！", "inventory", "danger", "/inventory/materials" },
-                { "簽核審批待辦", "採購單 #PO-20260907001 待經理簽核審查。", "workflow", "warning", "/workflow/approvals" },
-                { "採購供鏈通知", "供應商「大宗生豆進口商」已建立出貨單。", "supplier", "info", "/supplier/shipments" },
-                { "資安稽核警告", "帳號於非正常辦公時段嘗試匯出客戶清單。", "security", "danger", "/security/audit-logs" }
+                { "通知功能測試", "這是一則通知中心測試訊息。", "system", "info", "/dashboard" },
+                { "簽核審批待辦", "目前有一筆流程等待處理。", "workflow", "warning", "/workflows" },
+                { "採購供鏈通知", "請確認近期採購單的預計到貨日期。", "supplier", "info", "/purchaseOrder" }
         };
-        int idx = new Random().nextInt(samples.length);
-        String[] pick = samples[idx];
-
-        createAndSendNotification(userId, pick[0], pick[1], pick[2], pick[3], pick[4]);
+        String[] sample = samples[new Random().nextInt(samples.length)];
+        createAndSendNotification(userId, sample[0], sample[1], sample[2], sample[3], sample[4]);
     }
-
     /**
      * 3. 建立打卡簽到/簽退通知
      * 歸類在 security (資安考勤)，跳轉至 /attendance

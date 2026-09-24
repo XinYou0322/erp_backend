@@ -1,5 +1,6 @@
 package com.example.demo.NotificationRecord;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -147,31 +148,4 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/low-stock")
-    public ResponseEntity<Void> createLowStockNotification(
-            HttpServletRequest request,
-            @RequestBody Map<String, Object> payload) {
-
-        Long userId = getValidatedUserId(request);
-        if (userId == null) {
-            Object candidate = payload.get("userId");
-            if (candidate instanceof Number) {
-                userId = ((Number) candidate).longValue();
-            }
-        }
-
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Object materialsObj = payload.get("materials");
-        if (!(materialsObj instanceof java.util.List<?> materials)) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> materialList = (List<Map<String, Object>>) materials;
-        notificationService.createLowStockAlert(userId, materialList);
-        return ResponseEntity.ok().build();
-    }
 }

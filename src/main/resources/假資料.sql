@@ -1157,7 +1157,6 @@ BEGIN TRY
         (username, title, content, category, notification_type,
          action_route, is_read, created_days_ago)
     VALUES
-        ('store_manager01',N'黑糖珍珠庫存偏低',N'黑糖珍珠低於安全庫存，請確認是否補貨。','inventory','warning','/inventory',0,0),
         ('store_manager01',N'待簽核採購單',N'目前有新的採購單等待審核。','workflow','info','/purchase-orders',0,0),
         ('store_manager01',N'待簽核請假單',N'目前有新的請假申請等待處理。','workflow','info','/leave',0,0),
         ('purchase_manager01',N'供應商交貨異常',N'延遲交貨測試供應商目前已暫停交易。','supplier','danger','/suppliers',0,1),

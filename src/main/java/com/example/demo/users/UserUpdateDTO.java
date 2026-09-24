@@ -20,8 +20,8 @@ public class UserUpdateDTO {
     @Size(max = 50, message = "Email 長度不能超過 50 個字元")
     private String email;
 
-    @NotNull(message = "角色 ID 不能為空")
-    private Long roleId;
+    @NotNull(message = "角色等級不能為空")
+    private Integer roleLevel;
 
     private String avatar;
 
