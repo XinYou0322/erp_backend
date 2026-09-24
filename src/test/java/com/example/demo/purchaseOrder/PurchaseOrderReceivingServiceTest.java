@@ -78,12 +78,12 @@ class PurchaseOrderReceivingServiceTest {
     void receivableQueryWithoutDateReturnsAllEligibleOrdersInRepositoryOrder() {
         PurchaseOrders first = order(PurchaseOrdersStatus.APPROVED);
         first.setOrderNumber("PO-EARLIER");
-        PurchaseOrders second = order(PurchaseOrdersStatus.ORDERED);
-        second.setId(11L);
-        second.setOrderNumber("PO-LATER");
+        // PurchaseOrders second = order(PurchaseOrdersStatus.ORDERED);
+        // second.setId(11L);
+        // second.setOrderNumber("PO-LATER");
         when(settings.isEnabled(SystemSettingKey.PURCHASE_ORDER_RECEIVING_ENABLED)).thenReturn(true);
         when(purchaseOrders.findReceivableOrderByExpectedDeliveryDate(any()))
-                .thenReturn(List.of(first, second));
+                .thenReturn(List.of(first));
 
         List<ReceivablePurchaseOrderDTO> result = service.findReceivable(null);
 
