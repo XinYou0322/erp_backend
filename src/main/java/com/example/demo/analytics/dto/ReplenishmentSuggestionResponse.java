@@ -23,4 +23,14 @@ public class ReplenishmentSuggestionResponse {
     private BigDecimal estimatedDaysRemaining;
     private String inventoryStatus;
     private String riskLevel;
+    private BigDecimal usage7Days;
+    private BigDecimal averageDailyUsage7Days;
+    private BigDecimal usage30Days;
+    private BigDecimal averageDailyUsage30Days;
+    private BigDecimal selectedAverageDailyUsage;
+    private Integer leadTimeDays;
+    private BigDecimal leadTimeDemandQuantity;
+    private BigDecimal purchasePackQuantity;
+    private BigDecimal suggestedPackageCount;
+    private String recommendation;
 }

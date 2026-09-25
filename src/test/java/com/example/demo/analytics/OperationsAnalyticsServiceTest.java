@@ -51,7 +51,8 @@ class OperationsAnalyticsServiceTest {
         assertEquals(0, bd("10").compareTo(result.getAverageDailyUsage()));
         assertEquals(0, bd("110").compareTo(result.getSuggestedPurchaseQuantity()));
         assertEquals(0, bd("4").compareTo(result.getEstimatedDaysRemaining()));
-        assertEquals("ATTENTION", result.getRiskLevel());
+        assertEquals("HIGH", result.getRiskLevel());
+        assertEquals(0, bd("110").compareTo(result.getSuggestedPackageCount()));
     }
 
     @Test
@@ -69,10 +70,32 @@ class OperationsAnalyticsServiceTest {
 
         assertEquals("MANUAL", result.getAnalysisMode());
         assertEquals(0, bd("100").compareTo(result.getManualIssueQuantity()));
-        assertEquals(0, bd("20").compareTo(result.getManualVarianceQuantity()));
-        assertEquals(0, bd("25").compareTo(result.getVarianceRate()));
-        assertEquals("HIGH", result.getRiskLevel());
+        assertEquals(0, bd("85").compareTo(result.getAccountedUsageQuantity()));
+        assertEquals(0, bd("15").compareTo(result.getEstimatedWorkspaceRemaining()));
+        assertEquals(0, bd("15").compareTo(result.getManualVarianceQuantity()));
+        assertEquals(0, bd("18.75").compareTo(result.getVarianceRate()));
+        assertEquals("ATTENTION", result.getRiskLevel());
         assertEquals(0, BigDecimal.ZERO.compareTo(result.getAutoDeductQuantity()));
+    }
+
+    @Test
+    void replenishmentRoundsUpToWholePurchasePackages() {
+        Material material = material(1L, "MAT001", "紅茶", "g", "100");
+        material.setLeadTimeDays(5);
+        material.setPurchasePackQuantity(bd("2500"));
+        when(materialRepository.findByStatus("ACTIVE")).thenReturn(List.of(material));
+        when(inventoryRepository.sumAvailableAndExpiredByMaterial(any()))
+                .thenReturn(List.<Object[]>of(new Object[] { 1L, bd("1000"), bd("0") }));
+        when(salesOrderItemRepository.sumMaterialUsageBySales(eq(SalesOrderStatus.COMPLETED), any(), any()))
+                .thenReturn(List.<Object[]>of(new Object[] { 1L, "MAT001", "紅茶", "g", bd("7000") }));
+        when(purchaseOrderItemsRepository.sumApprovedQuantityByMaterial()).thenReturn(List.of());
+
+        ReplenishmentSuggestionResponse result = service
+                .getReplenishmentSuggestions(LocalDate.of(2026, 9, 25), 7, 7).get(0);
+
+        assertEquals(0, bd("2").compareTo(result.getSuggestedPackageCount()));
+        assertEquals(0, bd("5000").compareTo(result.getSuggestedPurchaseQuantity()));
+        assertEquals(5, result.getLeadTimeDays());
     }
 
     private Material material(Long id, String code, String name, String unit, String safetyStock) {

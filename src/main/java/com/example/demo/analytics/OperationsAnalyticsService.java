@@ -57,6 +57,16 @@ public class OperationsAnalyticsService {
                         SalesOrderStatus.COMPLETED,
                         targetDate.minusDays(historyDays - 1L).atStartOfDay(),
                         targetDate.plusDays(1).atStartOfDay()));
+        Map<Long, BigDecimal> usage7DaysByMaterial = quantitiesByMaterial(
+                salesOrderItemRepository.sumMaterialUsageBySales(
+                        SalesOrderStatus.COMPLETED,
+                        targetDate.minusDays(6).atStartOfDay(),
+                        targetDate.plusDays(1).atStartOfDay()));
+        Map<Long, BigDecimal> usage30DaysByMaterial = quantitiesByMaterial(
+                salesOrderItemRepository.sumMaterialUsageBySales(
+                        SalesOrderStatus.COMPLETED,
+                        targetDate.minusDays(29).atStartOfDay(),
+                        targetDate.plusDays(1).atStartOfDay()));
         Map<Long, BigDecimal> pendingByMaterial = quantitiesByMaterial(
                 purchaseOrderItemsRepository.sumApprovedQuantityByMaterial());
 
@@ -70,19 +80,38 @@ public class OperationsAnalyticsService {
             BigDecimal forecastUsage = averageDailyUsage
                     .multiply(BigDecimal.valueOf(forecastDays)).setScale(4, RoundingMode.HALF_UP);
             BigDecimal pending = pendingByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
-            BigDecimal suggested = forecastUsage.add(safetyStock)
-                    .subtract(stock.available()).subtract(pending).max(BigDecimal.ZERO)
-                    .setScale(4, RoundingMode.CEILING);
-            BigDecimal daysRemaining = averageDailyUsage.signum() == 0
+            BigDecimal usage7Days = usage7DaysByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
+            BigDecimal average7Days = usage7Days.divide(BigDecimal.valueOf(7), 4, RoundingMode.HALF_UP);
+            BigDecimal usage30Days = usage30DaysByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
+            BigDecimal average30Days = usage30Days.divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
+            BigDecimal selectedAverage = average7Days.max(average30Days);
+            int leadTimeDays = material.getLeadTimeDays() == null ? 7 : material.getLeadTimeDays();
+            BigDecimal leadTimeDemand = selectedAverage.multiply(BigDecimal.valueOf(leadTimeDays))
+                    .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal packQuantity = material.getPurchasePackQuantity() == null
+                    || material.getPurchasePackQuantity().signum() <= 0
+                            ? BigDecimal.ONE
+                            : material.getPurchasePackQuantity();
+            BigDecimal rawSuggestion = leadTimeDemand.add(safetyStock)
+                    .subtract(stock.available()).subtract(pending).max(BigDecimal.ZERO);
+            BigDecimal suggestedPackages = rawSuggestion.signum() == 0
+                    ? BigDecimal.ZERO
+                    : rawSuggestion.divide(packQuantity, 0, RoundingMode.CEILING);
+            BigDecimal suggested = suggestedPackages.multiply(packQuantity).setScale(4, RoundingMode.UNNECESSARY);
+            BigDecimal daysRemaining = selectedAverage.signum() == 0
                     ? null
-                    : stock.available().divide(averageDailyUsage, 2, RoundingMode.HALF_UP);
+                    : stock.available().divide(selectedAverage, 2, RoundingMode.HALF_UP);
+            String risk = riskLevel(stock.available(), daysRemaining, selectedAverage, leadTimeDays);
 
             result.add(new ReplenishmentSuggestionResponse(
                     material.getId(), material.getCode(), material.getName(), material.getUnit(),
                     stock.available(), stock.expired(), safetyStock, recentUsage,
                     averageDailyUsage, forecastUsage, pending, suggested, daysRemaining,
-                    inventoryStatus(stock.available(), safetyStock), riskLevel(stock.available(), daysRemaining,
-                            averageDailyUsage)));
+                    inventoryStatus(stock.available(), safetyStock), risk,
+                    usage7Days, average7Days, usage30Days, average30Days, selectedAverage,
+                    leadTimeDays, leadTimeDemand, packQuantity, suggestedPackages,
+                    replenishmentRecommendation(material, stock.available(), daysRemaining,
+                            leadTimeDays, suggestedPackages, suggested, risk)));
         }
 
         result.sort((left, right) -> {
@@ -142,7 +171,9 @@ public class OperationsAnalyticsService {
 
     private MaterialUsageAnalysisResponse toUsageResponse(UsageRow row) {
         BigDecimal manualTheoretical = row.totalTheoretical.subtract(row.autoTheoretical).max(BigDecimal.ZERO);
-        BigDecimal manualVariance = row.manualIssue.subtract(manualTheoretical);
+        BigDecimal accountedUsage = manualTheoretical.add(row.waste);
+        BigDecimal workspaceRemaining = row.manualIssue.subtract(accountedUsage);
+        BigDecimal manualVariance = workspaceRemaining;
         BigDecimal autoVariance = row.autoDeduct.subtract(row.autoTheoretical);
         BigDecimal combinedVariance = manualVariance.add(autoVariance);
         String mode = row.autoDeduct.signum() > 0 || row.autoTheoretical.signum() > 0
@@ -157,7 +188,9 @@ public class OperationsAnalyticsService {
                 row.id, row.code, row.name, row.unit, mode,
                 row.manualIssue, row.autoDeduct, row.totalTheoretical,
                 manualTheoretical, row.autoTheoretical, row.waste, row.expired,
-                manualVariance, autoVariance, combinedVariance, rate, varianceRisk(rate, combinedVariance));
+                manualVariance, autoVariance, combinedVariance, rate, varianceRisk(rate, combinedVariance),
+                accountedUsage, workspaceRemaining,
+                usageRecommendation(mode, workspaceRemaining, row.waste, manualTheoretical, autoVariance));
     }
 
     private Map<Long, BigDecimal> quantitiesByMaterial(List<Object[]> rows) {
@@ -188,12 +221,49 @@ public class OperationsAnalyticsService {
         return "NORMAL";
     }
 
-    private String riskLevel(BigDecimal available, BigDecimal days, BigDecimal averageUsage) {
+    private String riskLevel(BigDecimal available, BigDecimal days, BigDecimal averageUsage, int leadTimeDays) {
         if (averageUsage.signum() == 0) return "NO_RECENT_USAGE";
         if (available.signum() <= 0) return "OUT_OF_STOCK";
-        if (days.compareTo(BigDecimal.valueOf(3)) < 0) return "HIGH";
-        if (days.compareTo(BigDecimal.valueOf(7)) < 0) return "ATTENTION";
+        if (days.compareTo(BigDecimal.valueOf(leadTimeDays)) < 0) return "HIGH";
+        if (days.compareTo(BigDecimal.valueOf(leadTimeDays + 2L)) < 0) return "ATTENTION";
         return "NORMAL";
+    }
+
+    private String replenishmentRecommendation(Material material, BigDecimal available, BigDecimal days,
+            int leadTimeDays, BigDecimal packages, BigDecimal suggested, String risk) {
+        if ("NO_RECENT_USAGE".equals(risk)) {
+            return material.getName() + "最近 30 天沒有銷售耗用，暫不建議依銷售量補貨。";
+        }
+        if (packages.signum() > 0) {
+            return material.getName() + "目前可用庫存 " + available.stripTrailingZeros().toPlainString()
+                    + " " + material.getUnit() + "，預估可使用 "
+                    + (days == null ? "—" : days.stripTrailingZeros().toPlainString())
+                    + " 天，交期為 " + leadTimeDays + " 天；建議採購 "
+                    + packages.toPlainString() + " 個包裝，共 "
+                    + suggested.stripTrailingZeros().toPlainString() + " " + material.getUnit() + "。";
+        }
+        return material.getName() + "目前庫存與已核准未到貨量足以涵蓋交期需求，暫不需要補貨。";
+    }
+
+    private String usageRecommendation(String mode, BigDecimal workspaceRemaining, BigDecimal waste,
+            BigDecimal theoretical, BigDecimal autoVariance) {
+        if ("POS_AUTO".equals(mode)) {
+            return autoVariance.signum() == 0
+                    ? "POS 扣料量與最新 BOM 理論耗用一致。"
+                    : "POS 扣料量與最新 BOM 理論耗用不一致，建議檢查配方或扣料紀錄。";
+        }
+        if (workspaceRemaining.signum() < 0) {
+            return "領料量不足以解釋理論耗用與已登記耗損，可能使用前期備料或有漏登領料，建議確認。";
+        }
+        if (theoretical.signum() > 0
+                && waste.multiply(ONE_HUNDRED).divide(theoretical, 2, RoundingMode.HALF_UP)
+                        .compareTo(BigDecimal.TEN) >= 0) {
+            return "已登記耗損超過理論耗用的 10%，建議檢查製作流程。";
+        }
+        if (workspaceRemaining.signum() > 0) {
+            return "領料扣除理論耗用與耗損後仍有推估剩餘，建議盤點工作區存量。";
+        }
+        return "領料、理論耗用與已登記耗損目前可互相對應。";
     }
 
     private int riskRank(String risk) {

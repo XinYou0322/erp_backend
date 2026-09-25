@@ -25,4 +25,7 @@ public class MaterialUsageAnalysisResponse {
     private BigDecimal combinedVarianceQuantity;
     private BigDecimal varianceRate;
     private String riskLevel;
+    private BigDecimal accountedUsageQuantity;
+    private BigDecimal estimatedWorkspaceRemaining;
+    private String recommendation;
 }
