@@ -10,6 +10,7 @@ import com.example.demo.materials.Material;
 import com.example.demo.materials.MaterialRepository;
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
+import com.example.demo.bom.version.BomVersionService;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -25,6 +26,9 @@ public class BomService {
 
 	private final MaterialRepository materialRepository;
 
+	private final BomVersionService bomVersionService;
+
+	@Transactional
 	public Bom create(BomRequestDTO dto) {
 
 	    Products product =
@@ -57,6 +61,7 @@ public class BomService {
 	    recalculateProductCost(
 	            product.getId()
 	    );
+	    bomVersionService.recordCurrentVersion(product, "CREATE_ITEM");
 
 	    return saved;
 	}
@@ -120,6 +125,7 @@ public class BomService {
 	}
 
     // 修改一筆配方（通常只會改 quantity）
+	@Transactional
     public Bom update(Long id, Bom bom) {
         Bom exist = bomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 id=" + id + " 的配方"));
@@ -131,11 +137,13 @@ public class BomService {
         recalculateProductCost(
                 saved.getProduct().getId()
         );
+		bomVersionService.recordCurrentVersion(saved.getProduct(), "UPDATE_ITEM");
 
         return saved;
     }
 
     // 刪除一筆配方
+	@Transactional
     public void delete(Long id) {
 
         Bom bom =
@@ -149,6 +157,7 @@ public class BomService {
         bomRepository.delete(bom);
 
         recalculateProductCost(productId);
+		bomVersionService.recordCurrentVersion(bom.getProduct(), "DELETE_ITEM");
     }
     
     @Transactional
@@ -213,6 +222,7 @@ public class BomService {
         recalculateProductCost(
                 product.getId()
         );
+		bomVersionService.recordCurrentVersion(product, "REPLACE_FULL_BOM");
 
 
         // 6. 回傳新 BOM

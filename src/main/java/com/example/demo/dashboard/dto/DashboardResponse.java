@@ -18,4 +18,5 @@ public class DashboardResponse {
     private List<TopRevenueResponse> topRevenueProducts;
     private List<TopRevenueResponse> recentTopRevenueProducts;
     private List<HourlySalesResponse> hourlySales;
+    private List<MaterialConsumptionResponse> materialConsumption;
 }

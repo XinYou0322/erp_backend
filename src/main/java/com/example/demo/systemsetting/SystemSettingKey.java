@@ -13,6 +13,10 @@ public enum SystemSettingKey {
     RETAIL_MODE_ENABLED(
             "false",
             "是否啟用零售商品模式",
+            ValueType.BOOLEAN),
+    POS_AUTO_MATERIAL_DEDUCTION_ENABLED(
+            "false",
+            "POS 結帳時是否依商品 BOM 自動扣除原物料",
             ValueType.BOOLEAN);
 
     private final String defaultValue;

@@ -67,7 +67,9 @@ public class InventoryLogService {
         BigDecimal total = BigDecimal.ZERO;
 
         for (Inventory batch : batches) {
-            total = total.add(batch.getQuantity());
+            if (isUsableBatch(batch)) {
+                total = total.add(batch.getQuantity());
+            }
         }
 
         return total;
@@ -85,6 +87,10 @@ public class InventoryLogService {
                 break;
             }
 
+            if (!isUsableBatch(batch)) {
+                continue;
+            }
+
             BigDecimal batchQty = batch.getQuantity();
 
             BigDecimal deductAmount = batchQty.compareTo(remaining) <= 0 ? batchQty : remaining;
@@ -97,9 +103,63 @@ public class InventoryLogService {
             log.setQuantity(deductAmount.negate());
             log.setAction("SALE_DEDUCT");
             log.setRefId(refId);
+            log.setNote("inventoryBatchId=" + batch.getId());
             inventoryLogRepository.save(log);
 
             remaining = remaining.subtract(deductAmount);
+        }
+    }
+
+    private boolean isUsableBatch(Inventory batch) {
+        return batch.getQuantity() != null
+                && batch.getQuantity().compareTo(BigDecimal.ZERO) > 0
+                && (batch.getExpiryDate() == null
+                        || !batch.getExpiryDate().isBefore(LocalDate.now()));
+    }
+
+    @Transactional
+    public void restoreSaleDeduction(Long salesOrderId) {
+        List<InventoryLog> deductionLogs = inventoryLogRepository
+                .findByRefIdAndActionOrderByIdAsc(salesOrderId, "SALE_DEDUCT");
+
+        if (deductionLogs.isEmpty()) {
+            return;
+        }
+
+        if (!inventoryLogRepository
+                .findByRefIdAndActionOrderByIdAsc(salesOrderId, "SALE_RETURN")
+                .isEmpty()) {
+            throw new IllegalStateException("此銷售單的原物料已經回補");
+        }
+
+        for (InventoryLog deductionLog : deductionLogs) {
+            Long batchId = parseBatchId(deductionLog.getNote());
+            Inventory batch = inventoryRepository.findById(batchId)
+                    .orElseThrow(() -> new IllegalStateException("找不到原銷售扣料批次：" + batchId));
+
+            BigDecimal restoredQuantity = deductionLog.getQuantity().abs();
+            batch.setQuantity(batch.getQuantity().add(restoredQuantity));
+            inventoryRepository.save(batch);
+
+            InventoryLog returnLog = new InventoryLog();
+            returnLog.setMaterial(deductionLog.getMaterial());
+            returnLog.setQuantity(restoredQuantity);
+            returnLog.setAction("SALE_RETURN");
+            returnLog.setRefId(salesOrderId);
+            returnLog.setNote("inventoryBatchId=" + batchId);
+            inventoryLogRepository.save(returnLog);
+        }
+    }
+
+    private Long parseBatchId(String note) {
+        String prefix = "inventoryBatchId=";
+        if (note == null || !note.startsWith(prefix)) {
+            throw new IllegalStateException("銷售扣料紀錄缺少庫存批次資訊");
+        }
+        try {
+            return Long.valueOf(note.substring(prefix.length()));
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("銷售扣料紀錄的庫存批次資訊無效", exception);
         }
     }
         

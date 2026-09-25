@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -29,6 +30,29 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
             m.id ASC
     """)
     Page<Material> findAllOrderByStatus(Pageable pageable);
+
+    @Query("""
+        SELECT m
+        FROM Material m
+        WHERE
+            (:keyword IS NULL
+                OR LOWER(m.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.code) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            AND (:status IS NULL OR m.status = :status)
+            AND (:unit IS NULL OR m.unit = :unit)
+        ORDER BY
+            CASE
+                WHEN m.status = 'ACTIVE' THEN 0
+                WHEN m.status = 'INACTIVE' THEN 1
+                ELSE 2
+            END,
+            m.id ASC
+    """)
+    Page<Material> searchMaterials(
+            @Param("keyword") String keyword,
+            @Param("status") String status,
+            @Param("unit") String unit,
+            Pageable pageable);
 
 
     @Query("""

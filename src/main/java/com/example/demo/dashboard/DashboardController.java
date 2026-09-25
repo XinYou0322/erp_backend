@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.dashboard.dto.DashboardResponse;
 import com.example.demo.dashboard.dto.RevenueDetailRequest;
 import com.example.demo.dashboard.dto.RevenueDetailResponse;
+import com.example.demo.dashboard.dto.MaterialConsumptionResponse;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +26,12 @@ public class DashboardController {
     @GetMapping
     public ResponseEntity<DashboardResponse> getDashboard() {
         return ResponseEntity.ok(dashboardService.getDashboard());
+    }
+
+    @GetMapping("/material-consumption")
+    public ResponseEntity<List<MaterialConsumptionResponse>> getMaterialConsumption(
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(dashboardService.getMaterialConsumption(date));
     }
 
     @GetMapping("/revenue")

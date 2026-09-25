@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.materials.Material;
 
 import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Repository
@@ -36,6 +37,17 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
         );
     
 	List<Inventory> findByMaterialIdOrderByExpiryDateAsc(Long materialId);
+
+    @Query("""
+        SELECT i.material.id,
+               SUM(CASE WHEN i.quantity > 0 AND (i.expiryDate IS NULL OR i.expiryDate >= :today)
+                        THEN i.quantity ELSE 0 END),
+               SUM(CASE WHEN i.quantity > 0 AND i.expiryDate < :today
+                        THEN i.quantity ELSE 0 END)
+        FROM Inventory i
+        GROUP BY i.material.id
+    """)
+    List<Object[]> sumAvailableAndExpiredByMaterial(@Param("today") LocalDate today);
 	
 
     

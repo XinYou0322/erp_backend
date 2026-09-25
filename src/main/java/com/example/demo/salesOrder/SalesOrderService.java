@@ -19,8 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
+import com.example.demo.products.ProductType;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
+import com.example.demo.inventorylog.InventoryLogService;
+import com.example.demo.systemsetting.SystemSettingKey;
+import com.example.demo.systemsetting.SystemSettingService;
+import com.example.demo.salesOrder.snapshot.SalesOrderMaterialSnapshotService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +37,9 @@ public class SalesOrderService {
 	private final SalesOrderItemRepository salesOrderItemRepo;
 	private final UsersRepository userRepo;
 	private final ProductRepository proRepo;
+	private final InventoryLogService inventoryLogService;
+	private final SystemSettingService systemSettingService;
+	private final SalesOrderMaterialSnapshotService materialSnapshotService;
 	
 	
 	
@@ -136,6 +144,9 @@ public class SalesOrderService {
             salesOrder.getItems().add(item);
     }
 
+	// 在寫入訂單前先檢查配方，避免留下沒有 BOM 或使用停用原料的半成品訂單。
+	materialSnapshotService.validateRecipes(salesOrder.getItems());
+
     // 5. 設定後端計算完成的總額
     salesOrder.setTotalAmount(totalAmount);
     
@@ -147,6 +158,22 @@ public class SalesOrderService {
         // 因此先讓主檔取得 id，再逐筆儲存每一筆 SalesOrderItem。
         for (SalesOrderItem item : salesOrder.getItems()) {
             salesOrderItemRepo.save(item);
+        }
+
+		// 固定保存成交當下的 BOM；日後修改配方不會改變這張訂單的理論耗用資料。
+		materialSnapshotService.createSnapshot(savedOrder, salesOrder.getItems());
+
+        if (systemSettingService.isEnabled(
+                SystemSettingKey.POS_AUTO_MATERIAL_DEDUCTION_ENABLED)) {
+            for (SalesOrderItem item : salesOrder.getItems()) {
+                Products product = item.getProduct();
+                if (product.getProductType() != ProductType.RETAIL) {
+                    inventoryLogService.deduct(
+                            product.getId(),
+                            item.getQuantity(),
+                            savedOrder.getId());
+                }
+            }
         }
 
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
@@ -164,6 +191,8 @@ public class SalesOrderService {
 	if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
 		throw new RuntimeException("此銷售單已經作廢");
 	}
+
+	inventoryLogService.restoreSaleDeduction(salesOrderId);
 	
 	User loginUser = userRepo.findById(loginUserId)
             .orElseThrow(() ->

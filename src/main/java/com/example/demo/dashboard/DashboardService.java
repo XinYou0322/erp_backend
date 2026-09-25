@@ -5,11 +5,14 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.demo.dashboard.dto.DashboardResponse;
 import com.example.demo.dashboard.dto.HourlySalesResponse;
+import com.example.demo.dashboard.dto.MaterialConsumptionResponse;
 import com.example.demo.dashboard.dto.RevenueDetailRequest;
 import com.example.demo.dashboard.dto.RevenueDetailResponse;
 import com.example.demo.dashboard.dto.RevenueTrendResponse;
@@ -26,6 +30,7 @@ import com.example.demo.dashboard.dto.TopRevenueResponse;
 import com.example.demo.salesOrder.SalesOrderItemRepository;
 import com.example.demo.salesOrder.SalesOrderRepository;
 import com.example.demo.salesOrder.SalesOrderStatus;
+import com.example.demo.inventorylog.InventoryLogRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,6 +40,7 @@ public class DashboardService {
 
         private final SalesOrderRepository salesRepo;
         private final SalesOrderItemRepository itemRepo;
+        private final InventoryLogRepository inventoryLogRepo;
 
         public DashboardResponse getDashboard() {
 
@@ -120,8 +126,57 @@ public class DashboardService {
                 response.setTopRevenueProducts(topRevenue);
                 response.setRecentTopRevenueProducts(recentTopRevenue);
                 response.setHourlySales(hourlySales);
+                response.setMaterialConsumption(getMaterialConsumption(today));
 
                 return response;
+        }
+
+        public List<MaterialConsumptionResponse> getMaterialConsumption(LocalDate date) {
+                LocalDate targetDate = date == null ? LocalDate.now(ZoneId.of("Asia/Taipei")) : date;
+                ZoneId taipei = ZoneId.of("Asia/Taipei");
+                Instant logStart = targetDate.atStartOfDay(taipei).toInstant();
+                Instant logEnd = targetDate.plusDays(1).atStartOfDay(taipei).toInstant();
+                LocalDateTime salesStart = targetDate.atStartOfDay();
+                LocalDateTime salesEnd = targetDate.plusDays(1).atStartOfDay();
+
+                Map<Long, MaterialConsumptionResponse> result = new LinkedHashMap<>();
+
+                for (Object[] row : inventoryLogRepo.sumManualUseByMaterial(logStart, logEnd)) {
+                        BigDecimal signedQuantity = (BigDecimal) row[4];
+                        MaterialConsumptionResponse item = new MaterialConsumptionResponse(
+                                        (Long) row[0],
+                                        (String) row[1],
+                                        (String) row[2],
+                                        (String) row[3],
+                                        signedQuantity == null ? BigDecimal.ZERO : signedQuantity.abs(),
+                                        BigDecimal.ZERO,
+                                        BigDecimal.ZERO);
+                        result.put(item.getMaterialId(), item);
+                }
+
+                for (Object[] row : itemRepo.sumMaterialUsageBySales(
+                                SalesOrderStatus.COMPLETED, salesStart, salesEnd)) {
+                        Long materialId = (Long) row[0];
+                        MaterialConsumptionResponse item = result.computeIfAbsent(
+                                        materialId,
+                                        ignored -> new MaterialConsumptionResponse(
+                                                        materialId,
+                                                        (String) row[1],
+                                                        (String) row[2],
+                                                        (String) row[3],
+                                                        BigDecimal.ZERO,
+                                                        BigDecimal.ZERO,
+                                                        BigDecimal.ZERO));
+                        item.setTheoreticalUsageQuantity(
+                                        row[4] == null ? BigDecimal.ZERO : (BigDecimal) row[4]);
+                }
+
+                return result.values().stream()
+                                .peek(item -> item.setVarianceQuantity(
+                                                item.getManualIssueQuantity()
+                                                                .subtract(item.getTheoreticalUsageQuantity())))
+                                .sorted((left, right) -> left.getMaterialCode().compareTo(right.getMaterialCode()))
+                                .toList();
         }
 
         public RevenueDetailResponse getRevenueDetail(RevenueDetailRequest request) {
