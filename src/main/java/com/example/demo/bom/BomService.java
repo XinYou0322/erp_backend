@@ -10,7 +10,6 @@ import com.example.demo.materials.Material;
 import com.example.demo.materials.MaterialRepository;
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
-import com.example.demo.bom.version.BomVersionService;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -26,7 +25,6 @@ public class BomService {
 
 	private final MaterialRepository materialRepository;
 
-	private final BomVersionService bomVersionService;
 
 	@Transactional
 	public Bom create(BomRequestDTO dto) {
@@ -61,7 +59,6 @@ public class BomService {
 	    recalculateProductCost(
 	            product.getId()
 	    );
-	    bomVersionService.recordCurrentVersion(product, "CREATE_ITEM");
 
 	    return saved;
 	}
@@ -137,7 +134,6 @@ public class BomService {
         recalculateProductCost(
                 saved.getProduct().getId()
         );
-		bomVersionService.recordCurrentVersion(saved.getProduct(), "UPDATE_ITEM");
 
         return saved;
     }
@@ -157,7 +153,6 @@ public class BomService {
         bomRepository.delete(bom);
 
         recalculateProductCost(productId);
-		bomVersionService.recordCurrentVersion(bom.getProduct(), "DELETE_ITEM");
     }
     
     @Transactional
@@ -222,7 +217,6 @@ public class BomService {
         recalculateProductCost(
                 product.getId()
         );
-		bomVersionService.recordCurrentVersion(product, "REPLACE_FULL_BOM");
 
 
         // 6. 回傳新 BOM

@@ -25,7 +25,8 @@ import com.example.demo.users.UsersRepository;
 import com.example.demo.inventorylog.InventoryLogService;
 import com.example.demo.systemsetting.SystemSettingKey;
 import com.example.demo.systemsetting.SystemSettingService;
-import com.example.demo.salesOrder.snapshot.SalesOrderMaterialSnapshotService;
+import com.example.demo.bom.Bom;
+import com.example.demo.bom.BomRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,7 +40,7 @@ public class SalesOrderService {
 	private final ProductRepository proRepo;
 	private final InventoryLogService inventoryLogService;
 	private final SystemSettingService systemSettingService;
-	private final SalesOrderMaterialSnapshotService materialSnapshotService;
+	private final BomRepository bomRepository;
 	
 	
 	
@@ -144,8 +145,8 @@ public class SalesOrderService {
             salesOrder.getItems().add(item);
     }
 
-	// 在寫入訂單前先檢查配方，避免留下沒有 BOM 或使用停用原料的半成品訂單。
-	materialSnapshotService.validateRecipes(salesOrder.getItems());
+	validateLatestBom(salesOrder.getItems());
+
 
     // 5. 設定後端計算完成的總額
     salesOrder.setTotalAmount(totalAmount);
@@ -160,8 +161,6 @@ public class SalesOrderService {
             salesOrderItemRepo.save(item);
         }
 
-		// 固定保存成交當下的 BOM；日後修改配方不會改變這張訂單的理論耗用資料。
-		materialSnapshotService.createSnapshot(savedOrder, salesOrder.getItems());
 
         if (systemSettingService.isEnabled(
                 SystemSettingKey.POS_AUTO_MATERIAL_DEDUCTION_ENABLED)) {
@@ -178,6 +177,26 @@ public class SalesOrderService {
 
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
     }	
+
+	private void validateLatestBom(List<SalesOrderItem> items) {
+		for (SalesOrderItem item : items) {
+			Products product = item.getProduct();
+			if (product.getProductType() == ProductType.RETAIL) {
+				continue;
+			}
+
+			List<Bom> latestBom = bomRepository.findByProductId(product.getId());
+			if (latestBom.isEmpty()) {
+				throw new IllegalStateException("商品「" + product.getName() + "」沒有 BOM，無法完成交易");
+			}
+			for (Bom component : latestBom) {
+				if (!"ACTIVE".equalsIgnoreCase(component.getMaterial().getStatus())) {
+					throw new IllegalStateException("商品「" + product.getName()
+							+ "」的 BOM 含停用原物料「" + component.getMaterial().getName() + "」，無法完成交易");
+				}
+			}
+		}
+	}
 	//---報廢---
 	@Transactional
 	public SalesOrderRespoDTO voidSalesOrder(

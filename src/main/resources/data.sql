@@ -1607,61 +1607,6 @@ BEGIN TRY
     );
 
     /* ======================================================================
-       BOM 初始版本與銷售訂單 BOM 快照
-
-       只回填新建的歷史資料表，不修改目前 BOM、訂單或庫存。
-       ====================================================================== */
-    INSERT INTO bom_versions (product_id, version_number, change_type, created_at)
-    SELECT DISTINCT b.product_id, 1, 'INITIAL_SEED', @NowLocal
-    FROM bom b
-    WHERE NOT EXISTS
-    (
-        SELECT 1
-        FROM bom_versions bv
-        WHERE bv.product_id = b.product_id
-          AND bv.version_number = 1
-    );
-
-    INSERT INTO bom_version_items
-        (bom_version_id, material_id, material_code, material_name, material_unit, quantity)
-    SELECT bv.id, m.id, m.code, m.name, m.unit, b.quantity
-    FROM bom_versions bv
-    INNER JOIN bom b ON b.product_id = bv.product_id
-    INNER JOIN materials m ON m.id = b.material_id
-    WHERE bv.version_number = 1
-      AND NOT EXISTS
-    (
-        SELECT 1
-        FROM bom_version_items bvi
-        WHERE bvi.bom_version_id = bv.id
-          AND bvi.material_id = m.id
-    );
-
-    INSERT INTO sales_order_material_usage
-        (sales_order_id, sales_order_item_id, product_id, product_sku,
-         bom_version_id, bom_version_number,
-         material_id, material_code, material_name, material_unit,
-         product_quantity, bom_unit_quantity, theoretical_quantity, created_at)
-    SELECT soi.sales_order_id, soi.id, p.id, soi.product_sku,
-           bv.id, bv.version_number,
-           m.id, m.code, m.name, m.unit,
-           soi.quantity, b.quantity, soi.quantity * b.quantity, so.created_at
-    FROM sales_order_items soi
-    INNER JOIN sales_orders so ON so.id = soi.sales_order_id
-    INNER JOIN products p ON p.id = soi.product_id
-    LEFT JOIN bom_versions bv ON bv.product_id = p.id AND bv.version_number = 1
-    INNER JOIN bom b ON b.product_id = p.id
-    INNER JOIN materials m ON m.id = b.material_id
-    WHERE COALESCE(p.product_type, 'RECIPE') <> 'RETAIL'
-      AND NOT EXISTS
-    (
-        SELECT 1
-        FROM sales_order_material_usage somu
-        WHERE somu.sales_order_item_id = soi.id
-          AND somu.material_id = m.id
-    );
-
-    /* ======================================================================
        系統功能設定
        ====================================================================== */
     IF OBJECT_ID(N'dbo.system_settings', N'U') IS NOT NULL
