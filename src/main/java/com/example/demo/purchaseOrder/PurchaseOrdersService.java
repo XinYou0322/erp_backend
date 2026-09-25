@@ -46,6 +46,8 @@ public class PurchaseOrdersService {
     private final MaterialRepository materialRepo;
     private final UsersRepository usersRepo;
     private final WorkflowService workflowService;
+    // 【新增】新增與送簽共用後端資格驗證。
+    private final PurchaseApproverPolicy purchaseApproverPolicy;
     
     //---新增---
     // 新增一張採購單
@@ -57,8 +59,8 @@ public class PurchaseOrdersService {
     User creator = usersRepo.findById(loginUserId)   
             .orElseThrow(() -> new RuntimeException("找不到登入者資料"));
     
-    User approver = usersRepo.findById(dto.getApprovedByUserId())
-    		.orElseThrow(() -> new RuntimeException("找不到簽核人資料"));
+    // 【修改】即使前端偽造簽核人 ID，仍必須通過角色層級檢查。
+    User approver = purchaseApproverPolicy.requireEligible(loginUserId, dto.getApprovedByUserId());
     
     PurchaseOrders purchaseOrder = new PurchaseOrders();
     purchaseOrder.setOrderNumber(createTemporaryOrderNumber());
@@ -179,6 +181,9 @@ public class PurchaseOrdersService {
                     "採購單至少需要一筆採購明細"
             );
         }
+        // 【新增】草稿保存後角色可能變更，送簽時重新查詢資格。
+        purchaseApproverPolicy.requireEligible(purchaseOrder.getCreatedBy().getId(),
+                purchaseOrder.getApprovedBy() == null ? null : purchaseOrder.getApprovedBy().getId());
         // Workflow
         CreateWorkflowRequest workflowRequest = new CreateWorkflowRequest();
         workflowRequest.setDocumentType( DocumentType.ORDER);
@@ -296,11 +301,16 @@ public class PurchaseOrdersService {
     //分頁
  
     @Transactional(readOnly = true)
+    // 【修改】接收頁籤狀態及建立人條件，其餘日期、關鍵字和 DTO 轉換沿用。
     public Page<PurchaseOrderResponseDTO> findPurchaseOrderPage(
-			         String keyword,
-			         PurchaseOrdersStatus status,
-			         Long supplierId,
-			         LocalDate startDate,
+                         List<PurchaseOrdersStatus> visibleStatuses,
+                         Long createdByUserId,
+                         String keyword,
+                         PurchaseOrdersStatus status,
+                         Long supplierId,
+                         BigDecimal minAmount,
+                         BigDecimal maxAmount,
+                         LocalDate startDate,
 			         LocalDate endDate,
 			         int page,
 			         int size) {
@@ -314,6 +324,15 @@ public class PurchaseOrdersService {
      }
      if (page < 0) {
          page = 0;
+     }
+
+     if ((minAmount != null && minAmount.signum() < 0)
+             || (maxAmount != null && maxAmount.signum() < 0)) {
+         throw new IllegalArgumentException("金額不可小於 0");
+     }
+     if (minAmount != null && maxAmount != null
+             && minAmount.compareTo(maxAmount) > 0) {
+         throw new IllegalArgumentException("金額起不可大於金額止");
      }
 
      //檢查日期
@@ -363,7 +382,7 @@ public class PurchaseOrdersService {
                      // 最新建立的採購單排最前面
                      Sort.by(
                              Sort.Direction.DESC,
-                             "createdAt"
+                             "createdAt", "id" // 【修改】同時間建立的資料以 ID 穩定排序。
                      )
              );
 
@@ -371,8 +390,13 @@ public class PurchaseOrdersService {
      Page<PurchaseOrders> purchaseOrderPage =
              purchaseOrdersRepo
                      .searchPurchaseOrders(
+                             // 【新增】讓資料庫先篩選再分頁，筆數與頁碼才會一致。
+                             visibleStatuses,
+                             createdByUserId,
                              status,
                              supplierId,
+                             minAmount,
+                             maxAmount,
                              startDateTime,
                              endDateTime,
                              searchKeyword,
@@ -417,15 +441,21 @@ public class PurchaseOrdersService {
             throw new IllegalStateException("只能修改自己建立的採購單");
         }
 
-        // 只有草稿、駁回狀態可以修改
+        // 【修改】本人可修改草稿、退回及簽核中的採購單；已核准、已到貨仍禁止。
+        // 簽核中儲存後保留 PENDING_APPROVAL 與原本待簽流程，不重複送簽。
         if (purchaseOrder.getStatus() != PurchaseOrdersStatus.DRAFT
+                && purchaseOrder.getStatus() != PurchaseOrdersStatus.PENDING_APPROVAL
                 && purchaseOrder.getStatus() != PurchaseOrdersStatus.REJECTED) {
             throw new IllegalStateException("此採購單目前狀態不可修改");
         }
 
-        // 修改供應商
-        Suppliers supplier = getActiveSupplier(updateDTO.getSupplierId());
-        purchaseOrder.setSupplier(supplier);
+        // 【新增】修改時也重新檢查現有簽核人，拒絕失效資格。
+        purchaseApproverPolicy.requireEligible(purchaseOrder.getCreatedBy().getId(),
+                purchaseOrder.getApprovedBy() == null ? null : purchaseOrder.getApprovedBy().getId());
+        // 沿用原供應商時不重複檢查合作狀態；只有實際更換供應商才要求新供應商為 ACTIVE。
+        if (!purchaseOrder.getSupplier().getId().equals(updateDTO.getSupplierId())) {
+            purchaseOrder.setSupplier(getActiveSupplier(updateDTO.getSupplierId()));
+        }
 
         // 修改預計到貨日
         purchaseOrder.setExpectedDeliveryDate(

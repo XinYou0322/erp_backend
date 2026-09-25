@@ -17,13 +17,13 @@ import jakarta.validation.constraints.NotEmpty;
 import org.springframework.web.bind.annotation.PutMapping;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,6 +35,15 @@ import jakarta.servlet.http.HttpSession;
 @RequiredArgsConstructor
 public class PurchaseOrdersController {
     private final PurchaseOrdersService purchaseOrdersService;
+    // 【新增】簽核人選單由後端依 Session 身分決定。
+    private final PurchaseApproverPolicy purchaseApproverPolicy;
+
+    @GetMapping("/api/purchaseOrder/approvers")
+    public List<PurchaseApproverPolicy.Option> approvers(
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
+        return purchaseApproverPolicy.options(loginUserId);
+    }
+
     private final PurchaseOrderReceivingService purchaseOrderReceivingService;
    
 
@@ -98,9 +107,14 @@ public class PurchaseOrdersController {
   @GetMapping("/api/purchaseOrder/page")
   public ResponseEntity<Page<PurchaseOrderResponseDTO>>
           findPurchaseOrderPage(
-          @RequestParam(required = false) String keyword, // 搜尋：採購單號 / 品名
+          // 【新增】範圍來自頁籤，登入者只能來自後端 Session，不新增 LoginUserService。
+          @RequestParam(defaultValue = "overview") String scope,
+          @SessionAttribute(name = "userId", required = false) Long loginUserId,
+          @RequestParam(required = false) String keyword, // 搜尋：單號 / 金額 / 建立人 / 供應商 / 品名
           @RequestParam(required = false) PurchaseOrdersStatus status,
           @RequestParam(required = false) Long supplierId,
+          @RequestParam(required = false) BigDecimal minAmount,
+          @RequestParam(required = false) BigDecimal maxAmount,
           @RequestParam(required = false)
           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam(required = false)
@@ -108,12 +122,30 @@ public class PurchaseOrdersController {
           @RequestParam(defaultValue = "0") int page, //第幾頁
           @RequestParam(defaultValue = "10") int size //預設一頁10筆
   ) {
-      // Controller 把收到的條件交給 Service
+      // 【新增】總覽限定三種狀態；自己限定 Session 使用者，包含本人所有狀態。
+      if (!"overview".equals(scope) && !"mine".equals(scope)) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支援的頁籤");
+      }
+      Long createdByUserId = null;
+      List<PurchaseOrdersStatus> visibleStatuses = List.of(
+              PurchaseOrdersStatus.PENDING_APPROVAL, PurchaseOrdersStatus.APPROVED, PurchaseOrdersStatus.RECEIVED);
+      if ("mine".equals(scope)) {
+          if (loginUserId == null || loginUserId <= 0) {
+              throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
+          }
+          createdByUserId = loginUserId;
+          visibleStatuses = List.of(PurchaseOrdersStatus.values());
+      }
+      // 【修改】把頁籤條件交給 Service，在分頁前套用。
       Page<PurchaseOrderResponseDTO> result =
               purchaseOrdersService.findPurchaseOrderPage(
+                      visibleStatuses,
+                      createdByUserId,
                       keyword,
                       status,
                       supplierId,
+                      minAmount,
+                      maxAmount,
                       startDate,
                       endDate,
                       page,
