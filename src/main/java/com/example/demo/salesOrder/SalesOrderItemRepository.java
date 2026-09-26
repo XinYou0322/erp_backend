@@ -71,4 +71,34 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
             @Param("status") String status,
             @Param("date") LocalDate date);
 
+    @Query("""
+        SELECT b.material.id, b.material.code, b.material.name, b.material.unit,
+               SUM(i.quantity * b.quantity)
+        FROM SalesOrderItem i
+        JOIN Bom b ON b.product = i.product
+        WHERE i.salesOrder.status = :status
+          AND i.salesOrder.createdAt >= :start
+          AND i.salesOrder.createdAt < :end
+        GROUP BY b.material.id, b.material.code, b.material.name, b.material.unit
+        ORDER BY b.material.code
+        """)
+    List<Object[]> sumMaterialUsageBySales(
+            @Param("status") SalesOrderStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
+
+    @Query("""
+        SELECT b.material.id, b.material.code, b.material.name, b.material.unit,
+               SUM(i.quantity * b.quantity)
+        FROM SalesOrderItem i
+        JOIN Bom b ON b.product = i.product
+        WHERE i.salesOrder.status = :status
+          AND i.salesOrder.id IN :salesOrderIds
+        GROUP BY b.material.id, b.material.code, b.material.name, b.material.unit
+        ORDER BY b.material.code
+        """)
+    List<Object[]> sumMaterialUsageBySalesOrderIds(
+            @Param("status") SalesOrderStatus status,
+            @Param("salesOrderIds") List<Long> salesOrderIds);
+
 }

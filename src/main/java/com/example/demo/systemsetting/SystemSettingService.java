@@ -64,10 +64,28 @@ public class SystemSettingService {
     }
 
     private String normalizeValue(SystemSettingKey key, String rawValue) {
-        String value = rawValue == null ? "" : rawValue.trim().toLowerCase();
-        if (key.getValueType() == SystemSettingKey.ValueType.BOOLEAN
-                && !"true".equals(value) && !"false".equals(value)) {
-            throw new IllegalArgumentException("設定值只能是 true 或 false");
+        String value = rawValue == null ? "" : rawValue.trim();
+
+        if (key.getValueType() == SystemSettingKey.ValueType.BOOLEAN) {
+            value = value.toLowerCase();
+            if (!"true".equals(value) && !"false".equals(value)) {
+                throw new IllegalArgumentException("設定值只能是 true 或 false");
+            }
+        }
+
+        if (key == SystemSettingKey.SITE_NAME) {
+            if (value.isBlank()) {
+                throw new IllegalArgumentException("網站名稱不得為空");
+            }
+            if (value.length() > 30) {
+                throw new IllegalArgumentException("網站名稱不得超過 30 個字元");
+            }
+        }
+
+        if (key == SystemSettingKey.SITE_LOGO_URL
+                && !value.isBlank()
+                && !value.startsWith("/uploads/branding/")) {
+            throw new IllegalArgumentException("網站圖示網址格式不正確");
         }
         return value;
     }

@@ -25,6 +25,8 @@ public class BomService {
 
 	private final MaterialRepository materialRepository;
 
+
+	@Transactional
 	public Bom create(BomRequestDTO dto) {
 
 	    Products product =
@@ -120,6 +122,7 @@ public class BomService {
 	}
 
     // 修改一筆配方（通常只會改 quantity）
+	@Transactional
     public Bom update(Long id, Bom bom) {
         Bom exist = bomRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("找不到 id=" + id + " 的配方"));
@@ -136,6 +139,7 @@ public class BomService {
     }
 
     // 刪除一筆配方
+	@Transactional
     public void delete(Long id) {
 
         Bom bom =

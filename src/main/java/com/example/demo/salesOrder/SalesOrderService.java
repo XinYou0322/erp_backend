@@ -3,6 +3,7 @@ package com.example.demo.salesOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -22,10 +23,16 @@ import com.example.demo.inventorylog.InventoryDeductionItem;
 import com.example.demo.inventorylog.InventoryLogService;
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
+import com.example.demo.products.ProductType;
 import com.example.demo.systemsetting.SystemSettingKey;
 import com.example.demo.systemsetting.SystemSettingService;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
+import com.example.demo.inventorylog.InventoryLogService;
+import com.example.demo.systemsetting.SystemSettingKey;
+import com.example.demo.systemsetting.SystemSettingService;
+import com.example.demo.bom.Bom;
+import com.example.demo.bom.BomRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,7 +46,23 @@ public class SalesOrderService {
 	private final ProductRepository proRepo;
 	private final InventoryLogService inventoryLogService;
 	private final SystemSettingService systemSettingService;
+	private final BomRepository bomRepository;
+	
 	private final DocumentNumberService documentNumberService;
+	
+	
+	//產生銷售單號
+	public String generateOrderNumber() {
+		String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+		
+		long count = salesOrderRepo.countByOrderNumberStartingWith(date);
+                
+		long sequence = count + 1;
+
+		return date + "-" + String.format("%03d", sequence);
+
+     	}
+
 	
 	
 	//---新增---
@@ -137,6 +160,9 @@ public class SalesOrderService {
             salesOrder.getItems().add(item);
     }
 
+	validateLatestBom(salesOrder.getItems());
+
+
     // 5. 設定後端計算完成的總額
     salesOrder.setTotalAmount(totalAmount);
 
@@ -167,7 +193,42 @@ public class SalesOrderService {
             inventoryLogService.deductSale(deductionItems, savedOrder.getId());
         }
 
+
+        if (systemSettingService.isEnabled(
+                SystemSettingKey.POS_AUTO_MATERIAL_DEDUCTION_ENABLED)) {
+            for (SalesOrderItem item : salesOrder.getItems()) {
+                Products product = item.getProduct();
+                if (product.getProductType() != ProductType.RETAIL) {
+                    inventoryLogService.deduct(
+                            product.getId(),
+                            item.getQuantity(),
+                            savedOrder.getId());
+                }
+            }
+        }
+
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
+    }	
+
+	private void validateLatestBom(List<SalesOrderItem> items) {
+		for (SalesOrderItem item : items) {
+			Products product = item.getProduct();
+			if (product.getProductType() == ProductType.RETAIL) {
+				continue;
+			}
+
+			List<Bom> latestBom = bomRepository.findByProductId(product.getId());
+			if (latestBom.isEmpty()) {
+				throw new IllegalStateException("商品「" + product.getName() + "」沒有 BOM，無法完成交易");
+			}
+			for (Bom component : latestBom) {
+				if (!"ACTIVE".equalsIgnoreCase(component.getMaterial().getStatus())) {
+					throw new IllegalStateException("商品「" + product.getName()
+							+ "」的 BOM 含停用原物料「" + component.getMaterial().getName() + "」，無法完成交易");
+				}
+			}
+		}
+	}
     }	
     // 【本次新增：ECPay 測試金流】
     // ECPay 的 ReturnURL 與 OrderResultURL 可能重複通知，因此使用資料庫鎖與狀態判斷確保只扣一次庫存。
@@ -213,6 +274,9 @@ public class SalesOrderService {
 	
 	if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
 		throw new RuntimeException("此銷售單已經作廢");
+	}
+
+	inventoryLogService.restoreSaleDeduction(salesOrderId);
 	}
 
     // 【本次新增：ECPay 測試金流】待付款訂單尚未扣庫存，不允許走「回補庫存」的作廢流程。

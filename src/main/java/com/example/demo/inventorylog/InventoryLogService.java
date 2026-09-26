@@ -142,6 +142,10 @@ public class InventoryLogService {
                 break;
             }
 
+            if (!isUsableBatch(batch)) {
+                continue;
+            }
+
             BigDecimal batchQty = batch.getQuantity();
             if (batchQty == null || batchQty.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
@@ -489,3 +493,4 @@ public class InventoryLogService {
         
     
 }
+

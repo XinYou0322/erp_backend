@@ -8,6 +8,20 @@
    ============================================================= */
 SET NOCOUNT ON;
 
+/*
+   已改為所有訂單與分析都使用最新 BOM。
+   Hibernate 不會自動刪除已移除 Entity 所留下的舊資料表，
+   因此必須先移除舊快照表，避免其外鍵阻擋銷售明細清除。
+*/
+IF OBJECT_ID(N'dbo.sales_order_material_usage', N'U') IS NOT NULL
+    DROP TABLE dbo.sales_order_material_usage;
+
+IF OBJECT_ID(N'dbo.bom_version_items', N'U') IS NOT NULL
+    DROP TABLE dbo.bom_version_items;
+
+IF OBJECT_ID(N'dbo.bom_versions', N'U') IS NOT NULL
+    DROP TABLE dbo.bom_versions;
+
 /* ---------- 1. DELETE：子表 -> 父表 ---------- */
 DELETE FROM workflow_logs;
 DELETE FROM workflows;
@@ -197,7 +211,9 @@ BEGIN TRY
         conversion_quantity decimal(18,4) NULL,
         purchase_cost decimal(18,4) NULL,
         cost decimal(18,4),
-        safety_stock decimal(18,4) NULL
+        safety_stock decimal(18,4) NULL,
+        lead_time_days int NULL,
+        purchase_pack_quantity decimal(18,4) NULL
     );
 
     INSERT INTO @MaterialSeed
@@ -222,13 +238,22 @@ BEGIN TRY
         ('MAT016', N'700ml飲料杯',  N'個', 'CONVERSION', N'箱', 'ACTIVE', 1000.0000, 1800.0000, 1.8000,  500.0000),
         ('MAT017', N'飲料封口膜',   N'張', 'CONVERSION', N'卷', 'ACTIVE', 3000.0000,  900.0000, 0.3000, 1000.0000),
         ('MAT018', N'粗吸管',       N'支', 'CONVERSION', N'箱', 'ACTIVE', 2000.0000, 1000.0000, 0.5000,  800.0000),
-        ('MAT019', N'製冰用冰塊',   N'g',  'DIRECT',     NULL, 'ACTIVE',       NULL,       NULL, 0.0020,10000.0000),
-        ('MAT020', N'過濾水',       N'ml', 'DIRECT',     NULL, 'ACTIVE',       NULL,       NULL, 0.0010,20000.0000),
         ('MAT021', N'舊版奶精粉',   N'g',  'CONVERSION', N'包', 'INACTIVE',1000.0000,  160.0000, 0.1600, 1000.0000);
+
+    /* 第一版先以原物料類型設定合理交期；採購包裝量沿用既有換算數量。 */
+    UPDATE @MaterialSeed
+    SET
+        lead_time_days = CASE
+            WHEN code IN ('MAT005', 'MAT011', 'MAT012', 'MAT013') THEN 2
+            WHEN code IN ('MAT016', 'MAT017', 'MAT018') THEN 7
+            ELSE 5
+        END,
+        purchase_pack_quantity = COALESCE(conversion_quantity, 1.0000);
 
     INSERT INTO materials
         (code, name, unit, cost_mode, purchase_unit, status,
-         conversion_quantity, purchase_cost, cost, safety_stock)
+         conversion_quantity, purchase_cost, cost, safety_stock,
+         lead_time_days, purchase_pack_quantity)
     SELECT
         ms.code,
         ms.material_name,
@@ -239,7 +264,9 @@ BEGIN TRY
         ms.conversion_quantity,
         ms.purchase_cost,
         ms.cost,
-        ms.safety_stock
+        ms.safety_stock,
+        ms.lead_time_days,
+        ms.purchase_pack_quantity
     FROM @MaterialSeed ms
     WHERE NOT EXISTS
     (
@@ -288,7 +315,7 @@ BEGIN TRY
         ('P021', N'舊版奶精紅茶',   N'下架商品', 45.00, 17.10, N'杯', 'INACTIVE');
 
     INSERT INTO products
-        (sku, name, category_id, selling_price, cost_price, unit, status)
+        (sku, name, category_id, selling_price, cost_price, unit, status, product_type)
     SELECT
         ps.sku,
         ps.product_name,
@@ -296,7 +323,8 @@ BEGIN TRY
         ps.selling_price,
         ps.cost_price,
         ps.unit,
-        ps.product_status
+        ps.product_status,
+        'RECIPE'
     FROM @ProductSeed ps
     INNER JOIN product_categories pc
         ON pc.name = ps.category_name
@@ -320,27 +348,27 @@ BEGIN TRY
 
     INSERT INTO @BomSeed (sku, material_code, quantity)
     VALUES
-        ('P001','MAT001',15.0000), ('P001','MAT007',25.0000), ('P001','MAT020',450.0000), ('P001','MAT019',150.0000),
-        ('P002','MAT002',15.0000), ('P002','MAT007',25.0000), ('P002','MAT020',450.0000), ('P002','MAT019',150.0000),
-        ('P003','MAT003',15.0000), ('P003','MAT007',25.0000), ('P003','MAT020',450.0000), ('P003','MAT019',150.0000),
-        ('P004','MAT004',15.0000), ('P004','MAT007',25.0000), ('P004','MAT020',450.0000), ('P004','MAT019',150.0000),
-        ('P005','MAT001',15.0000), ('P005','MAT006',30.0000), ('P005','MAT007',25.0000), ('P005','MAT020',420.0000), ('P005','MAT019',150.0000),
-        ('P006','MAT004',15.0000), ('P006','MAT006',30.0000), ('P006','MAT007',25.0000), ('P006','MAT020',420.0000), ('P006','MAT019',150.0000),
-        ('P007','MAT001',15.0000), ('P007','MAT005',250.0000),('P007','MAT007',20.0000), ('P007','MAT020',200.0000), ('P007','MAT019',150.0000),
-        ('P008','MAT001',15.0000), ('P008','MAT006',30.0000), ('P008','MAT008',80.0000), ('P008','MAT007',25.0000), ('P008','MAT020',400.0000), ('P008','MAT019',150.0000),
-        ('P009','MAT005',300.0000),('P009','MAT008',100.0000),('P009','MAT007',20.0000), ('P009','MAT019',150.0000),
-        ('P010','MAT001',15.0000), ('P010','MAT011',40.0000), ('P010','MAT007',25.0000), ('P010','MAT020',400.0000), ('P010','MAT019',150.0000),
-        ('P011','MAT002',15.0000), ('P011','MAT011',45.0000), ('P011','MAT007',25.0000), ('P011','MAT020',400.0000), ('P011','MAT019',150.0000),
-        ('P012','MAT002',15.0000), ('P012','MAT012',50.0000), ('P012','MAT007',20.0000), ('P012','MAT020',390.0000), ('P012','MAT019',150.0000),
-        ('P013','MAT003',15.0000), ('P013','MAT013',60.0000), ('P013','MAT007',20.0000), ('P013','MAT020',380.0000), ('P013','MAT019',150.0000),
-        ('P014','MAT002',15.0000), ('P014','MAT009',80.0000), ('P014','MAT007',25.0000), ('P014','MAT020',380.0000), ('P014','MAT019',150.0000),
-        ('P015','MAT001',15.0000), ('P015','MAT006',30.0000), ('P015','MAT010',100.0000),('P015','MAT007',20.0000), ('P015','MAT020',350.0000), ('P015','MAT019',150.0000),
-        ('P016','MAT014',18.0000), ('P016','MAT020',350.0000),('P016','MAT019',120.0000),
-        ('P017','MAT014',18.0000), ('P017','MAT005',250.0000),('P017','MAT020',100.0000),('P017','MAT019',100.0000),
-        ('P018','MAT005',300.0000),('P018','MAT015',40.0000), ('P018','MAT019',100.0000),
-        ('P019','MAT002',15.0000), ('P019','MAT012',50.0000), ('P019','MAT008',50.0000), ('P019','MAT009',50.0000), ('P019','MAT007',15.0000), ('P019','MAT020',350.0000), ('P019','MAT019',150.0000),
-        ('P020','MAT001',15.0000), ('P020','MAT006',25.0000), ('P020','MAT008',80.0000), ('P020','MAT007',30.0000), ('P020','MAT020',350.0000), ('P020','MAT019',150.0000),
-        ('P021','MAT001',15.0000), ('P021','MAT021',40.0000), ('P021','MAT007',25.0000), ('P021','MAT020',400.0000), ('P021','MAT019',150.0000);
+        ('P001','MAT001',15.0000), ('P001','MAT007',25.0000),
+        ('P002','MAT002',15.0000), ('P002','MAT007',25.0000),
+        ('P003','MAT003',15.0000), ('P003','MAT007',25.0000),
+        ('P004','MAT004',15.0000), ('P004','MAT007',25.0000),
+        ('P005','MAT001',15.0000), ('P005','MAT006',30.0000), ('P005','MAT007',25.0000),
+        ('P006','MAT004',15.0000), ('P006','MAT006',30.0000), ('P006','MAT007',25.0000),
+        ('P007','MAT001',15.0000), ('P007','MAT005',250.0000),('P007','MAT007',20.0000),
+        ('P008','MAT001',15.0000), ('P008','MAT006',30.0000), ('P008','MAT008',80.0000), ('P008','MAT007',25.0000),
+        ('P009','MAT005',300.0000),('P009','MAT008',100.0000),('P009','MAT007',20.0000),
+        ('P010','MAT001',15.0000), ('P010','MAT011',40.0000), ('P010','MAT007',25.0000),
+        ('P011','MAT002',15.0000), ('P011','MAT011',45.0000), ('P011','MAT007',25.0000),
+        ('P012','MAT002',15.0000), ('P012','MAT012',50.0000), ('P012','MAT007',20.0000),
+        ('P013','MAT003',15.0000), ('P013','MAT013',60.0000), ('P013','MAT007',20.0000),
+        ('P014','MAT002',15.0000), ('P014','MAT009',80.0000), ('P014','MAT007',25.0000),
+        ('P015','MAT001',15.0000), ('P015','MAT006',30.0000), ('P015','MAT010',100.0000),('P015','MAT007',20.0000),
+        ('P016','MAT014',18.0000),
+        ('P017','MAT014',18.0000), ('P017','MAT005',250.0000),
+        ('P018','MAT005',300.0000),('P018','MAT015',40.0000),
+        ('P019','MAT002',15.0000), ('P019','MAT012',50.0000), ('P019','MAT008',50.0000), ('P019','MAT009',50.0000), ('P019','MAT007',15.0000),
+        ('P020','MAT001',15.0000), ('P020','MAT006',25.0000), ('P020','MAT008',80.0000), ('P020','MAT007',30.0000),
+        ('P021','MAT001',15.0000), ('P021','MAT021',40.0000), ('P021','MAT007',25.0000);
 
     INSERT INTO bom (product_id, material_id, quantity)
     SELECT p.id, m.id, bs.quantity
@@ -540,19 +568,24 @@ BEGIN TRY
         ('MAT006',1, 5000.0000,180,20),
         ('MAT007',1,14000.0000,240,25),
         ('MAT008',1, 4000.0000, 60, 8),
-        ('MAT009',1, 4500.0000, 75,12),
-        ('MAT010',1,2500.0000, 45,10),
+        /* MAT009、MAT010 的可用量不超過安全庫存 40%，啟動後會顯示為緊急／缺貨。 */
+        ('MAT009',1, 1000.0000, 75,12),
+        ('MAT010',1,  900.0000, 45,10),
         ('MAT011',1,3000.0000, 10, 3), ('MAT011',2,2500.0000, 25, 1),
-        ('MAT012',1,5200.0000, 35, 6),
-        ('MAT013',1,3600.0000, 30, 5),
+        /* MAT012 保留為低庫存；MAT013 顯示為緊急／缺貨。 */
+        ('MAT012',1,3200.0000, 35, 6),
+        ('MAT013',1,1400.0000, 30, 5),
         ('MAT014',1,3000.0000,150,15),
         ('MAT015',1,6000.0000,180,18),
         ('MAT016',1, 900.0000,NULL,14),
         ('MAT017',1,1500.0000,NULL,14),
         ('MAT018',1,1200.0000,NULL,14),
-        ('MAT019',1,30000.0000,NULL, 2),
-        ('MAT020',1,50000.0000,NULL, 1),
-        ('MAT021',1,  500.0000, 90,40);
+        ('MAT021',1,  500.0000, 90,40),
+        /* 負數效期代表相對於每次啟動當天已經過期。 */
+        ('MAT005',3,  700.0000, -2, 8),
+        ('MAT009',2,  500.0000,-10,20),
+        ('MAT011',3,  450.0000, -1, 7),
+        ('MAT013',2,  600.0000, -5,15);
 
     ;WITH MaterialsWithoutInventory AS
     (
@@ -602,6 +635,11 @@ BEGIN TRY
         ('MAT005', 11000.0000,'STOCK_IN',     N'[假資料] 鮮奶冷藏進貨',            2),
         ('MAT008',  5000.0000,'STOCK_IN',     N'[假資料] 黑糖珍珠進貨',            8),
         ('MAT016',  1000.0000,'STOCK_IN',     N'[假資料] 飲料杯入庫',             14),
+        /* 對應上方已過期庫存批次的入庫歷程。 */
+        ('MAT005',   700.0000,'STOCK_IN',     N'[假資料] 已過期鮮奶批次入庫',       8),
+        ('MAT009',   500.0000,'STOCK_IN',     N'[假資料] 已過期椰果批次入庫',      20),
+        ('MAT011',   450.0000,'STOCK_IN',     N'[假資料] 已過期檸檬原汁批次入庫',   7),
+        ('MAT013',   600.0000,'STOCK_IN',     N'[假資料] 已過期芒果果泥批次入庫',  15),
         ('MAT001', -1200.0000,'MANUAL_USE',   N'[假資料] 早班開店備茶',            1),
         ('MAT002',  -950.0000,'MANUAL_USE',   N'[假資料] 午班綠茶備料',            1),
         ('MAT005', -1800.0000,'MANUAL_USE',   N'[假資料] 鮮奶飲品備料',            1),
@@ -609,18 +647,30 @@ BEGIN TRY
         ('MAT008',  -700.0000,'MANUAL_USE',   N'[假資料] 珍珠煮製領料',            1),
         ('MAT011',  -350.0000,'MANUAL_USE',   N'[假資料] 檸檬飲品備料',            1),
         /* created_days_ago = 0：每次啟動時皆以當天時間建立今日領料紀錄 */
-        ('MAT001',  -900.0000,'MANUAL_USE',   N'[今日領料] 早班阿薩姆紅茶備茶',    0),
-        ('MAT002',  -800.0000,'MANUAL_USE',   N'[今日領料] 早班茉香綠茶備茶',      0),
-        ('MAT003',  -650.0000,'MANUAL_USE',   N'[今日領料] 四季春青茶備茶',        0),
-        ('MAT005', -1200.0000,'MANUAL_USE',   N'[今日領料] 鮮奶飲品製作',          0),
-        ('MAT006',  -500.0000,'MANUAL_USE',   N'[今日領料] 奶茶粉調製',            0),
-        ('MAT007',  -700.0000,'MANUAL_USE',   N'[今日領料] 果糖補充',              0),
-        ('MAT008',  -600.0000,'MANUAL_USE',   N'[今日領料] 黑糖珍珠煮製',          0),
-        ('MAT009',  -350.0000,'MANUAL_USE',   N'[今日領料] 椰果配料補充',          0),
-        ('MAT011',  -300.0000,'MANUAL_USE',   N'[今日領料] 檸檬飲品調製',          0),
-        ('MAT016',  -180.0000,'MANUAL_USE',   N'[今日領料] 700ml 飲料杯領用',     0),
-        ('MAT017',  -180.0000,'MANUAL_USE',   N'[今日領料] 封口膜領用',            0),
-        ('MAT018',  -180.0000,'MANUAL_USE',   N'[今日領料] 粗吸管領用',            0),
+        ('MAT001', -2000.0000,'MANUAL_USE',   N'[今日領料] 早班阿薩姆紅茶備茶',    0),
+        ('MAT002', -1800.0000,'MANUAL_USE',   N'[今日領料] 早班茉香綠茶備茶',      0),
+        ('MAT003', -1500.0000,'MANUAL_USE',   N'[今日領料] 四季春青茶備茶',        0),
+        ('MAT004', -1000.0000,'MANUAL_USE',   N'[今日領料] 伯爵紅茶全天備茶',      0),
+        ('MAT005', -3000.0000,'MANUAL_USE',   N'[今日領料] 鮮奶飲品製作',          0),
+        ('MAT006', -1200.0000,'MANUAL_USE',   N'[今日領料] 奶茶粉調製',            0),
+        ('MAT007', -1600.0000,'MANUAL_USE',   N'[今日領料] 果糖補充',              0),
+        ('MAT008', -1500.0000,'MANUAL_USE',   N'[今日領料] 黑糖珍珠煮製',          0),
+        ('MAT009',  -800.0000,'MANUAL_USE',   N'[今日領料] 椰果配料補充',          0),
+        ('MAT011', -1000.0000,'MANUAL_USE',   N'[今日領料] 檸檬飲品調製',          0),
+        ('MAT016',  -400.0000,'MANUAL_USE',   N'[今日領料] 700ml 飲料杯領用',     0),
+        ('MAT017',  -400.0000,'MANUAL_USE',   N'[今日領料] 封口膜領用',            0),
+        ('MAT018',  -400.0000,'MANUAL_USE',   N'[今日領料] 粗吸管領用',            0),
+        /* 刻意高於今日銷售依 BOM 推算的需求，供儀表板比較領料差異。 */
+        ('MAT010',  -850.0000,'MANUAL_USE',   N'[今日領料] 仙草凍晚班預備量',      0),
+        ('MAT012', -2500.0000,'MANUAL_USE',   N'[今日領料] 百香果原汁預備量',      0),
+        ('MAT013', -1200.0000,'MANUAL_USE',   N'[今日領料] 芒果果泥預備量',        0),
+        ('MAT014', -2000.0000,'MANUAL_USE',   N'[今日領料] 咖啡豆全天預備量',      0),
+        ('MAT015', -4000.0000,'MANUAL_USE',   N'[今日領料] 巧克力醬預備量',        0),
+        /* 額外補領紀錄，讓當日領料清單與圖表具有多筆同原料資料。 */
+        ('MAT001',  -500.0000,'MANUAL_USE',   N'[今日領料] 午班阿薩姆紅茶追加',    0),
+        ('MAT005',  -800.0000,'MANUAL_USE',   N'[今日領料] 午班鮮奶追加',          0),
+        ('MAT007',  -500.0000,'MANUAL_USE',   N'[今日領料] 晚班果糖追加',          0),
+        ('MAT008',  -400.0000,'MANUAL_USE',   N'[今日領料] 晚班珍珠追加',          0),
         ('MAT008',  -150.0000,'WASTE',        N'[假資料] 珍珠煮製失敗耗損',        0),
         ('MAT005',  -300.0000,'EXPIRED',      N'[假資料] 鮮奶逾期報廢',            0),
         ('MAT011',  -200.0000,'ADJUSTMENT_OUT',N'[假資料] 盤點短少調整',           0),
@@ -1575,18 +1625,25 @@ BEGIN TRY
        系統功能設定
        ====================================================================== */
     IF OBJECT_ID(N'dbo.system_settings', N'U') IS NOT NULL
-       AND NOT EXISTS
-    (
-        SELECT 1
-        FROM system_settings
-        WHERE setting_key = 'RETAIL_MODE_ENABLED'
-    )
     BEGIN
         INSERT INTO system_settings
             (setting_key, setting_value, description, updated_at, updated_by_user_id)
-        VALUES
-            ('RETAIL_MODE_ENABLED', 'false',
-             N'是否啟用零售商品模式', @NowLocal, NULL);
+        SELECT setting_key, setting_value, description, @NowLocal, NULL
+        FROM
+        (
+            VALUES
+                ('PURCHASE_ORDER_RECEIVING_ENABLED', 'false', N'是否啟用採購單收貨入庫'),
+                ('RETAIL_MODE_ENABLED', 'false', N'是否啟用零售商品模式'),
+                ('POS_AUTO_MATERIAL_DEDUCTION_ENABLED', 'false', N'POS 結帳時是否依商品 BOM 自動扣除原物料'),
+                ('SITE_NAME', N'深淵之流', N'顯示於側邊欄與瀏覽器標題的網站名稱'),
+                ('SITE_LOGO_URL', '', N'顯示於側邊欄與瀏覽器頁籤的網站圖示')
+        ) settings(setting_key, setting_value, description)
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM system_settings existing
+            WHERE existing.setting_key = settings.setting_key
+        );
     END;
 
     COMMIT TRANSACTION;

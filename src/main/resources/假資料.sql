@@ -1402,6 +1402,34 @@ BEGIN TRY
                 ('RETAIL_MODE_ENABLED', 'false',
                  N'是否啟用零售商品模式', @NowLocal, NULL);
         END;
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM system_settings
+            WHERE setting_key = 'SITE_NAME'
+        )
+        BEGIN
+            INSERT INTO system_settings
+                (setting_key, setting_value, description, updated_at, updated_by_user_id)
+            VALUES
+                ('SITE_NAME', N'深淵之流',
+                 N'顯示於側邊欄與瀏覽器標題的網站名稱', @NowLocal, NULL);
+        END;
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM system_settings
+            WHERE setting_key = 'SITE_LOGO_URL'
+        )
+        BEGIN
+            INSERT INTO system_settings
+                (setting_key, setting_value, description, updated_at, updated_by_user_id)
+            VALUES
+                ('SITE_LOGO_URL', '',
+                 N'顯示於側邊欄與瀏覽器頁籤的網站圖示', @NowLocal, NULL);
+        END;
     END;
 
     COMMIT TRANSACTION;

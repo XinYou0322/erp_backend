@@ -1,10 +1,10 @@
 package com.example.demo.systemsetting;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class SystemSettingUpdateDTO {
-    @NotBlank(message = "設定值不得為空")
+    @NotNull(message = "設定值不得為 null")
     private String value;
 }

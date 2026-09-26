@@ -28,12 +28,19 @@ public final MaterialsService MtSerivce;
 @GetMapping("/api/material/page")
 public Page<Material> getMaterials(
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "6") int size) {
+        @RequestParam(defaultValue = "6") int size,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) String unit) {
 
     Pageable pageable =
         PageRequest.of(page, size);
 
-    return MtSerivce.getMaterials(pageable);
+    return MtSerivce.searchMaterials(
+            keyword,
+            status,
+            unit,
+            pageable);
 }
 
 @GetMapping("/api/material")//新增原料

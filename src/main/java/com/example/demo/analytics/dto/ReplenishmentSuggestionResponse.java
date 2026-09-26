@@ -1,0 +1,36 @@
+package com.example.demo.analytics.dto;
+
+import java.math.BigDecimal;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class ReplenishmentSuggestionResponse {
+    private Long materialId;
+    private String materialCode;
+    private String materialName;
+    private String unit;
+    private BigDecimal availableQuantity;
+    private BigDecimal expiredQuantity;
+    private BigDecimal safetyStock;
+    private BigDecimal recentUsageQuantity;
+    private BigDecimal averageDailyUsage;
+    private BigDecimal forecastUsageQuantity;
+    private BigDecimal pendingPurchaseQuantity;
+    private BigDecimal suggestedPurchaseQuantity;
+    private BigDecimal estimatedDaysRemaining;
+    private String inventoryStatus;
+    private String riskLevel;
+    private BigDecimal usage7Days;
+    private BigDecimal averageDailyUsage7Days;
+    private BigDecimal usage30Days;
+    private BigDecimal averageDailyUsage30Days;
+    private BigDecimal selectedAverageDailyUsage;
+    private Integer leadTimeDays;
+    private BigDecimal leadTimeDemandQuantity;
+    private BigDecimal purchasePackQuantity;
+    private BigDecimal suggestedPackageCount;
+    private String recommendation;
+}

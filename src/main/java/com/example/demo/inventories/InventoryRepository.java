@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.example.demo.materials.Material;
 
 import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import jakarta.persistence.LockModeType;
@@ -67,3 +68,4 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     
 }
+

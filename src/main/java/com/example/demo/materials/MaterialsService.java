@@ -33,6 +33,27 @@ public class MaterialsService {
 
 	    return MaterialRepo.findAllOrderByStatus(pageable);
 	}
+
+	public Page<Material> searchMaterials(
+			String keyword,
+			String status,
+			String unit,
+			Pageable pageable) {
+
+		return MaterialRepo.searchMaterials(
+				normalizeFilter(keyword),
+				normalizeFilter(status),
+				normalizeFilter(unit),
+				pageable);
+	}
+
+	private String normalizeFilter(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+
+		return value.trim();
+	}
 	
 	
 	
@@ -50,6 +71,7 @@ public class MaterialsService {
 	               
 	    }
 	  public Material create(Material material) {
+		    applyPurchasingDefaultsAndValidate(material);
 
 		    if ("CONVERSION".equals(material.getCostMode())) {
 
@@ -107,6 +129,15 @@ public class MaterialsService {
 	        material.setUnit(newMaterial.getUnit());
 	        material.setSafetyStock(newMaterial.getSafetyStock());
 	        material.setCostMode(newMaterial.getCostMode());
+	        // 舊版前端尚未傳送這兩個欄位時，保留資料庫原值，避免編輯其他欄位時被清空。
+	        if (newMaterial.getLeadTimeDays() != null) {
+	        	validateLeadTimeDays(newMaterial.getLeadTimeDays());
+	        	material.setLeadTimeDays(newMaterial.getLeadTimeDays());
+	        }
+	        if (newMaterial.getPurchasePackQuantity() != null) {
+	        	validatePurchasePackQuantity(newMaterial.getPurchasePackQuantity());
+	        	material.setPurchasePackQuantity(newMaterial.getPurchasePackQuantity());
+	        }
 	        if("CONVERSION".equals(newMaterial.getCostMode())) {
 	        	
 	        	 if (newMaterial.getConversionQuantity() == null ||
@@ -160,6 +191,34 @@ public class MaterialsService {
 	        
 	        return MaterialRepo.save(material);
 	    }
+
+	  private void applyPurchasingDefaultsAndValidate(Material material) {
+		  if (material.getLeadTimeDays() == null) {
+			  material.setLeadTimeDays(7);
+		  }
+		  validateLeadTimeDays(material.getLeadTimeDays());
+
+		  if (material.getPurchasePackQuantity() == null) {
+			  BigDecimal conversionQuantity = material.getConversionQuantity();
+			  material.setPurchasePackQuantity(
+					  conversionQuantity != null && conversionQuantity.signum() > 0
+							  ? conversionQuantity
+							  : BigDecimal.ONE);
+		  }
+		  validatePurchasePackQuantity(material.getPurchasePackQuantity());
+	  }
+
+	  private void validateLeadTimeDays(Integer leadTimeDays) {
+		  if (leadTimeDays < 1 || leadTimeDays > 365) {
+			  throw new IllegalArgumentException("交期天數必須介於 1 到 365 天之間");
+		  }
+	  }
+
+	  private void validatePurchasePackQuantity(BigDecimal purchasePackQuantity) {
+		  if (purchasePackQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+			  throw new IllegalArgumentException("採購包裝量必須大於 0");
+		  }
+	  }
 	  public Material updateStatus(Long id, String status) {
 
 		    // 1. 找原物料

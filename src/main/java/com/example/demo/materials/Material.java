@@ -46,4 +46,22 @@ public class Material {
     // 安全庫存
     @Column(name = "safety_stock", precision = 18, scale = 4)
     private BigDecimal safetyStock;
+
+    // 從下單到預計到貨所需天數，供補貨需求預測使用。
+    @Column(name = "lead_time_days", nullable = false)
+    private Integer leadTimeDays;
+
+    // 每一個採購包裝可換算成多少庫存單位，供建議採購量向上取整使用。
+    @Column(name = "purchase_pack_quantity", nullable = false, precision = 18, scale = 4)
+    private BigDecimal purchasePackQuantity;
+
+    @PrePersist
+    protected void applyPurchasingDefaults() {
+        if (leadTimeDays == null) {
+            leadTimeDays = 7;
+        }
+        if (purchasePackQuantity == null) {
+            purchasePackQuantity = BigDecimal.ONE;
+        }
+    }
 }
