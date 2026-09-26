@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,7 @@ import com.example.demo.inventories.InventoryRepository;
 import com.example.demo.inventorylog.DTO.InventoryAdjustmentItemDTO;
 import com.example.demo.inventorylog.DTO.InventoryAdjustmentRequestDTO;
 import com.example.demo.inventorylog.DTO.InventoryLogResponseDTO;
+import com.example.demo.materials.Material;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,71 +26,128 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class InventoryLogService {
 
+    // 【本次新增：銷售與庫存同步】
+    // 使用固定 action 區分銷售扣除與報廢回補，並搭配 refId（銷售單 ID）防止重複處理。
+    private static final String SALE_DEDUCT = "SALE_DEDUCT";
+    private static final String SALE_RESTORE = "SALE_RESTORE";
+
     public final BomRepository bomRepository;
     public final InventoryRepository inventoryRepository;
     public final InventoryLogRepository inventoryLogRepository;
 
+    // 【本次修改：銷售與庫存同步】
+    // 保留原本單一商品扣庫存入口，內部改由共用流程處理，並保留來源單據 refId。
     @Transactional(rollbackFor = Exception.class)
     public void deduct(Long productId, BigDecimal saleQuantity, Long refId) {
+        deductItems(List.of(new InventoryDeductionItem(productId, saleQuantity)), refId);
+    }
 
-        List<Bom> bomList = bomRepository.findByProductId(productId);
+    /**
+     * 【本次新增：銷售與庫存同步】
+     * 銷售單專用扣庫存入口。所有商品會先換算並合併 BOM 需求，再鎖定批次、
+     * 一次檢查全部庫存；任一原物料不足時，由外層銷售交易一併回滾。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void deductSale(List<InventoryDeductionItem> items, Long salesOrderId) {
+        if (salesOrderId == null) {
+            throw new IllegalArgumentException("銷售單 ID 不得為空");
+        }
+        if (inventoryLogRepository.existsByActionAndRefId(SALE_DEDUCT, salesOrderId)) {
+            throw new IllegalStateException("此銷售單已完成庫存扣除，不可重複扣庫存");
+        }
+        deductItems(items, salesOrderId);
+    }
 
-        if (bomList.isEmpty()) {
-            throw new IllegalStateException("此商品尚未設定配方 (BOM)");
+    // 【本次新增：銷售與庫存同步】
+    // 共用扣庫存流程：驗證商品資料、展開 BOM，並合併同一原物料的總需求量。
+    private void deductItems(List<InventoryDeductionItem> items, Long refId) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("銷售商品不得為空");
         }
 
-        // 第一步：先檢查所有原物料庫存是否都足夠，一個不夠就整個擋下來
-        for (Bom bom : bomList) {
+        Map<Long, MaterialRequirement> requirements = new LinkedHashMap<>();
 
-            Long materialId = bom.getMaterial().getId();
-            BigDecimal needed = bom.getQuantity().multiply(saleQuantity);
+        for (InventoryDeductionItem item : items) {
+            if (item == null || item.productId() == null) {
+                throw new IllegalArgumentException("商品 ID 不得為空");
+            }
+            if (item.quantity() == null || item.quantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("銷售數量必須大於 0");
+            }
 
-            BigDecimal total = getTotalQuantity(materialId);
+            List<Bom> bomList = bomRepository.findByProductId(item.productId());
 
-            if (total.compareTo(needed) < 0) {
-                throw new IllegalStateException(
-                        "原物料 id=" + materialId + " 庫存不足，需要 " + needed + "，目前只有 " + total);
+            if (bomList.isEmpty()) {
+                throw new IllegalStateException("商品 id=" + item.productId() + " 尚未設定配方 (BOM)");
+            }
+
+            for (Bom bom : bomList) {
+                if (bom.getMaterial() == null || bom.getMaterial().getId() == null
+                        || bom.getQuantity() == null
+                        || bom.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new IllegalStateException("商品 id=" + item.productId() + " 的 BOM 設定不完整");
+                }
+
+                Material material = bom.getMaterial();
+                BigDecimal needed = bom.getQuantity().multiply(item.quantity());
+
+                requirements.compute(material.getId(), (materialId, existing) -> {
+                    if (existing == null) {
+                        return new MaterialRequirement(material, needed);
+                    }
+                    existing.quantity = existing.quantity.add(needed);
+                    return existing;
+                });
             }
         }
 
-        // 第二步：確認都夠了，才開始依效期由近到遠（FIFO）扣減
-        for (Bom bom : bomList) {
+        Map<Long, List<Inventory>> lockedBatches = new LinkedHashMap<>();
 
-            Long materialId = bom.getMaterial().getId();
-            BigDecimal needed = bom.getQuantity().multiply(saleQuantity);
+        // 【本次新增：銷售與庫存同步】
+        // 先鎖定並檢查全部原物料，避免同時結帳造成超賣。
+        // 在任何批次真正扣除前先完成全部檢查，庫存不足時不會留下部分扣除結果。
+        for (Map.Entry<Long, MaterialRequirement> entry : requirements.entrySet()) {
+            List<Inventory> batches = inventoryRepository
+                    .findByMaterialIdOrderForStockWithLock(entry.getKey());
+            lockedBatches.put(entry.getKey(), batches);
 
-            deductFifo(materialId, needed, refId);
+            BigDecimal total = batches.stream()
+                    .map(Inventory::getQuantity)
+                    .filter(quantity -> quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (total.compareTo(entry.getValue().quantity) < 0) {
+                throw new IllegalStateException(
+                        "原物料「" + entry.getValue().material.getName() + "」庫存不足，需要 "
+                                + entry.getValue().quantity + "，目前只有 " + total);
+            }
+        }
+
+        // 【本次新增：銷售與庫存同步】全部足夠後，才依效期由近到遠扣除。
+        for (Map.Entry<Long, MaterialRequirement> entry : requirements.entrySet()) {
+            deductFromBatches(
+                    lockedBatches.get(entry.getKey()),
+                    entry.getValue().quantity,
+                    refId);
         }
     }
 
-    private BigDecimal getTotalQuantity(Long materialId) {
-
-        List<Inventory> batches = inventoryRepository.findByMaterialIdOrderByExpiryDateAsc(materialId);
-
-        BigDecimal total = BigDecimal.ZERO;
-
-        for (Inventory batch : batches) {
-            total = total.add(batch.getQuantity());
-        }
-
-        return total;
-    }
-
-    private void deductFifo(Long materialId, BigDecimal needed, Long refId) {
-
-        List<Inventory> batches = inventoryRepository.findByMaterialIdOrderByExpiryDateAsc(materialId);
-
+    // 【本次新增：銷售與庫存同步】
+    // 將需求量逐批扣除；每一筆實際扣除都建立負數 SALE_DEDUCT 紀錄並保存批次 ID。
+    private void deductFromBatches(List<Inventory> batches, BigDecimal needed, Long refId) {
         BigDecimal remaining = needed;
 
         for (Inventory batch : batches) {
-
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
                 break;
             }
 
             BigDecimal batchQty = batch.getQuantity();
+            if (batchQty == null || batchQty.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
 
-            BigDecimal deductAmount = batchQty.compareTo(remaining) <= 0 ? batchQty : remaining;
+            BigDecimal deductAmount = batchQty.min(remaining);
 
             batch.setQuantity(batchQty.subtract(deductAmount));
             inventoryRepository.save(batch);
@@ -95,11 +155,96 @@ public class InventoryLogService {
             InventoryLog log = new InventoryLog();
             log.setMaterial(batch.getMaterial());
             log.setQuantity(deductAmount.negate());
-            log.setAction("SALE_DEDUCT");
+            log.setAction(SALE_DEDUCT);
             log.setRefId(refId);
+            log.setInventoryBatchId(batch.getId());
+            log.setNote("銷售完成自動扣庫存");
             inventoryLogRepository.save(log);
 
             remaining = remaining.subtract(deductAmount);
+        }
+
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("庫存扣除失敗，剩餘未扣數量：" + remaining);
+        }
+    }
+
+    /**
+     * 【本次新增：銷售與庫存同步】
+     * 回補指定銷售單曾實際扣除的批次。沒有 SALE_DEDUCT 紀錄代表建立銷售單時
+     * 同步開關未開啟，維持既有報廢流程且不異動庫存。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean restoreSale(Long salesOrderId) {
+        if (salesOrderId == null) {
+            throw new IllegalArgumentException("銷售單 ID 不得為空");
+        }
+        if (inventoryLogRepository.existsByActionAndRefId(SALE_RESTORE, salesOrderId)) {
+            throw new IllegalStateException("此銷售單的庫存已回補，不可重複回補");
+        }
+
+        List<InventoryLog> deductionLogs = inventoryLogRepository
+                .findByActionAndRefIdOrderByIdAsc(SALE_DEDUCT, salesOrderId);
+
+        if (deductionLogs.isEmpty()) {
+            return false;
+        }
+
+        for (InventoryLog deductionLog : deductionLogs) {
+            BigDecimal deductedQuantity = deductionLog.getQuantity();
+            if (deductedQuantity == null || deductedQuantity.compareTo(BigDecimal.ZERO) >= 0) {
+                throw new IllegalStateException("銷售單的扣庫存紀錄異常，無法回補");
+            }
+
+            BigDecimal restoreQuantity = deductedQuantity.abs();
+            Inventory batch = findOrCreateRestoreBatch(deductionLog);
+            batch.setQuantity(batch.getQuantity().add(restoreQuantity));
+            Inventory savedBatch = inventoryRepository.save(batch);
+
+            InventoryLog restoreLog = new InventoryLog();
+            restoreLog.setMaterial(deductionLog.getMaterial());
+            restoreLog.setQuantity(restoreQuantity);
+            restoreLog.setAction(SALE_RESTORE);
+            restoreLog.setRefId(salesOrderId);
+            restoreLog.setInventoryBatchId(savedBatch.getId());
+            restoreLog.setNote("銷售單報廢回補庫存");
+            inventoryLogRepository.save(restoreLog);
+        }
+
+        return true;
+    }
+
+    // 【本次新增：銷售與庫存同步】
+    // 優先鎖定並回補原批次；若原批次已刪除，建立同原物料的替代批次，確保庫存數量不遺失。
+    private Inventory findOrCreateRestoreBatch(InventoryLog deductionLog) {
+        Long batchId = deductionLog.getInventoryBatchId();
+
+        if (batchId != null) {
+            Inventory existing = inventoryRepository.findByIdWithLock(batchId).orElse(null);
+            if (existing != null) {
+                if (!existing.getMaterial().getId().equals(deductionLog.getMaterial().getId())) {
+                    throw new IllegalStateException("庫存批次與扣庫存紀錄的原物料不一致");
+                }
+                return existing;
+            }
+        }
+
+        // 原批次若已被刪除，以相同原物料建立無效期回補批次，避免遺失數量。
+        Inventory replacement = new Inventory();
+        replacement.setMaterial(deductionLog.getMaterial());
+        replacement.setQuantity(BigDecimal.ZERO);
+        replacement.setExpiryDate(null);
+        return replacement;
+    }
+
+    // 【本次新增：銷售與庫存同步】保存合併後的原物料需求，供一次性庫存檢查與扣除使用。
+    private static final class MaterialRequirement {
+        private final Material material;
+        private BigDecimal quantity;
+
+        private MaterialRequirement(Material material, BigDecimal quantity) {
+            this.material = material;
+            this.quantity = quantity;
         }
     }
         
