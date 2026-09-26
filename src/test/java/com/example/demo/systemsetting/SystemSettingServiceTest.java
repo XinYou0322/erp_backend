@@ -42,4 +42,27 @@ class SystemSettingServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.update(
                 "PURCHASE_ORDER_RECEIVING_ENABLED", "yes", 7L));
     }
+
+    @Test
+    void siteNameKeepsOriginalLetterCaseAndSpacingInsideName() {
+        when(repository.findById("SITE_NAME")).thenReturn(Optional.empty());
+        when(repository.save(any(SystemSetting.class))).thenAnswer(call -> call.getArgument(0));
+
+        SystemSettingResponseDTO response = service.update("SITE_NAME", " My Beverage ERP ", 7L);
+
+        assertEquals("My Beverage ERP", response.getValue());
+    }
+
+    @Test
+    void siteNameRejectsBlankValue() {
+        assertThrows(IllegalArgumentException.class, () -> service.update("SITE_NAME", "   ", 7L));
+    }
+
+    @Test
+    void siteLogoAcceptsEmptyValueForRestoringDefaultIcon() {
+        when(repository.findById("SITE_LOGO_URL")).thenReturn(Optional.empty());
+        when(repository.save(any(SystemSetting.class))).thenAnswer(call -> call.getArgument(0));
+
+        assertEquals("", service.update("SITE_LOGO_URL", "", 7L).getValue());
+    }
 }

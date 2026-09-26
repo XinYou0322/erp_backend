@@ -8,6 +8,20 @@
    ============================================================= */
 SET NOCOUNT ON;
 
+/*
+   已改為所有訂單與分析都使用最新 BOM。
+   Hibernate 不會自動刪除已移除 Entity 所留下的舊資料表，
+   因此必須先移除舊快照表，避免其外鍵阻擋銷售明細清除。
+*/
+IF OBJECT_ID(N'dbo.sales_order_material_usage', N'U') IS NOT NULL
+    DROP TABLE dbo.sales_order_material_usage;
+
+IF OBJECT_ID(N'dbo.bom_version_items', N'U') IS NOT NULL
+    DROP TABLE dbo.bom_version_items;
+
+IF OBJECT_ID(N'dbo.bom_versions', N'U') IS NOT NULL
+    DROP TABLE dbo.bom_versions;
+
 /* ---------- 1. DELETE：子表 -> 父表 ---------- */
 DELETE FROM workflow_logs;
 DELETE FROM workflows;
@@ -301,7 +315,7 @@ BEGIN TRY
         ('P021', N'舊版奶精紅茶',   N'下架商品', 45.00, 17.10, N'杯', 'INACTIVE');
 
     INSERT INTO products
-        (sku, name, category_id, selling_price, cost_price, unit, status)
+        (sku, name, category_id, selling_price, cost_price, unit, status, product_type)
     SELECT
         ps.sku,
         ps.product_name,
@@ -309,7 +323,8 @@ BEGIN TRY
         ps.selling_price,
         ps.cost_price,
         ps.unit,
-        ps.product_status
+        ps.product_status,
+        'RECIPE'
     FROM @ProductSeed ps
     INNER JOIN product_categories pc
         ON pc.name = ps.category_name
@@ -1610,18 +1625,25 @@ BEGIN TRY
        系統功能設定
        ====================================================================== */
     IF OBJECT_ID(N'dbo.system_settings', N'U') IS NOT NULL
-       AND NOT EXISTS
-    (
-        SELECT 1
-        FROM system_settings
-        WHERE setting_key = 'RETAIL_MODE_ENABLED'
-    )
     BEGIN
         INSERT INTO system_settings
             (setting_key, setting_value, description, updated_at, updated_by_user_id)
-        VALUES
-            ('RETAIL_MODE_ENABLED', 'false',
-             N'是否啟用零售商品模式', @NowLocal, NULL);
+        SELECT setting_key, setting_value, description, @NowLocal, NULL
+        FROM
+        (
+            VALUES
+                ('PURCHASE_ORDER_RECEIVING_ENABLED', 'false', N'是否啟用採購單收貨入庫'),
+                ('RETAIL_MODE_ENABLED', 'false', N'是否啟用零售商品模式'),
+                ('POS_AUTO_MATERIAL_DEDUCTION_ENABLED', 'false', N'POS 結帳時是否依商品 BOM 自動扣除原物料'),
+                ('SITE_NAME', N'深淵之流', N'顯示於側邊欄與瀏覽器標題的網站名稱'),
+                ('SITE_LOGO_URL', '', N'顯示於側邊欄與瀏覽器頁籤的網站圖示')
+        ) settings(setting_key, setting_value, description)
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM system_settings existing
+            WHERE existing.setting_key = settings.setting_key
+        );
     END;
 
     COMMIT TRANSACTION;

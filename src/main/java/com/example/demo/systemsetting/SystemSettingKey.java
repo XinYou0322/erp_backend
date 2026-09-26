@@ -17,13 +17,22 @@ public enum SystemSettingKey {
     POS_AUTO_MATERIAL_DEDUCTION_ENABLED(
             "false",
             "POS 結帳時是否依商品 BOM 自動扣除原物料",
-            ValueType.BOOLEAN);
+            ValueType.BOOLEAN),
+    SITE_NAME(
+            "深淵之流",
+            "顯示於側邊欄與瀏覽器標題的網站名稱",
+            ValueType.STRING),
+    SITE_LOGO_URL(
+            "",
+            "顯示於側邊欄與瀏覽器頁籤的網站圖示",
+            ValueType.STRING);
 
     private final String defaultValue;
     private final String description;
     private final ValueType valueType;
 
     public enum ValueType {
-        BOOLEAN
+        BOOLEAN,
+        STRING
     }
 }
