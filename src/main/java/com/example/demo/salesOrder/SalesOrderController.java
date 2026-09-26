@@ -2,12 +2,14 @@ package com.example.demo.salesOrder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,7 +30,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SalesOrderController {
 	
-	private final SalesOrderService salesOrderService ;
+    private final SalesOrderService salesOrderService ;
+
+    @ExceptionHandler({ IllegalArgumentException.class, IllegalStateException.class })
+    public ResponseEntity<Map<String, String>> handleBusinessError(RuntimeException exception) {
+        return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+    }
 	
 	//---新增---
 	//單筆 ---暫
