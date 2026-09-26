@@ -11,6 +11,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
@@ -37,7 +39,21 @@ public class CorsConfig implements WebMvcConfigurer {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+
+        // 【本次修改：修正 ECPay 回傳 Invalid CORS request】
+        // ECPay callback 是外部金流的表單／伺服器 POST，不是前端 AJAX。
+        // 這兩個端點改由 CheckMacValue 驗證真偽，因此略過瀏覽器 CORS Filter。
+        return new CorsFilter(source) {
+            @Override
+            protected boolean shouldNotFilter(HttpServletRequest request) {
+                return isEcpayCallback(request.getRequestURI());
+            }
+        };
     }
 
+    private boolean isEcpayCallback(String requestUri) {
+        return "/api/ecpay/payment-notify".equals(requestUri)
+                || "/api/ecpay/order-result".equals(requestUri);
+    }
 }
+

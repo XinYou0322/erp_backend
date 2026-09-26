@@ -1,6 +1,7 @@
 package com.example.demo.workflow.service;
 
 import java.time.LocalDateTime;
+import com.example.demo.purchaseOrder.PurchaseApproverPolicy;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +38,8 @@ public class WorkflowService {
     private final WorkflowLogRepository worklogRespo;
     private final UsersRepository userRepo;
     private final ApplicationEventPublisher eventPublisher;
+    // 【新增】採購流程建立及簽核時，都重新驗證當下的角色層級。
+    private final PurchaseApproverPolicy purchaseApproverPolicy;
 
     // 新增一個簽核流程
     @Transactional
@@ -47,6 +50,9 @@ public class WorkflowService {
         User approver = userRepo.findById(request.getApproverId())
                 .orElseThrow(() -> new RuntimeException("找不到簽核人"));
 
+        if (request.getDocumentType() == DocumentType.ORDER) {
+            purchaseApproverPolicy.requireEligible(applicant.getId(), approver.getId());
+        }
         workflow.setDocumentType(request.getDocumentType());
         workflow.setDocumentId(request.getDocumentId());
         workflow.setApplicant(applicant);
@@ -159,6 +165,10 @@ public class WorkflowService {
         User approver = getApproverOrThrow(request.getApproverId());
 
         validateApprover(workflow, approver);
+        // 【新增】處理待簽核期間停權、降級等變更；層級 1 自簽仍沿用簽核紀錄。
+        if (workflow.getDocumentType() == DocumentType.ORDER) {
+            purchaseApproverPolicy.requireEligible(workflow.getApplicant().getId(), approver.getId());
+        }
         validatePendingStatus(workflow);
 
         workflow.setStatus(status);

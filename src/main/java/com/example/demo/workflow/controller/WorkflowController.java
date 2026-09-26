@@ -1,6 +1,9 @@
 package com.example.demo.workflow.controller;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.SessionAttribute;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
@@ -35,7 +38,12 @@ public class WorkflowController {
     private final WorkflowLogRepository worklogRespo;
 
     @PostMapping
-    public WorkflowResponse create(@Valid @RequestBody CreateWorkflowRequest request) {
+    public WorkflowResponse create(@Valid @RequestBody CreateWorkflowRequest request,
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
+        // 【新增】採購流程只能從採購單送簽入口建立，避免繞過單據建立人及狀態檢查。
+        if (request.getDocumentType() == DocumentType.ORDER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "請由採購單送簽功能建立流程");
+        }
 
         Workflow workflow = workflowService.startWorkflow(request);
 
@@ -71,7 +79,13 @@ public class WorkflowController {
     // 核准
     @PatchMapping("{id}/approve")
     public ResponseEntity<WorkflowResponse> approveWorkflow(@PathVariable Long id,
-            @Valid @RequestBody ApproveWorkflowRequest request) {
+            @Valid @RequestBody ApproveWorkflowRequest request,
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
+        // 【新增】採購簽核不信任 request.approverId，使用後端 Session 的真實操作者。
+        if (workflowService.getWorkflowOrThrow(id).getDocumentType() == DocumentType.ORDER) {
+            if (loginUserId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
+            request.setApproverId(loginUserId);
+        }
 
         Workflow workflow = workflowService.approve(id, request);
         return ResponseEntity.ok(WorkflowResponse.from(workflow));
@@ -80,7 +94,13 @@ public class WorkflowController {
     // 駁回
     @PatchMapping("{id}/reject")
     public ResponseEntity<WorkflowResponse> rejectWorkflow(@PathVariable Long id,
-            @Valid @RequestBody ApproveWorkflowRequest request) {
+            @Valid @RequestBody ApproveWorkflowRequest request,
+            @SessionAttribute(name = "userId", required = false) Long loginUserId) {
+        // 【新增】採購簽核不信任 request.approverId，使用後端 Session 的真實操作者。
+        if (workflowService.getWorkflowOrThrow(id).getDocumentType() == DocumentType.ORDER) {
+            if (loginUserId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "請先登入");
+            request.setApproverId(loginUserId);
+        }
 
         Workflow workflow = workflowService.reject(id, request);
         return ResponseEntity.ok(WorkflowResponse.from(workflow));

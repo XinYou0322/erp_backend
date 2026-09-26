@@ -13,6 +13,10 @@ public enum SystemSettingKey {
     RETAIL_MODE_ENABLED(
             "false",
             "是否啟用零售商品模式",
+            ValueType.BOOLEAN),
+    SALES_INVENTORY_SYNC_ENABLED(
+            "false",
+            "是否在銷售完成時依 BOM 同步扣除庫存",
             ValueType.BOOLEAN);
 
     private final String defaultValue;

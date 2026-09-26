@@ -24,7 +24,9 @@ public class InventoryLogController {
 
     private final InventoryLogService inventoryLogService;
 
-    @PostMapping("/api/inventory/deduct") // 提供給 POS/訂單模組呼叫，依商品+數量扣庫存
+    // 【本次修改：銷售與庫存同步】
+    // 保留原本的手動扣庫存 API，並將 refId 一併傳入 Service，讓扣除紀錄可關聯來源單據。
+    @PostMapping("/api/inventory/deduct")
     public ResponseEntity<?> deduct(@RequestBody InventoryLogRequest request) {
 
         try {
@@ -33,7 +35,9 @@ public class InventoryLogController {
 
             return new ResponseEntity<>("扣庫存成功", HttpStatus.OK);
 
-        } catch (IllegalStateException e) {
+        // 【本次修改：銷售與庫存同步】
+        // BOM 不完整、數量不合法或庫存不足時，回傳 400 與可直接顯示的錯誤訊息。
+        } catch (IllegalStateException | IllegalArgumentException e) {
 
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }

@@ -115,6 +115,9 @@ public class SecurityConfig {
                                                                 "/api/roles",
                                                                 "/api/users/all",
                                                                 "/api/users/switch-test-user/**",
+                                                                // 【本次修改：ECPay 導回 POS】付款通知不會帶 ERP 登入 Session，必須允許匿名回傳。
+                                                                "/api/ecpay/payment-notify",
+                                                                "/api/ecpay/order-result",
                                                                 "/swagger-ui/**",
                                                                 "/v3/api-docs/**",
                                                                 "/error")
@@ -183,11 +186,22 @@ public class SecurityConfig {
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
-                // 所有路徑套用這份 CORS
+                // 所有一般 API 路徑套用原本的 CORS。
                 source.registerCorsConfiguration(
                                 "/**",
                                 configuration);
 
-                return source;
+                // 【本次修改：修正 ECPay 回傳 Invalid CORS request】
+                // Security 的 CORS Filter 也必須略過 callback；回傳資料會在 Controller
+                // 以 ECPay CheckMacValue 驗證，不會因略過 CORS 而直接信任付款結果。
+                return request -> {
+                        String requestUri = request.getRequestURI();
+                        if ("/api/ecpay/payment-notify".equals(requestUri)
+                                        || "/api/ecpay/order-result".equals(requestUri)) {
+                                return null;
+                        }
+                        return source.getCorsConfiguration(request);
+                };
         }
 }
+

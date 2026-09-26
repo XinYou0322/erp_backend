@@ -32,12 +32,27 @@ public class SystemSettingService {
     public SystemSettingResponseDTO update(String keyText, String rawValue, Long userId) {
         SystemSettingKey key = parseKey(keyText);
         String value = normalizeValue(key, rawValue);
+        SystemSetting setting = saveSetting(key, value, userId);
+
+        // 【本次新增：零售模式連動銷售與庫存同步】
+        // 開啟零售模式時，在同一個資料庫交易內自動開啟銷售庫存同步。
+        // 任一設定儲存失敗會一起回滾，避免出現零售模式已開啟但銷售未扣庫存的狀態。
+        if (key == SystemSettingKey.RETAIL_MODE_ENABLED && Boolean.parseBoolean(value)) {
+            saveSetting(SystemSettingKey.SALES_INVENTORY_SYNC_ENABLED, "true", userId);
+        }
+
+        return toResponse(setting);
+    }
+
+    // 【本次新增：零售模式連動銷售與庫存同步】
+    // 共用設定新增／更新流程，供零售模式與被連動的銷售庫存同步設定使用。
+    private SystemSetting saveSetting(SystemSettingKey key, String value, Long userId) {
         SystemSetting setting = repository.findById(key.name()).orElseGet(SystemSetting::new);
         setting.setKey(key.name());
         setting.setValue(value);
         setting.setDescription(key.getDescription());
         setting.setUpdatedByUserId(userId);
-        return toResponse(repository.save(setting));
+        return repository.save(setting);
     }
 
     private SystemSettingKey parseKey(String keyText) {

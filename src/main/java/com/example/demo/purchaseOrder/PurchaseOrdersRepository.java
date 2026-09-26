@@ -41,6 +41,8 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
     @Query("SELECT po FROM PurchaseOrders po WHERE po.id = :id")
     Optional<PurchaseOrders> findByIdForReceiving(@Param("id") Long id);
 
+    // 列表與 countQuery 都套用狀態範圍及建立人，避免頁數與內容不一致。
+    // createdByUserId 為 null 表示總覽；自己頁籤使用 Session 的登入者 ID。
     @Query(
             value = """
                 SELECT DISTINCT po
@@ -49,13 +51,18 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
                 LEFT JOIN po.items item
                 LEFT JOIN item.material material
 
-                WHERE
+                WHERE po.status IN :visibleStatuses
+                AND (:createdByUserId IS NULL OR po.createdBy.id = :createdByUserId)
+                AND
                     (:status IS NULL
                         OR po.status = :status)
 
                 AND
                     (:supplierId IS NULL
                         OR po.supplier.id = :supplierId)
+
+                AND (:minAmount IS NULL OR po.total >= :minAmount)
+                AND (:maxAmount IS NULL OR po.total <= :maxAmount)
 
                 AND
                     (:startDateTime IS NULL
@@ -70,6 +77,15 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
                         :keyword IS NULL
 
                         OR LOWER(po.orderNumber)
+                           LIKE LOWER(CONCAT('%', :keyword, '%'))
+
+                        OR CAST(po.total AS string)
+                           LIKE CONCAT('%', :keyword, '%')
+
+                        OR LOWER(po.createdBy.name)
+                           LIKE LOWER(CONCAT('%', :keyword, '%'))
+
+                        OR LOWER(po.supplier.name)
                            LIKE LOWER(CONCAT('%', :keyword, '%'))
 
                         OR LOWER(material.name)
@@ -84,13 +100,18 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
                 LEFT JOIN po.items item
                 LEFT JOIN item.material material
 
-                WHERE
+                WHERE po.status IN :visibleStatuses
+                AND (:createdByUserId IS NULL OR po.createdBy.id = :createdByUserId)
+                AND
                     (:status IS NULL
                         OR po.status = :status)
 
                 AND
                     (:supplierId IS NULL
                         OR po.supplier.id = :supplierId)
+
+                AND (:minAmount IS NULL OR po.total >= :minAmount)
+                AND (:maxAmount IS NULL OR po.total <= :maxAmount)
 
                 AND
                     (:startDateTime IS NULL
@@ -107,6 +128,15 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
                         OR LOWER(po.orderNumber)
                            LIKE LOWER(CONCAT('%', :keyword, '%'))
 
+                        OR CAST(po.total AS string)
+                           LIKE CONCAT('%', :keyword, '%')
+
+                        OR LOWER(po.createdBy.name)
+                           LIKE LOWER(CONCAT('%', :keyword, '%'))
+
+                        OR LOWER(po.supplier.name)
+                           LIKE LOWER(CONCAT('%', :keyword, '%'))
+
                         OR LOWER(material.name)
                            LIKE LOWER(CONCAT('%', :keyword, '%'))
                     )
@@ -114,11 +144,20 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
         )
         Page<PurchaseOrders> searchPurchaseOrders(
 
+                // 頁籤查詢條件；既有收貨查詢不變。
+                @Param("visibleStatuses") List<PurchaseOrdersStatus> visibleStatuses,
+                @Param("createdByUserId") Long createdByUserId,
                 @Param("status")
                 PurchaseOrdersStatus status,
 
                 @Param("supplierId")
                 Long supplierId,
+
+                @Param("minAmount")
+                java.math.BigDecimal minAmount,
+
+                @Param("maxAmount")
+                java.math.BigDecimal maxAmount,
 
                 @Param("startDateTime")
                 LocalDateTime startDateTime,

@@ -3,7 +3,6 @@ package com.example.demo.salesOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,8 +16,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.documentnumber.DocumentNumberService;
+import com.example.demo.documentnumber.DocumentNumberType;
+import com.example.demo.inventorylog.InventoryDeductionItem;
+import com.example.demo.inventorylog.InventoryLogService;
 import com.example.demo.products.ProductRepository;
 import com.example.demo.products.Products;
+import com.example.demo.systemsetting.SystemSettingKey;
+import com.example.demo.systemsetting.SystemSettingService;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
 
@@ -32,20 +37,10 @@ public class SalesOrderService {
 	private final SalesOrderItemRepository salesOrderItemRepo;
 	private final UsersRepository userRepo;
 	private final ProductRepository proRepo;
+	private final InventoryLogService inventoryLogService;
+	private final SystemSettingService systemSettingService;
+	private final DocumentNumberService documentNumberService;
 	
-	
-	
-	//產生銷售單號
-	public String generateOrderNumber() {
-		String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-		
-		long count = salesOrderRepo.countByOrderNumberStartingWith(date);
-                
-		long sequence = count + 1;
-
-		return date + "-" + String.format("%03d", sequence);
-
-     	}
 	
 	//---新增---
 	@Transactional
@@ -58,14 +53,20 @@ public class SalesOrderService {
                     new RuntimeException("找不到登入使用者"));
 	//建銷售單
 	SalesOrders salesOrder = new SalesOrders();
-	//set單號
-	salesOrder.setOrderNumber(generateOrderNumber());
 	//set付款方式
 	salesOrder.setPaymentMethod(salesOrderCreDTO.getPaymentMethod());
 	//setNote
 	salesOrder.setNote(salesOrderCreDTO.getNote());
 	//set人
 	salesOrder.setCreatedBy(loginUser);
+
+    // 【本次新增：ECPay 測試金流】
+    // 現金維持原本「建立即完成」流程；信用卡與行動支付必須先等待 ECPay 確認。
+    boolean requiresEcpay = salesOrderCreDTO.getPaymentMethod() == PaymentMethod.CREDIT_CARD
+            || salesOrderCreDTO.getPaymentMethod() == PaymentMethod.MOBILE_PAYMENT;
+    salesOrder.setStatus(requiresEcpay
+            ? SalesOrderStatus.PENDING_PAYMENT
+            : SalesOrderStatus.COMPLETED);
 	
 	//總金額
 	BigDecimal totalAmount = BigDecimal.ZERO;
@@ -138,6 +139,11 @@ public class SalesOrderService {
 
     // 5. 設定後端計算完成的總額
     salesOrder.setTotalAmount(totalAmount);
+
+        // 【本次修改：共用取號模組】
+        // 商品驗證完成後才取得正式銷售單號，縮短鎖定時間並避免同時結帳撞號。
+        salesOrder.setOrderNumber(
+                documentNumberService.nextNumber(DocumentNumberType.SALES_ORDER));
     
         // 6. 儲存銷售單主檔
         SalesOrders savedOrder =
@@ -149,8 +155,52 @@ public class SalesOrderService {
             salesOrderItemRepo.save(item);
         }
 
+        // 【本次修改：ECPay 測試金流】
+        // 現金訂單仍在建立時同步扣庫存；電子支付要等 ECPay 驗證付款成功後才扣庫存。
+        if (savedOrder.getStatus() == SalesOrderStatus.COMPLETED
+                && systemSettingService.isEnabled(SystemSettingKey.SALES_INVENTORY_SYNC_ENABLED)) {
+            List<InventoryDeductionItem> deductionItems = salesOrder.getItems().stream()
+                    .map(item -> new InventoryDeductionItem(
+                            item.getProduct().getId(), item.getQuantity()))
+                    .toList();
+
+            inventoryLogService.deductSale(deductionItems, savedOrder.getId());
+        }
+
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
     }	
+    // 【本次新增：ECPay 測試金流】
+    // ECPay 的 ReturnURL 與 OrderResultURL 可能重複通知，因此使用資料庫鎖與狀態判斷確保只扣一次庫存。
+    @Transactional
+    public SalesOrderRespoDTO completeEcpayPayment(Long salesOrderId, BigDecimal paidAmount) {
+        SalesOrders salesOrder = salesOrderRepo.findByIdWithLock(salesOrderId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到 ECPay 對應的銷售單"));
+
+        if (salesOrder.getStatus() == SalesOrderStatus.COMPLETED) {
+            return SalesOrderRespoDTO.fromEntity(salesOrder);
+        }
+
+        if (salesOrder.getStatus() != SalesOrderStatus.PENDING_PAYMENT) {
+            throw new IllegalStateException("此銷售單目前不可完成 ECPay 付款");
+        }
+
+        if (paidAmount == null || salesOrder.getTotalAmount().compareTo(paidAmount) != 0) {
+            throw new IllegalArgumentException("ECPay 回傳金額與銷售單金額不一致");
+        }
+
+        if (systemSettingService.isEnabled(SystemSettingKey.SALES_INVENTORY_SYNC_ENABLED)) {
+            List<InventoryDeductionItem> deductionItems = salesOrder.getItems().stream()
+                    .map(item -> new InventoryDeductionItem(
+                            item.getProduct().getId(), item.getQuantity()))
+                    .toList();
+
+            inventoryLogService.deductSale(deductionItems, salesOrder.getId());
+        }
+
+        salesOrder.setStatus(SalesOrderStatus.COMPLETED);
+        return SalesOrderRespoDTO.fromEntity(salesOrderRepo.save(salesOrder));
+    }
+
 	//---報廢---
 	@Transactional
 	public SalesOrderRespoDTO voidSalesOrder(
@@ -158,16 +208,25 @@ public class SalesOrderService {
 		Long loginUserId,
 		String voidReason
 		) {
-	SalesOrders salesOrder = salesOrderRepo.findById(salesOrderId).orElseThrow(() ->
+	SalesOrders salesOrder = salesOrderRepo.findByIdWithLock(salesOrderId).orElseThrow(() ->
     								new RuntimeException("找不到銷售單"));
 	
 	if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
 		throw new RuntimeException("此銷售單已經作廢");
 	}
+
+    // 【本次新增：ECPay 測試金流】待付款訂單尚未扣庫存，不允許走「回補庫存」的作廢流程。
+    if (salesOrder.getStatus() == SalesOrderStatus.PENDING_PAYMENT) {
+        throw new IllegalStateException("此銷售單仍在等待 ECPay 付款結果，暫時不可作廢");
+    }
 	
 	User loginUser = userRepo.findById(loginUserId)
             .orElseThrow(() ->
                     new RuntimeException("找不到登入使用者"));
+
+	// 若建立銷售單時曾同步扣庫存，報廢時依實際扣除紀錄精確回補。
+	// 沒有扣庫存紀錄表示當時開關未啟用，維持既有報廢流程。
+	inventoryLogService.restoreSale(salesOrderId);
 	
 	salesOrder.setStatus(SalesOrderStatus.VOIDED);
 	salesOrder.setVoidedBy(loginUser);
@@ -346,3 +405,5 @@ public class SalesOrderService {
 //	 // 處理訂單號併發
 
 }
+
+

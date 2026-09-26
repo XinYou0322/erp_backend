@@ -31,6 +31,12 @@ public class InventoryLog {
     @Column(name = "ref_id")
     private Long refId;
 
+    // 【本次新增：銷售與庫存同步】
+    // 記錄銷售時實際扣除的庫存批次 ID，讓銷售單報廢時能把數量精確回補到原批次。
+    // 對應資料庫欄位由 database-upgrade.sql 的預存程序建立。
+    @Column(name = "inventory_batch_id")
+    private Long inventoryBatchId;
+
     @Column(length = 255)
     private String note;
 
