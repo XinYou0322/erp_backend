@@ -190,20 +190,6 @@ public class SalesOrderService {
             inventoryLogService.deductSale(deductionItems, savedOrder.getId());
         }
 
-
-        if (systemSettingService.isEnabled(
-                SystemSettingKey.POS_AUTO_MATERIAL_DEDUCTION_ENABLED)) {
-            for (SalesOrderItem item : salesOrder.getItems()) {
-                Products product = item.getProduct();
-                if (product.getProductType() != ProductType.RETAIL) {
-                    inventoryLogService.deduct(
-                            product.getId(),
-                            item.getQuantity(),
-                            savedOrder.getId());
-                }
-            }
-        }
-
         return  SalesOrderRespoDTO.fromEntity(savedOrder);
     }	
 
