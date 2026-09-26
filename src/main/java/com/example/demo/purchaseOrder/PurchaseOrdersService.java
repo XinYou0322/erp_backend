@@ -11,7 +11,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -21,6 +20,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.documentnumber.DocumentNumberService;
+import com.example.demo.documentnumber.DocumentNumberType;
 import com.example.demo.materials.Material;
 import com.example.demo.materials.MaterialRepository;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItemUpdateDTO;
@@ -46,6 +47,8 @@ public class PurchaseOrdersService {
     private final MaterialRepository materialRepo;
     private final UsersRepository usersRepo;
     private final WorkflowService workflowService;
+    // 【本次新增：共用取號模組】採購單與銷售單共用安全取號服務。
+    private final DocumentNumberService documentNumberService;
     // 【新增】新增與送簽共用後端資格驗證。
     private final PurchaseApproverPolicy purchaseApproverPolicy;
     
@@ -63,7 +66,6 @@ public class PurchaseOrdersService {
     User approver = purchaseApproverPolicy.requireEligible(loginUserId, dto.getApprovedByUserId());
     
     PurchaseOrders purchaseOrder = new PurchaseOrders();
-    purchaseOrder.setOrderNumber(createTemporaryOrderNumber());
     purchaseOrder.setSupplier(supplier);
     purchaseOrder.setCreatedBy(creator);
     purchaseOrder.setApprovedBy(approver);
@@ -105,8 +107,13 @@ public class PurchaseOrdersService {
         purchaseOrder.getItems().add(item);
     	}
     
-    	//設定後端計算出的總金額
+	    	//設定後端計算出的總金額
     	purchaseOrder.setTotal(totalAmount);
+
+        // 【本次修改：共用取號模組】
+        // 資料驗證完成後才取得正式採購單號，縮短交易鎖定時間並取代 TMP-UUID。
+        purchaseOrder.setOrderNumber(
+                documentNumberService.nextNumber(DocumentNumberType.PURCHASE_ORDER));
 
     	// 主單及所有明細
     	PurchaseOrders savedOrder =
@@ -141,10 +148,6 @@ public class PurchaseOrdersService {
         return result;
     }
 
-    //單號
-    private String createTemporaryOrderNumber() {
-        return "TMP-" + UUID.randomUUID();
-    }
     //送出
     @Transactional
     public PurchaseOrderResponseDTO submitPurchaseOrder(
