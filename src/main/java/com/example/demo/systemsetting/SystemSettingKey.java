@@ -14,10 +14,6 @@ public enum SystemSettingKey {
             "false",
             "是否啟用零售商品模式",
             ValueType.BOOLEAN),
-    POS_AUTO_MATERIAL_DEDUCTION_ENABLED(
-            "false",
-            "POS 結帳時是否依商品 BOM 自動扣除原物料",
-            ValueType.BOOLEAN),
     SITE_NAME(
             "深淵之流",
             "顯示於側邊欄與瀏覽器標題的網站名稱",

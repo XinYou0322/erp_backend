@@ -35,13 +35,6 @@ public class InventoryLogService {
     public final InventoryRepository inventoryRepository;
     public final InventoryLogRepository inventoryLogRepository;
 
-    // 【本次修改：銷售與庫存同步】
-    // 保留原本單一商品扣庫存入口，內部改由共用流程處理，並保留來源單據 refId。
-    @Transactional(rollbackFor = Exception.class)
-    public void deduct(Long productId, BigDecimal saleQuantity, Long refId) {
-        deductItems(List.of(new InventoryDeductionItem(productId, saleQuantity)), refId);
-    }
-
     /**
      * 【本次新增：銷售與庫存同步】
      * 銷售單專用扣庫存入口。所有商品會先換算並合併 BOM 需求，再鎖定批次、

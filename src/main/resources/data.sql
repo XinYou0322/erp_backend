@@ -1634,7 +1634,7 @@ BEGIN TRY
             VALUES
                 ('PURCHASE_ORDER_RECEIVING_ENABLED', 'false', N'是否啟用採購單收貨入庫'),
                 ('RETAIL_MODE_ENABLED', 'false', N'是否啟用零售商品模式'),
-                ('POS_AUTO_MATERIAL_DEDUCTION_ENABLED', 'false', N'POS 結帳時是否依商品 BOM 自動扣除原物料'),
+                ('SALES_INVENTORY_SYNC_ENABLED', 'false', N'是否在銷售完成時依 BOM 同步扣除庫存'),
                 ('SITE_NAME', N'深淵之流', N'顯示於側邊欄與瀏覽器標題的網站名稱'),
                 ('SITE_LOGO_URL', '', N'顯示於側邊欄與瀏覽器頁籤的網站圖示')
         ) settings(setting_key, setting_value, description)
