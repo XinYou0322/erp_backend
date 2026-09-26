@@ -112,8 +112,8 @@ public class InventoryLogService {
             lockedBatches.put(entry.getKey(), batches);
 
             BigDecimal total = batches.stream()
+                    .filter(this::isUsableBatch)
                     .map(Inventory::getQuantity)
-                    .filter(quantity -> quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             if (total.compareTo(entry.getValue().quantity) < 0) {
@@ -171,6 +171,18 @@ public class InventoryLogService {
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
             throw new IllegalStateException("庫存扣除失敗，剩餘未扣數量：" + remaining);
         }
+    }
+
+    /**
+     * 判斷庫存批次是否可供銷售扣料使用。
+     * 數量必須大於 0，且無效期或尚未過期；當日到期仍視為可用。
+     */
+    private boolean isUsableBatch(Inventory batch) {
+        return batch != null
+                && batch.getQuantity() != null
+                && batch.getQuantity().compareTo(BigDecimal.ZERO) > 0
+                && (batch.getExpiryDate() == null
+                        || !batch.getExpiryDate().isBefore(LocalDate.now()));
     }
 
     /**

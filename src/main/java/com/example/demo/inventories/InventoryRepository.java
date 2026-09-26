@@ -41,6 +41,21 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     
 	List<Inventory> findByMaterialIdOrderByExpiryDateAsc(Long materialId);
 
+    /**
+     * 依原物料彙總可用與過期庫存。
+     * 無效期或效期為今天以後的正數庫存視為可用；早於今天則視為過期。
+     */
+    @Query("""
+        SELECT i.material.id,
+               SUM(CASE WHEN i.quantity > 0 AND (i.expiryDate IS NULL OR i.expiryDate >= :today)
+                        THEN i.quantity ELSE 0 END),
+               SUM(CASE WHEN i.quantity > 0 AND i.expiryDate < :today
+                        THEN i.quantity ELSE 0 END)
+        FROM Inventory i
+        GROUP BY i.material.id
+    """)
+    List<Object[]> sumAvailableAndExpiredByMaterial(@Param("today") LocalDate today);
+
     // 【本次新增：銷售與庫存同步】
     // 銷售扣庫存前，以寫入鎖鎖定該原物料的所有庫存批次。
     // 批次依「有效庫存、效期、批次 ID」排序，避免多人同時結帳造成超賣，並優先扣除較早到期的庫存。

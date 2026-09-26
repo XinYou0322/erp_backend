@@ -28,9 +28,6 @@ import com.example.demo.systemsetting.SystemSettingKey;
 import com.example.demo.systemsetting.SystemSettingService;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
-import com.example.demo.inventorylog.InventoryLogService;
-import com.example.demo.systemsetting.SystemSettingKey;
-import com.example.demo.systemsetting.SystemSettingService;
 import com.example.demo.bom.Bom;
 import com.example.demo.bom.BomRepository;
 
@@ -229,7 +226,7 @@ public class SalesOrderService {
 			}
 		}
 	}
-    }	
+
     // 【本次新增：ECPay 測試金流】
     // ECPay 的 ReturnURL 與 OrderResultURL 可能重複通知，因此使用資料庫鎖與狀態判斷確保只扣一次庫存。
     @Transactional
@@ -274,9 +271,6 @@ public class SalesOrderService {
 	
 	if(salesOrder.getStatus()== SalesOrderStatus.VOIDED) {
 		throw new RuntimeException("此銷售單已經作廢");
-	}
-
-	inventoryLogService.restoreSaleDeduction(salesOrderId);
 	}
 
     // 【本次新增：ECPay 測試金流】待付款訂單尚未扣庫存，不允許走「回補庫存」的作廢流程。

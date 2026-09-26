@@ -25,8 +25,7 @@ public enum SystemSettingKey {
     SITE_LOGO_URL(
             "",
             "顯示於側邊欄與瀏覽器頁籤的網站圖示",
-            ValueType.STRING);
-            ValueType.BOOLEAN),
+            ValueType.STRING),
     SALES_INVENTORY_SYNC_ENABLED(
             "false",
             "是否在銷售完成時依 BOM 同步扣除庫存",
