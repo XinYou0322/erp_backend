@@ -57,6 +57,9 @@ public class SalesOrderItem {
 	//結帳當下的單價
 	@Column(name = "unit_price", nullable = false, precision = 18, scale = 2)
     private BigDecimal unitPrice;
+
+	@Column(name = "unit_cost", precision = 18, scale = 2)
+	private BigDecimal unitCost;
 	
 	@Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal subtotal;

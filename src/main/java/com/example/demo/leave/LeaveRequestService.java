@@ -11,6 +11,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.example.demo.leave.dto.CreateLeaveRequest;
 import com.example.demo.leave.dto.LeaveRequestResponse;
 import com.example.demo.leave.dto.UpdateLeaveRequest;
+import com.example.demo.leave.enums.LeaveDurationType;
 import com.example.demo.leave.enums.LeaveStatus;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
@@ -34,23 +35,24 @@ public class LeaveRequestService {
     private final WorkflowService workflowService;
 
     // 新增請假單
+    @Transactional
     public LeaveRequest createLeaveRequest(CreateLeaveRequest request) {
 
-        // 驗證請假天數日期區間是否合法
-        if (request.getEndDate().isBefore(request.getStartDate())) {
-            throw new IllegalArgumentException("結束日期不能早於開始日期");
-        }
         User applicant = userRepo.findById(request.getApplicantId())
-                .orElseThrow(() -> new RuntimeException("找不到申請人"));
+            .orElseThrow(() -> new RuntimeException("找不到申請人"));
 
-        // 建立LeaveRequest entity並存檔
         LeaveRequest leave = new LeaveRequest();
         leave.setApplicant(applicant);
         leave.setLeaveType(request.getLeaveType());
+        leave.setLeaveDurationType(request.getLeaveDurationType()); // null 會在下面補成 FULL_DAY
         leave.setStartDate(request.getStartDate());
         leave.setEndDate(request.getEndDate());
+        leave.setStartTime(request.getStartTime());
+        leave.setEndTime(request.getEndTime());
         leave.setReason(request.getReason());
         leave.setStatus(LeaveStatus.DRAFT);
+
+        normalizeAndValidate(leave);
 
         return leaveRepo.save(leave);
 
@@ -114,21 +116,27 @@ public class LeaveRequestService {
         if (request.getLeaveType() != null) {
             leave.setLeaveType(request.getLeaveType());
         }
+        if (request.getLeaveDurationType() != null) {
+            leave.setLeaveDurationType(request.getLeaveDurationType());
+        }
         if (request.getStartDate() != null) {
             leave.setStartDate(request.getStartDate());
         }
         if (request.getEndDate() != null) {
             leave.setEndDate(request.getEndDate());
         }
+        if (request.getStartTime() != null) {
+            leave.setStartTime(request.getStartTime());
+        }
+        if (request.getEndTime() != null) {
+            leave.setEndTime(request.getEndTime());
+        }
         if (request.getReason() != null) {
             leave.setReason(request.getReason());
         }
 
-        if (leave.getStartDate() != null && leave.getEndDate() != null) {
-            if (leave.getEndDate().isBefore(leave.getStartDate())) {
-                throw new IllegalArgumentException("結束日期不能早於開始日期");
-            }
-        }
+        // 用「合併後的最終狀態」驗證，而不是只驗證傳進來的欄位
+        normalizeAndValidate(leave);
 
         return leaveRepo.save(leave);
     }
@@ -189,6 +197,33 @@ public class LeaveRequestService {
         leaveRepo.deleteById(id);
     }
 
-  
+    private void normalizeAndValidate(LeaveRequest leave) {
+        if (leave.getLeaveDurationType() == null) {
+            leave.setLeaveDurationType(LeaveDurationType.FULL_DAY); // 相容舊版前端
+        }
+
+        if (leave.getStartDate() == null || leave.getEndDate() == null) {
+            throw new IllegalArgumentException("請選擇請假日期");
+        }
+        if (leave.getEndDate().isBefore(leave.getStartDate())) {
+            throw new IllegalArgumentException("結束日期不能早於開始日期");
+        }
+
+        if (leave.getLeaveDurationType() == LeaveDurationType.PARTIAL_DAY) {
+            if (!leave.getStartDate().equals(leave.getEndDate())) {
+                throw new IllegalArgumentException("部分時段請假只能是同一天");
+            }
+            if (leave.getStartTime() == null || leave.getEndTime() == null) {
+                throw new IllegalArgumentException("請填寫請假時間");
+            }
+            if (!leave.getEndTime().isAfter(leave.getStartTime())) {
+                throw new IllegalArgumentException("結束時間必須晚於開始時間");
+            }
+        } else {
+            // 全天：清掉時間，避免從部分時段切回全天時留下髒資料
+            leave.setStartTime(null);
+            leave.setEndTime(null);
+        }
+    }
 
 }

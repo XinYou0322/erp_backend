@@ -10,6 +10,8 @@ import java.time.YearMonth;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -18,10 +20,14 @@ import java.util.stream.IntStream;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.dashboard.dto.CostDetailResponse;
 import com.example.demo.dashboard.dto.DashboardResponse;
 import com.example.demo.dashboard.dto.HourlySalesResponse;
 import com.example.demo.dashboard.dto.MaterialConsumptionResponse;
+import com.example.demo.dashboard.dto.OrderValueAnalysisRequest;
+import com.example.demo.dashboard.dto.OrderValueAnalysisResponse;
 import com.example.demo.dashboard.dto.RevenueDetailRequest;
 import com.example.demo.dashboard.dto.RevenueDetailResponse;
 import com.example.demo.dashboard.dto.RevenueTrendResponse;
@@ -73,6 +79,14 @@ public class DashboardService {
                 Double avg = salesRepo.getAverageOrderBetween(todayStart, todayEnd);
                 response.setAverageOrderAmount(avg != null ? BigDecimal.valueOf(avg) : BigDecimal.ZERO);
 
+                // 6. 今日至今成本 + 較昨日同期（區間與營收完全一致）
+                BigDecimal todayCost = nullToZero(itemRepo.sumCostBetween(todayStart, todayEnd));
+                BigDecimal yesterdayCostSamePeriod = nullToZero(itemRepo.sumCostBetween(yesterdayStart, yesterdayEnd));
+
+                response.setTodayCost(todayCost);
+                response.setCostChangeRate(calcChangeRate(todayCost, yesterdayCostSamePeriod));
+                response.setTodayMissingCostCount(itemRepo.countItemsMissingCost(todayStart, todayEnd));
+                
                 LocalDateTime weekStart = today.minusDays(6).atStartOfDay(); // 包含今天共7天
                 LocalDateTime weekEnd = today.atTime(LocalTime.MAX);
                 LocalDateTime startDateForRecent = today.minusDays(6).atStartOfDay();
@@ -273,4 +287,167 @@ public class DashboardService {
                                 .divide(previous, 1, RoundingMode.HALF_UP) // 保留一位小數
                                 .doubleValue();
         }
+
+         
+        
+
+private static final String[] BUCKET_LABELS = { "$0-99", "$100-199", "$200-299", "$300以上" };
+
+private static int bucketIndex(BigDecimal amount) {
+    if (amount.compareTo(BigDecimal.valueOf(100)) < 0) return 0;
+    if (amount.compareTo(BigDecimal.valueOf(200)) < 0) return 1;
+    if (amount.compareTo(BigDecimal.valueOf(300)) < 0) return 2;
+    return 3;
+}
+
+@Transactional(readOnly = true)
+public OrderValueAnalysisResponse getOrderValueAnalysis(OrderValueAnalysisRequest request) {
+
+    // 1. 預設為「今日」（明確指定時區，避免伺服器時區不同造成日期錯位）
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Taipei"));
+    LocalDate startDate = request.getStartDate() != null ? request.getStartDate() : today;
+    LocalDate endDate = request.getEndDate() != null ? request.getEndDate() : today;
+
+    if (endDate.isBefore(startDate)) {
+        throw new IllegalArgumentException("結束日期不能早於開始日期");
+    }
+
+    // 半開區間 [start, end)：end 是「結束日的隔天 00:00」，不要用 LocalTime.MAX
+    LocalDateTime start = startDate.atStartOfDay();
+    LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+
+    OrderValueAnalysisResponse response = new OrderValueAnalysisResponse();
+
+    // ==========================================
+    // A. 客單價分佈（長條圖）
+    // ==========================================
+    long[] counts = new long[BUCKET_LABELS.length];
+    for (BigDecimal amount : salesRepo.findOrderAmountsBetween(start, end)) {
+        if (amount == null) continue; // 防 NPE
+        counts[bucketIndex(amount)]++;
+    }
+
+    // 固定四個區間、固定順序，沒有訂單的區間也回 0，前端圖表才不會缺柱子
+    List<Map<String, Object>> distributionList = new ArrayList<>();
+    for (int i = 0; i < BUCKET_LABELS.length; i++) {
+        distributionList.add(Map.<String, Object>of(
+                "range", BUCKET_LABELS[i],
+                "count", counts[i]));
+    }
+    response.setOrderValueDistribution(distributionList);
+
+    // ==========================================
+    // B. 支付方式 × 客單價（圓餅圖 + 列表）
+    // ==========================================
+    List<Map<String, Object>> paymentStatsList = new ArrayList<>();
+    for (Object[] row : salesRepo.findPaymentMethodStats(start, end)) {
+        String method = row[0] != null ? row[0].toString() : "未知";
+        BigDecimal avgAmount = row[1] != null
+                ? new BigDecimal(row[1].toString()).setScale(0, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        long orderCount = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+
+        Map<String, Object> stat = new HashMap<>();
+        stat.put("method", method);
+        stat.put("avgAmount", avgAmount);
+        stat.put("orderCount", orderCount);
+        paymentStatsList.add(stat);
+    }
+
+    // 平均客單價由高到低
+    paymentStatsList.sort(
+            Comparator.comparing((Map<String, Object> m) -> (BigDecimal) m.get("avgAmount")).reversed());
+
+    response.setPaymentMethodStats(paymentStatsList);
+
+    return response;
+}
+
+@Transactional(readOnly = true)
+public CostDetailResponse getCostDetail(LocalDate startDate, LocalDate endDate, String groupBy) {
+ 
+    if (endDate.isBefore(startDate)) {
+        throw new IllegalArgumentException("結束日期不能早於開始日期");
+    }
+    if (!List.of("DAY", "MONTH", "YEAR").contains(groupBy)) {
+        throw new IllegalArgumentException("groupBy 只能是 DAY、MONTH 或 YEAR");
+    }
+ 
+    LocalDateTime start = startDate.atStartOfDay();
+    LocalDateTime end = endDate.plusDays(1).atStartOfDay();
+ 
+    // 先把區間內每個時間桶填 0，沒有訂單的日期/月份圖表也不會斷掉
+    Map<String, BigDecimal> buckets = new LinkedHashMap<>();
+ 
+    switch (groupBy) {
+        case "MONTH" -> {
+            YearMonth last = YearMonth.from(endDate);
+            for (YearMonth ym = YearMonth.from(startDate); !ym.isAfter(last); ym = ym.plusMonths(1)) {
+                buckets.put(ym.toString(), BigDecimal.ZERO); // yyyy-MM
+            }
+            for (Object[] r : itemRepo.getCostGroupedByMonth(start, end)) {
+                String key = String.format("%04d-%02d",
+                        ((Number) r[0]).intValue(), ((Number) r[1]).intValue());
+                buckets.put(key, toBigDecimal(r[2]));
+            }
+        }
+        case "YEAR" -> {
+            for (int y = startDate.getYear(); y <= endDate.getYear(); y++) {
+                buckets.put(String.valueOf(y), BigDecimal.ZERO);
+            }
+            for (Object[] r : itemRepo.getCostGroupedByYear(start, end)) {
+                buckets.put(String.valueOf(((Number) r[0]).intValue()), toBigDecimal(r[1]));
+            }
+        }
+        default -> { // DAY
+            for (LocalDate d = startDate; !d.isAfter(endDate); d = d.plusDays(1)) {
+                buckets.put(d.toString(), BigDecimal.ZERO); // yyyy-MM-dd
+            }
+            for (Object[] r : itemRepo.getCostGroupedByDay(start, end)) {
+                buckets.put(r[0].toString(), toBigDecimal(r[1]));
+            }
+        }
+    }
+ 
+        List<CostDetailResponse.TrendPoint> trend = buckets.entrySet().stream()
+                .map(e -> new CostDetailResponse.TrendPoint(e.getKey(), e.getValue()))
+                .toList();
+        
+        // 本期 / 上期（上期 = 緊接在前、天數相同的區間；請和營收頁的定義對齊）
+        BigDecimal total = nullToZero(itemRepo.sumCostBetween(start, end));
+        
+        long days = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        LocalDate prevEndDate = startDate.minusDays(1);
+        LocalDate prevStartDate = prevEndDate.minusDays(days - 1);
+        BigDecimal previous = nullToZero(itemRepo.sumCostBetween(
+                prevStartDate.atStartOfDay(), prevEndDate.plusDays(1).atStartOfDay()));
+        
+        BigDecimal changeRate = previous.signum() == 0
+                ? null
+                : total.subtract(previous)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(previous, 1, RoundingMode.HALF_UP);
+
+        
+        
+        CostDetailResponse response = new CostDetailResponse();
+   
+        response.setTotalCost(total);
+        response.setPreviousCost(previous);
+        response.setChangeRate(changeRate);
+        response.setMissingCostCount(itemRepo.countItemsMissingCost(start, end));
+        response.setDailyTrend(trend);
+        return response;
+        }
+ 
+private static BigDecimal toBigDecimal(Object value) {
+    return value == null ? BigDecimal.ZERO : new BigDecimal(value.toString());
+}
+ 
+private static BigDecimal nullToZero(BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
+}
+
+
+
 }

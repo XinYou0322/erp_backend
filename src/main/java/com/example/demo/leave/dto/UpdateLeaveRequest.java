@@ -1,7 +1,9 @@
 package com.example.demo.leave.dto;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
+import com.example.demo.leave.enums.LeaveDurationType;
 import com.example.demo.leave.enums.LeaveType;
 
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +19,10 @@ public class UpdateLeaveRequest {
     private LeaveType leaveType;
     private LocalDate startDate;
     private LocalDate endDate;
+
+    private LeaveDurationType leaveDurationType;
+    private LocalTime startTime;
+    private LocalTime endTime;
 
     // 3. 保留格式驗證，但不強制必填
     // 注意：@NotBlank 對 null 是放行的。

@@ -1,5 +1,6 @@
 package com.example.demo.salesOrder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -100,5 +101,71 @@ public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, 
     List<Object[]> sumMaterialUsageBySalesOrderIds(
             @Param("status") SalesOrderStatus status,
             @Param("salesOrderIds") List<Long> salesOrderIds);
+
+    // 按「天」
+    @Query("""
+            SELECT CAST(o.createdAt AS date), SUM(i.quantity * i.unitCost)
+            FROM SalesOrderItem i JOIN i.salesOrder o
+            WHERE o.status = 'COMPLETED'
+            AND i.unitCost IS NOT NULL
+            AND o.createdAt >= :start
+            AND o.createdAt < :end
+            GROUP BY CAST(o.createdAt AS date)
+            ORDER BY CAST(o.createdAt AS date)
+            """)
+    List<Object[]> getCostGroupedByDay(@Param("start") LocalDateTime start,
+                                    @Param("end") LocalDateTime end);
+    
+    // 按「月」：回傳 [Year, Month, Sum]
+    @Query("""
+            SELECT YEAR(o.createdAt), MONTH(o.createdAt), SUM(i.quantity * i.unitCost)
+            FROM SalesOrderItem i JOIN i.salesOrder o
+            WHERE o.status = 'COMPLETED'
+            AND i.unitCost IS NOT NULL
+            AND o.createdAt >= :start
+            AND o.createdAt < :end
+            GROUP BY YEAR(o.createdAt), MONTH(o.createdAt)
+            ORDER BY YEAR(o.createdAt), MONTH(o.createdAt)
+            """)
+    List<Object[]> getCostGroupedByMonth(@Param("start") LocalDateTime start,
+                                        @Param("end") LocalDateTime end);
+    
+    // 按「年」：回傳 [Year, Sum]
+    @Query("""
+            SELECT YEAR(o.createdAt), SUM(i.quantity * i.unitCost)
+            FROM SalesOrderItem i JOIN i.salesOrder o
+            WHERE o.status = 'COMPLETED'
+            AND i.unitCost IS NOT NULL
+            AND o.createdAt >= :start
+            AND o.createdAt < :end
+            GROUP BY YEAR(o.createdAt)
+            ORDER BY YEAR(o.createdAt)
+            """)
+    List<Object[]> getCostGroupedByYear(@Param("start") LocalDateTime start,
+                                        @Param("end") LocalDateTime end);
+    
+    // 區間總成本
+    @Query("""
+            SELECT SUM(i.quantity * i.unitCost)
+            FROM SalesOrderItem i JOIN i.salesOrder o
+            WHERE o.status = 'COMPLETED'
+            AND i.unitCost IS NOT NULL
+            AND o.createdAt >= :start
+            AND o.createdAt < :end
+            """)
+    BigDecimal sumCostBetween(@Param("start") LocalDateTime start,
+                            @Param("end") LocalDateTime end);
+    
+    // 缺成本的明細筆數（提醒使用者成本可能偏低）
+    @Query("""
+            SELECT COUNT(i)
+            FROM SalesOrderItem i JOIN i.salesOrder o
+            WHERE o.status = 'COMPLETED'
+            AND i.unitCost IS NULL
+            AND o.createdAt >= :start
+            AND o.createdAt < :end
+            """)
+    long countItemsMissingCost(@Param("start") LocalDateTime start,
+                            @Param("end") LocalDateTime end);
 
 }

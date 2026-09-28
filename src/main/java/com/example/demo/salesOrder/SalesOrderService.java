@@ -150,6 +150,8 @@ public class SalesOrderService {
 
             item.setUnitPrice(unitPrice);
 
+			item.setUnitCost(product.getCostPrice());
+
             //subtotal 在 SalesOrderItem Entity 中不可為 null，必須存入本次計算的小計。
             item.setSubtotal(subtotal);
 
