@@ -81,7 +81,6 @@ IF OBJECT_ID(N'dbo.sales_orders', N'U') IS NULL
 DECLARE @NowUtc datetime2 = SYSUTCDATETIME();
 DECLARE @NowLocal datetime2 = SYSDATETIME();
 DECLARE @Today date = CAST(@NowLocal AS date);
-DECLARE @HistoryStart date = DATEADD(MONTH, -35, DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1));
 DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPnuRo5xeuwRu/zQ1YCVSPo.';
 
 
@@ -156,7 +155,7 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
         r.role_level,
         NULL,
         us.user_status,
-        DATEADD(DAY, -(us.created_days_ago + DATEDIFF(DAY, @HistoryStart, @Today)), @NowUtc)
+        DATEADD(DAY, -us.created_days_ago, @NowUtc)
     FROM @UserSeed us
     INNER JOIN roles r
         ON r.name = us.role_name
@@ -1452,15 +1451,12 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
 
     /* ======================================================================
        19. 每日十人輪班：正常 08:00～17:00，含部分遲到與早退（含週末）
-       每位使用者的建立日期由 @UserSeed.created_days_ago 分別設定，互不相同。
-       建立時間不同不等於每日人數受限，因此另以每日輪班安排十人；不足十人時全員出勤。
+       預設只建立最近 35 天，避免基礎資料產生大量歷史打卡紀錄。
+       每日輪班安排十人；不足十人時全員出勤。
        已核准請假期間不排班；其他請假狀態不影響出勤。
        ====================================================================== */
     DECLARE @ClockLocalOffsetMinutes int = DATEDIFF(MINUTE, @NowUtc, @NowLocal);
-    DECLARE @ClockFirstDay date;
-    SELECT @ClockFirstDay = MIN(CAST(
-        DATEADD(MINUTE, @ClockLocalOffsetMinutes, created_at) AS date))
-    FROM users;
+    DECLARE @ClockFirstDay date = DATEADD(DAY, -35, @Today);
 
     DELETE FROM clock_records;
 
@@ -1730,176 +1726,7 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
         );
     END;
 
-    /* 21. 近 36 個月份銷售與採購；完整月份銷售收入 500,000 元。 */
-    DECLARE @HistoryMonth date = @HistoryStart;
-    DECLARE @HistoryNextMonth date;
-    DECLARE @HistoryCutoff datetime2;
-    DECLARE @HistoryTarget decimal(18,2);
-    DECLARE @HistoryRemaining decimal(18,2);
-    DECLARE @HistoryOrderId bigint;
-    DECLARE @HistoryProductId bigint;
-    DECLARE @HistorySku varchar(50);
-    DECLARE @HistoryName nvarchar(100);
-    DECLARE @HistoryPrice decimal(18,2);
-    DECLARE @HistoryCost decimal(18,2);
-    DECLARE @HistoryQty int;
-    DECLARE @HistorySubtotal decimal(18,2);
-    DECLARE @HistoryTime datetime2;
-    DECLARE @HistorySerial int = 0;
-    DECLARE @HistoryCreator bigint = (SELECT id FROM users WHERE username = 'staff01');
-    DECLARE @HistoryApprover bigint = (SELECT id FROM users WHERE username = 'store_manager01');
-    DECLARE @HistoryPurchaseDay date;
-    DECLARE @HistoryPurchaseIndex int;
-    DECLARE @HistoryPurchaseId bigint;
-    DECLARE @HistoryPurchases TABLE (id bigint PRIMARY KEY);
-    DECLARE @HistoryTargets TABLE (month_start date PRIMARY KEY, target decimal(18,2));
-
-    DECLARE @HistoryProducts TABLE
-    (
-        product_no int PRIMARY KEY, product_id bigint, sku varchar(50), name nvarchar(100),
-        price decimal(18,2), cost decimal(18,2)
-    );
-    INSERT INTO @HistoryProducts
-    SELECT ROW_NUMBER() OVER (ORDER BY id), id, sku, name, selling_price,
-        COALESCE(cost_price, selling_price * 0.4)
-    FROM products WHERE status = 'ACTIVE' AND selling_price > 0;
-    DECLARE @HistoryProductCount int = (SELECT COUNT(*) FROM @HistoryProducts);
-    IF @HistoryProductCount = 0 THROW 50010, N'缺少銷售商品。', 1;
-    DECLARE @BatchNumbers TABLE (n int PRIMARY KEY);
-    ;WITH Digits AS (SELECT n FROM (VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) v(n))
-    INSERT INTO @BatchNumbers
-    SELECT 1+a.n+10*b.n+100*c.n+1000*d.n
-    FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c CROSS JOIN Digits d;
-    DECLARE @SalesBatch TABLE
-    (
-        order_no varchar(50) PRIMARY KEY, created_at datetime2, product_no int,
-        amount decimal(18,2), payment_method varchar(30)
-    );
-    DECLARE @SalesBatchIds TABLE (order_no varchar(50) PRIMARY KEY, id bigint);
-    DECLARE @HistoryProgress nvarchar(200);
-
-    WHILE @HistoryMonth <= @Today
-    BEGIN
-        SET @HistoryNextMonth = DATEADD(MONTH, 1, @HistoryMonth);
-        SET @HistoryCutoff = CASE WHEN @HistoryNextMonth <= @Today
-            THEN CAST(@HistoryNextMonth AS datetime2) ELSE @NowLocal END;
-        SET @HistoryTarget = CASE WHEN @HistoryNextMonth <= @Today THEN 500000.00
-            ELSE ROUND(500000.00 * DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff)
-                / DATEDIFF(SECOND, @HistoryMonth, @HistoryNextMonth), 2) END;
-        -- 原有今日/近期示範訂單也計入同月收入，避免重複增加月營收。
-        SELECT @HistoryRemaining = @HistoryTarget - COALESCE(SUM(total_amount), 0)
-        FROM sales_orders
-        WHERE status = 'COMPLETED' AND created_at >= @HistoryMonth AND created_at < @HistoryNextMonth;
-        -- 本月剛開始時原有示範訂單可能已超過按秒折算目標，保留真實明細總額。
-        IF @HistoryRemaining < 0
-        BEGIN
-            SET @HistoryTarget = @HistoryTarget - @HistoryRemaining;
-            SET @HistoryRemaining = 0;
-        END;
-        INSERT INTO @HistoryTargets VALUES (@HistoryMonth, @HistoryTarget);
-
-        DELETE FROM @SalesBatch;
-        DELETE FROM @SalesBatchIds;
-        ;WITH Planned AS
-        (
-            SELECT n.n, p.product_no,
-                p.price * (1 + (n.n * 7 % 5)) AS planned_amount
-            FROM @BatchNumbers n
-            INNER JOIN @HistoryProducts p ON p.product_no = ((n.n - 1) % @HistoryProductCount) + 1
-        ), Running AS
-        (
-            SELECT *, SUM(planned_amount) OVER (ORDER BY n ROWS UNBOUNDED PRECEDING)
-                - planned_amount AS prior_amount
-            FROM Planned
-        )
-        INSERT INTO @SalesBatch (order_no, created_at, product_no, amount, payment_method)
-        SELECT CONCAT('HIST-SO-', CONVERT(char(6), @HistoryMonth, 112), '-', n),
-            DATEADD(SECOND,
-                CAST(ABS(CAST(CHECKSUM(NEWID()) AS bigint))
-                    % CASE WHEN DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff) > 0
-                        THEN DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff) ELSE 1 END AS int),
-                CAST(@HistoryMonth AS datetime2)),
-            product_no,
-            CASE WHEN planned_amount <= @HistoryRemaining - prior_amount THEN planned_amount
-                ELSE @HistoryRemaining - prior_amount END,
-            CASE n % 3 WHEN 0 THEN 'CASH' WHEN 1 THEN 'CREDIT_CARD' ELSE 'MOBILE_PAYMENT' END
-        FROM Running WHERE prior_amount < @HistoryRemaining;
-        IF COALESCE((SELECT SUM(amount) FROM @SalesBatch), 0) <> @HistoryRemaining
-            THROW 50014, N'批次銷售金額不足月營收目標。', 1;
-
-        INSERT INTO sales_orders
-            (order_number, status, payment_method, total_amount, created_by_user_id, created_at, note)
-        OUTPUT inserted.order_number, inserted.id INTO @SalesBatchIds (order_no, id)
-        SELECT order_no, 'COMPLETED', payment_method, amount, @HistoryCreator, created_at,
-            N'[三年假資料] 月營收目標銷售'
-        FROM @SalesBatch;
-
-        INSERT INTO sales_order_items
-            (sales_order_id, product_id, product_sku, product_name, quantity, unit_price, unit_cost, subtotal)
-        SELECT ids.id, p.product_id, p.sku, p.name,
-            CAST(FLOOR(b.amount / p.price) AS int), p.price, p.cost,
-            FLOOR(b.amount / p.price) * p.price
-        FROM @SalesBatch b
-        INNER JOIN @SalesBatchIds ids ON ids.order_no = b.order_no
-        INNER JOIN @HistoryProducts p ON p.product_no = b.product_no
-        WHERE b.amount >= p.price;
-
-        -- 月末最後一張單的不足一杯金額另列優惠價明細，數量與小計保持一致。
-        INSERT INTO sales_order_items
-            (sales_order_id, product_id, product_sku, product_name, quantity, unit_price, unit_cost, subtotal)
-        SELECT ids.id, p.product_id, p.sku, p.name, 1,
-            b.amount - FLOOR(b.amount / p.price) * p.price, p.cost,
-            b.amount - FLOOR(b.amount / p.price) * p.price
-        FROM @SalesBatch b
-        INNER JOIN @SalesBatchIds ids ON ids.order_no = b.order_no
-        INNER JOIN @HistoryProducts p ON p.product_no = b.product_no
-        WHERE b.amount > FLOOR(b.amount / p.price) * p.price;
-
-        SET @HistoryProgress = CONCAT(N'已建立 ', CONVERT(char(7), @HistoryMonth, 120), N' 銷售資料');
-        RAISERROR(@HistoryProgress, 10, 1) WITH NOWAIT;
-
-
-        -- 每月四批採購，含三筆包裝單位明細；本月只產生已發生的批次。
-        SET @HistoryPurchaseIndex = 0;
-        WHILE @HistoryPurchaseIndex < 4
-        BEGIN
-            SET @HistoryPurchaseDay = DATEADD(DAY, @HistoryPurchaseIndex * 7, @HistoryMonth);
-            SET @HistoryTime = DATEADD(HOUR, 9, CAST(@HistoryPurchaseDay AS datetime2));
-            IF @HistoryTime <= @NowLocal
-            BEGIN
-                INSERT INTO purchase_orders
-                    (order_number, supplier_id, status, created_by_user_id, approved_by_user_id,
-                     total, created_at, updated_at, expected_delivery_date, decision_remark)
-                SELECT CONCAT('HIST-PO-', CONVERT(char(8), @HistoryPurchaseDay, 112)),
-                    s.id, 'APPROVED', @HistoryCreator, @HistoryApprover, 0,
-                    @HistoryTime, @HistoryTime, @HistoryPurchaseDay, N'[三年假資料] 定期原料採購'
-                FROM suppliers s WHERE s.id = (SELECT MIN(id) FROM suppliers);
-                SET @HistoryPurchaseId = SCOPE_IDENTITY();
-                INSERT INTO @HistoryPurchases VALUES (@HistoryPurchaseId);
-                INSERT INTO purchase_order_items (purchase_order_id, material_id, quantity, price)
-                SELECT TOP (3) @HistoryPurchaseId, id,
-                    10 + ABS(CAST(CHECKSUM(NEWID()) AS bigint)) % 21, purchase_cost
-                FROM materials WHERE status = 'ACTIVE' AND purchase_cost > 0 ORDER BY NEWID();
-                UPDATE purchase_orders
-                SET total = (SELECT SUM(quantity * price) FROM purchase_order_items WHERE purchase_order_id = @HistoryPurchaseId)
-                WHERE id = @HistoryPurchaseId;
-            END;
-            SET @HistoryPurchaseIndex += 1;
-        END;
-        SET @HistoryMonth = @HistoryNextMonth;
-    END;
-
-    INSERT INTO workflows (document_type, document_id, status, applicant_id, approver_id, created_at)
-    SELECT 'ORDER', po.id, 'APPROVED', po.created_by_user_id, po.approved_by_user_id, po.created_at
-    FROM purchase_orders po INNER JOIN @HistoryPurchases hp ON hp.id = po.id;
-    INSERT INTO workflow_logs (workflow_id, action, operator_id, remark, created_at)
-    SELECT w.id, action_seed.action,
-        CASE WHEN action_seed.action = 'SUBMIT' THEN w.applicant_id ELSE w.approver_id END,
-        N'[三年假資料] 採購簽核', w.created_at
-    FROM workflows w INNER JOIN @HistoryPurchases hp ON hp.id = w.document_id
-    CROSS JOIN (VALUES ('SUBMIT'), ('APPROVE')) action_seed(action)
-    WHERE w.document_type = 'ORDER';
-
+    /* 大量歷史交易已拆分至 sql/seed/history-data.sql，預設初始化不再建立。 */
 
     /* 22. 補齊銷售明細的單位成本。 */
     UPDATE i
@@ -1996,20 +1823,6 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
     FROM sales_orders so INNER JOIN @SalesTotals totals ON totals.order_id = so.id
     WHERE so.status = 'COMPLETED';
 
-    -- 月營收以 COMPLETED 計算，不含作廢單，且須等於全部明細加總。
-    IF EXISTS
-    (
-        SELECT 1 FROM @HistoryTargets ht
-        CROSS APPLY
-        (
-            SELECT COALESCE(SUM(so.total_amount), 0) AS total
-            FROM sales_orders so WHERE so.status = 'COMPLETED'
-              AND so.created_at >= ht.month_start
-              AND so.created_at < DATEADD(MONTH, 1, ht.month_start)
-        ) actual
-        WHERE actual.total <> ht.target
-    ) THROW 50011, N'月銷售收入與目標不一致。', 1;
-
     IF EXISTS
     (
         SELECT 1 FROM sales_orders so
@@ -2024,16 +1837,6 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
     COMMIT TRANSACTION;
 
     PRINT N'ERP 假資料建立完成。';
-    SELECT ht.month_start, ht.target AS target_revenue,
-           SUM(so.total_amount) AS actual_revenue, COUNT(so.id) AS order_count
-    FROM @HistoryTargets ht
-    LEFT JOIN sales_orders so ON so.status = 'COMPLETED'
-        AND so.created_at >= ht.month_start AND so.created_at < DATEADD(MONTH, 1, ht.month_start)
-    GROUP BY ht.month_start, ht.target
-    ORDER BY ht.month_start;
-
-
-
     /* 執行完成後回傳本腳本建立的主要資料筆數。 */
     SELECT
         (SELECT COUNT(*) FROM users u INNER JOIN @UserSeed us ON us.username = u.username) AS users_count,
