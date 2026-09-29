@@ -29,7 +29,7 @@ public class AttendanceCalendarService {
 
     // 找不到任何排班設定時的保底預設值 (週一到週五 09:00-18:00，無緩衝)
     private static final WorkSchedule FALLBACK_SCHEDULE =
-            new WorkSchedule(null, LocalTime.of(9, 0), LocalTime.of(18, 0));
+            new WorkSchedule(null, LocalTime.of(8, 0), LocalTime.of(17, 0));
 
     public List<DailyAttendanceDto> getMonthlyAttendance(String userId, YearMonth yearMonth) {
         LocalDate start = yearMonth.atDay(1);

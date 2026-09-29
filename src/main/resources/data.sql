@@ -7,6 +7,9 @@
    僅建議用於開發環境。
    ============================================================= */
 SET NOCOUNT ON;
+SET XACT_ABORT ON;
+BEGIN TRY
+    BEGIN TRANSACTION;
 
 /*
    已改為所有訂單與分析都使用最新 BOM。
@@ -43,24 +46,24 @@ DELETE FROM users;
 DELETE FROM roles;
 
 /* ---------- 2. IDENTITY RESEED ---------- */
-DBCC CHECKIDENT ('workflow_logs', RESEED, 0);
-DBCC CHECKIDENT ('workflows', RESEED, 0);
-DBCC CHECKIDENT ('leave_requests', RESEED, 0);
-DBCC CHECKIDENT ('purchase_order_items', RESEED, 0);
-DBCC CHECKIDENT ('purchase_orders', RESEED, 0);
-DBCC CHECKIDENT ('supplier_note', RESEED, 0);
-DBCC CHECKIDENT ('sales_order_items', RESEED, 0);
-DBCC CHECKIDENT ('sales_orders', RESEED, 0);
-DBCC CHECKIDENT ('notification_record', RESEED, 0);
-DBCC CHECKIDENT ('inventory_logs', RESEED, 0);
-DBCC CHECKIDENT ('inventories', RESEED, 0);
-DBCC CHECKIDENT ('bom', RESEED, 0);
-DBCC CHECKIDENT ('products', RESEED, 0);
-DBCC CHECKIDENT ('materials', RESEED, 0);
-DBCC CHECKIDENT ('product_categories', RESEED, 0);
-DBCC CHECKIDENT ('suppliers', RESEED, 0);
-DBCC CHECKIDENT ('users', RESEED, 0);
-DBCC CHECKIDENT ('roles', RESEED, 0);
+DBCC CHECKIDENT ('workflow_logs', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('workflows', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('leave_requests', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('purchase_order_items', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('purchase_orders', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('supplier_note', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('sales_order_items', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('sales_orders', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('notification_record', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('inventory_logs', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('inventories', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('bom', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('products', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('materials', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('product_categories', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('suppliers', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('users', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('roles', RESEED, 0) WITH NO_INFOMSGS;
 
 /* ---------- 以下假資料同步自 假資料.sql ---------- */
 SET NOCOUNT ON;
@@ -77,11 +80,10 @@ IF OBJECT_ID(N'dbo.sales_orders', N'U') IS NULL
 
 DECLARE @NowUtc datetime2 = SYSUTCDATETIME();
 DECLARE @NowLocal datetime2 = SYSDATETIME();
-DECLARE @Today date = CAST(GETDATE() AS date);
+DECLARE @Today date = CAST(@NowLocal AS date);
+DECLARE @HistoryStart date = DATEADD(MONTH, -35, DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1));
 DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPnuRo5xeuwRu/zQ1YCVSPo.';
 
-BEGIN TRY
-    BEGIN TRANSACTION;
 
     /* ======================================================================
        1. 角色
@@ -154,7 +156,7 @@ BEGIN TRY
         r.role_level,
         NULL,
         us.user_status,
-        DATEADD(DAY, -us.created_days_ago, @NowUtc)
+        DATEADD(DAY, -(us.created_days_ago + DATEDIFF(DAY, @HistoryStart, @Today)), @NowUtc)
     FROM @UserSeed us
     INNER JOIN roles r
         ON r.name = us.role_name
@@ -1026,7 +1028,12 @@ BEGIN TRY
         0.00,
         creator.id,
         NULL,
-        DATEADD(MINUTE, ts.created_minute_of_day, CAST(@Today AS datetime2)),
+        -- 今日銷售時間不得超過本次執行當下，仍保留全部 12 筆假資料。
+        CASE
+            WHEN DATEADD(MINUTE, ts.created_minute_of_day, CAST(@Today AS datetime2)) > @NowLocal
+                THEN @NowLocal
+            ELSE DATEADD(MINUTE, ts.created_minute_of_day, CAST(@Today AS datetime2))
+        END,
         NULL,
         ts.note,
         NULL
@@ -1444,76 +1451,153 @@ BEGIN TRY
     );
 
     /* ======================================================================
-       19. 打卡紀錄
-       clock_type：CLOCK_IN / CLOCK_OUT
+       19. 每日十人輪班：正常 08:00～17:00，含部分遲到與早退（含週末）
+       每位使用者的建立日期由 @UserSeed.created_days_ago 分別設定，互不相同。
+       建立時間不同不等於每日人數受限，因此另以每日輪班安排十人；不足十人時全員出勤。
+       已核准請假期間不排班；其他請假狀態不影響出勤。
        ====================================================================== */
-    DECLARE @ClockUserSeed TABLE
+    DECLARE @ClockLocalOffsetMinutes int = DATEDIFF(MINUTE, @NowUtc, @NowLocal);
+    DECLARE @ClockFirstDay date;
+    SELECT @ClockFirstDay = MIN(CAST(
+        DATEADD(MINUTE, @ClockLocalOffsetMinutes, created_at) AS date))
+    FROM users;
+
+    DELETE FROM clock_records;
+
+    -- 每日狀態對照表：執行完成後回傳，不修改現有資料庫結構。
+    DECLARE @DailyAttendanceSeed TABLE
     (
-        username varchar(50) PRIMARY KEY,
-        minute_offset int
+        work_day date NOT NULL,
+        user_id bigint NOT NULL,
+        attendance_status varchar(10) NOT NULL,
+        PRIMARY KEY (work_day, user_id)
     );
 
-    INSERT INTO @ClockUserSeed (username, minute_offset)
-    VALUES
-        ('staff01',  0),
-        ('staff02',  6),
-        ('staff03', 12),
-        ('staff04', 18),
-        ('staff05', 24),
-        ('pt01',    30),
-        ('pt02',    36);
-
-    DECLARE @ClockDaySeed TABLE
+    ;WITH ClockDays AS
     (
-        days_ago int PRIMARY KEY
-    );
-
-    INSERT INTO @ClockDaySeed (days_ago)
-    VALUES (1),(2),(3),(4),(5);
-
-    ;WITH ClockRows AS
-    (
-        SELECT
-            CONVERT(varchar(50), u.id) AS user_id,
-            DATEADD
-            (
-                MINUTE,
-                8 * 60 + cus.minute_offset,
-                CAST(DATEADD(DAY, -cds.days_ago, @Today) AS datetime2)
-            ) AS clock_time,
-            'CLOCK_IN' AS clock_type
-        FROM @ClockUserSeed cus
-        INNER JOIN users u
-            ON u.username = cus.username
-        CROSS JOIN @ClockDaySeed cds
-
+        SELECT @ClockFirstDay AS work_day
+        WHERE @ClockFirstDay <= @Today
         UNION ALL
-
-        SELECT
-            CONVERT(varchar(50), u.id),
-            DATEADD
-            (
-                MINUTE,
-                17 * 60 + 30 + cus.minute_offset,
-                CAST(DATEADD(DAY, -cds.days_ago, @Today) AS datetime2)
-            ),
-            'CLOCK_OUT'
-        FROM @ClockUserSeed cus
-        INNER JOIN users u
-            ON u.username = cus.username
-        CROSS JOIN @ClockDaySeed cds
-    )
-    INSERT INTO clock_records (user_id, clock_time, clock_type)
-    SELECT cr.user_id, cr.clock_time, cr.clock_type
-    FROM ClockRows cr
-    WHERE NOT EXISTS
+        SELECT DATEADD(DAY, 1, work_day)
+        FROM ClockDays
+        WHERE work_day < @Today
+    ),
+    ClockUsers AS
     (
-        SELECT 1
-        FROM clock_records existing_record
-        WHERE existing_record.user_id = cr.user_id
-          AND existing_record.clock_time = cr.clock_time
-          AND existing_record.clock_type = cr.clock_type
-    );
+        SELECT id AS user_id,
+               DATEADD(MINUTE, @ClockLocalOffsetMinutes, created_at) AS created_local,
+               ROW_NUMBER() OVER (ORDER BY created_at, id) - 1 AS rotation_index,
+               COUNT(*) OVER () AS user_count
+        FROM users
+    ),
+    RankedShifts AS
+    (
+        SELECT d.work_day, u.user_id,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY d.work_day
+                   ORDER BY
+                       (u.rotation_index + u.user_count
+                         - (DATEDIFF(DAY, @ClockFirstDay, d.work_day) * 10 % u.user_count))
+                           % u.user_count,
+                       u.user_id
+               ) AS shift_rank
+        FROM ClockDays d
+        INNER JOIN ClockUsers u
+            ON u.created_local <= DATEADD(HOUR, 8, CAST(d.work_day AS datetime2))
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM leave_requests lr
+            WHERE lr.applicant_id = u.user_id
+              AND lr.status = 'APPROVED'
+              AND d.work_day BETWEEN CAST(lr.start_date AS date) AND CAST(lr.end_date AS date)
+        )
+    )
+    INSERT INTO @DailyAttendanceSeed (work_day, user_id, attendance_status)
+    SELECT d.work_day, u.user_id,
+           CASE
+               WHEN EXISTS
+               (
+                   SELECT 1 FROM leave_requests lr
+                   WHERE lr.applicant_id = u.user_id AND lr.status = 'APPROVED'
+                     AND d.work_day BETWEEN CAST(lr.start_date AS date) AND CAST(lr.end_date AS date)
+               ) THEN 'LEAVE'
+               WHEN r.shift_rank <= 10 THEN 'WORK'
+               ELSE 'REST'
+           END
+    FROM ClockDays d
+    INNER JOIN ClockUsers u
+        ON u.created_local <= DATEADD(HOUR, 8, CAST(d.work_day AS datetime2))
+    LEFT JOIN RankedShifts r ON r.work_day = d.work_day AND r.user_id = u.user_id
+    OPTION (MAXRECURSION 0);
+
+    INSERT INTO clock_records (clock_time, clock_type, user_id)
+    SELECT times.clock_time, shifts.clock_type, CONVERT(varchar(50), r.user_id)
+    FROM @DailyAttendanceSeed r
+    CROSS JOIN (VALUES (8, 'CLOCK_IN'), (17, 'CLOCK_OUT')) shifts(hour_of_day, clock_type)
+    CROSS APPLY
+    (
+        -- 以人員與日期穩定分配異常；約 1/11 遲到、1/13 早退，可同日發生。
+        VALUES
+        (
+            DATEADD(MINUTE,
+                CASE
+                    WHEN shifts.clock_type = 'CLOCK_IN'
+                         AND (DATEDIFF(DAY, @ClockFirstDay, r.work_day) + r.user_id) % 11 = 0
+                        THEN 15 + CAST((DATEDIFF(DAY, @ClockFirstDay, r.work_day) + r.user_id * 7) % 31 AS int)
+                    WHEN shifts.clock_type = 'CLOCK_OUT'
+                         AND (DATEDIFF(DAY, @ClockFirstDay, r.work_day) + r.user_id) % 13 = 0
+                        THEN -(15 + CAST((DATEDIFF(DAY, @ClockFirstDay, r.work_day) + r.user_id * 5) % 31 AS int))
+                    ELSE 0
+                END,
+                DATEADD(HOUR, shifts.hour_of_day, CAST(r.work_day AS datetime2)))
+        )
+    ) times(clock_time)
+    WHERE r.attendance_status = 'WORK'
+      AND times.clock_time <= @NowLocal;
+
+    IF EXISTS
+    (
+        SELECT work_day FROM @DailyAttendanceSeed
+        GROUP BY work_day
+        HAVING SUM(CASE WHEN attendance_status = 'WORK' THEN 1 ELSE 0 END)
+            <> CASE
+                WHEN SUM(CASE WHEN attendance_status <> 'LEAVE' THEN 1 ELSE 0 END) >= 10 THEN 10
+                ELSE SUM(CASE WHEN attendance_status <> 'LEAVE' THEN 1 ELSE 0 END)
+               END
+    )
+        THROW 50009, N'每日班表未安排足額十人（可出勤人數不足時應全員安排）。', 1;
+
+    -- 實際執行時驗證人數、請假及時間，若不一致則回復整筆交易。
+    IF EXISTS
+    (
+        SELECT CAST(clock_time AS date)
+        FROM clock_records
+        GROUP BY CAST(clock_time AS date)
+        HAVING COUNT(DISTINCT user_id) > 10
+    )
+        THROW 50006, N'打卡假資料每日出勤人數超過十人。', 1;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM clock_records cr
+        INNER JOIN leave_requests lr
+            ON CONVERT(varchar(50), lr.applicant_id) = cr.user_id
+        WHERE lr.status = 'APPROVED'
+          AND CAST(cr.clock_time AS date)
+              BETWEEN CAST(lr.start_date AS date) AND CAST(lr.end_date AS date)
+    )
+        THROW 50007, N'已核准請假期間不應有打卡紀錄。', 1;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM clock_records cr
+        INNER JOIN users u ON CONVERT(varchar(50), u.id) = cr.user_id
+        WHERE cr.clock_time > @NowLocal
+           OR cr.clock_time < DATEADD(MINUTE, @ClockLocalOffsetMinutes, u.created_at)
+    )
+        THROW 50008, N'打卡時間超過現在或早於使用者建立時間。', 1;
 
     /* ======================================================================
        20. 行事曆事件與參與者
@@ -1646,9 +1730,309 @@ BEGIN TRY
         );
     END;
 
+    /* 21. 近 36 個月份銷售與採購；完整月份銷售收入 500,000 元。 */
+    DECLARE @HistoryMonth date = @HistoryStart;
+    DECLARE @HistoryNextMonth date;
+    DECLARE @HistoryCutoff datetime2;
+    DECLARE @HistoryTarget decimal(18,2);
+    DECLARE @HistoryRemaining decimal(18,2);
+    DECLARE @HistoryOrderId bigint;
+    DECLARE @HistoryProductId bigint;
+    DECLARE @HistorySku varchar(50);
+    DECLARE @HistoryName nvarchar(100);
+    DECLARE @HistoryPrice decimal(18,2);
+    DECLARE @HistoryCost decimal(18,2);
+    DECLARE @HistoryQty int;
+    DECLARE @HistorySubtotal decimal(18,2);
+    DECLARE @HistoryTime datetime2;
+    DECLARE @HistorySerial int = 0;
+    DECLARE @HistoryCreator bigint = (SELECT id FROM users WHERE username = 'staff01');
+    DECLARE @HistoryApprover bigint = (SELECT id FROM users WHERE username = 'store_manager01');
+    DECLARE @HistoryPurchaseDay date;
+    DECLARE @HistoryPurchaseIndex int;
+    DECLARE @HistoryPurchaseId bigint;
+    DECLARE @HistoryPurchases TABLE (id bigint PRIMARY KEY);
+    DECLARE @HistoryTargets TABLE (month_start date PRIMARY KEY, target decimal(18,2));
+
+    DECLARE @HistoryProducts TABLE
+    (
+        product_no int PRIMARY KEY, product_id bigint, sku varchar(50), name nvarchar(100),
+        price decimal(18,2), cost decimal(18,2)
+    );
+    INSERT INTO @HistoryProducts
+    SELECT ROW_NUMBER() OVER (ORDER BY id), id, sku, name, selling_price,
+        COALESCE(cost_price, selling_price * 0.4)
+    FROM products WHERE status = 'ACTIVE' AND selling_price > 0;
+    DECLARE @HistoryProductCount int = (SELECT COUNT(*) FROM @HistoryProducts);
+    IF @HistoryProductCount = 0 THROW 50010, N'缺少銷售商品。', 1;
+    DECLARE @BatchNumbers TABLE (n int PRIMARY KEY);
+    ;WITH Digits AS (SELECT n FROM (VALUES(0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) v(n))
+    INSERT INTO @BatchNumbers
+    SELECT 1+a.n+10*b.n+100*c.n+1000*d.n
+    FROM Digits a CROSS JOIN Digits b CROSS JOIN Digits c CROSS JOIN Digits d;
+    DECLARE @SalesBatch TABLE
+    (
+        order_no varchar(50) PRIMARY KEY, created_at datetime2, product_no int,
+        amount decimal(18,2), payment_method varchar(30)
+    );
+    DECLARE @SalesBatchIds TABLE (order_no varchar(50) PRIMARY KEY, id bigint);
+    DECLARE @HistoryProgress nvarchar(200);
+
+    WHILE @HistoryMonth <= @Today
+    BEGIN
+        SET @HistoryNextMonth = DATEADD(MONTH, 1, @HistoryMonth);
+        SET @HistoryCutoff = CASE WHEN @HistoryNextMonth <= @Today
+            THEN CAST(@HistoryNextMonth AS datetime2) ELSE @NowLocal END;
+        SET @HistoryTarget = CASE WHEN @HistoryNextMonth <= @Today THEN 500000.00
+            ELSE ROUND(500000.00 * DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff)
+                / DATEDIFF(SECOND, @HistoryMonth, @HistoryNextMonth), 2) END;
+        -- 原有今日/近期示範訂單也計入同月收入，避免重複增加月營收。
+        SELECT @HistoryRemaining = @HistoryTarget - COALESCE(SUM(total_amount), 0)
+        FROM sales_orders
+        WHERE status = 'COMPLETED' AND created_at >= @HistoryMonth AND created_at < @HistoryNextMonth;
+        -- 本月剛開始時原有示範訂單可能已超過按秒折算目標，保留真實明細總額。
+        IF @HistoryRemaining < 0
+        BEGIN
+            SET @HistoryTarget = @HistoryTarget - @HistoryRemaining;
+            SET @HistoryRemaining = 0;
+        END;
+        INSERT INTO @HistoryTargets VALUES (@HistoryMonth, @HistoryTarget);
+
+        DELETE FROM @SalesBatch;
+        DELETE FROM @SalesBatchIds;
+        ;WITH Planned AS
+        (
+            SELECT n.n, p.product_no,
+                p.price * (1 + (n.n * 7 % 5)) AS planned_amount
+            FROM @BatchNumbers n
+            INNER JOIN @HistoryProducts p ON p.product_no = ((n.n - 1) % @HistoryProductCount) + 1
+        ), Running AS
+        (
+            SELECT *, SUM(planned_amount) OVER (ORDER BY n ROWS UNBOUNDED PRECEDING)
+                - planned_amount AS prior_amount
+            FROM Planned
+        )
+        INSERT INTO @SalesBatch (order_no, created_at, product_no, amount, payment_method)
+        SELECT CONCAT('HIST-SO-', CONVERT(char(6), @HistoryMonth, 112), '-', n),
+            DATEADD(SECOND,
+                CAST(ABS(CAST(CHECKSUM(NEWID()) AS bigint))
+                    % CASE WHEN DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff) > 0
+                        THEN DATEDIFF(SECOND, @HistoryMonth, @HistoryCutoff) ELSE 1 END AS int),
+                CAST(@HistoryMonth AS datetime2)),
+            product_no,
+            CASE WHEN planned_amount <= @HistoryRemaining - prior_amount THEN planned_amount
+                ELSE @HistoryRemaining - prior_amount END,
+            CASE n % 3 WHEN 0 THEN 'CASH' WHEN 1 THEN 'CREDIT_CARD' ELSE 'MOBILE_PAYMENT' END
+        FROM Running WHERE prior_amount < @HistoryRemaining;
+        IF COALESCE((SELECT SUM(amount) FROM @SalesBatch), 0) <> @HistoryRemaining
+            THROW 50014, N'批次銷售金額不足月營收目標。', 1;
+
+        INSERT INTO sales_orders
+            (order_number, status, payment_method, total_amount, created_by_user_id, created_at, note)
+        OUTPUT inserted.order_number, inserted.id INTO @SalesBatchIds (order_no, id)
+        SELECT order_no, 'COMPLETED', payment_method, amount, @HistoryCreator, created_at,
+            N'[三年假資料] 月營收目標銷售'
+        FROM @SalesBatch;
+
+        INSERT INTO sales_order_items
+            (sales_order_id, product_id, product_sku, product_name, quantity, unit_price, unit_cost, subtotal)
+        SELECT ids.id, p.product_id, p.sku, p.name,
+            CAST(FLOOR(b.amount / p.price) AS int), p.price, p.cost,
+            FLOOR(b.amount / p.price) * p.price
+        FROM @SalesBatch b
+        INNER JOIN @SalesBatchIds ids ON ids.order_no = b.order_no
+        INNER JOIN @HistoryProducts p ON p.product_no = b.product_no
+        WHERE b.amount >= p.price;
+
+        -- 月末最後一張單的不足一杯金額另列優惠價明細，數量與小計保持一致。
+        INSERT INTO sales_order_items
+            (sales_order_id, product_id, product_sku, product_name, quantity, unit_price, unit_cost, subtotal)
+        SELECT ids.id, p.product_id, p.sku, p.name, 1,
+            b.amount - FLOOR(b.amount / p.price) * p.price, p.cost,
+            b.amount - FLOOR(b.amount / p.price) * p.price
+        FROM @SalesBatch b
+        INNER JOIN @SalesBatchIds ids ON ids.order_no = b.order_no
+        INNER JOIN @HistoryProducts p ON p.product_no = b.product_no
+        WHERE b.amount > FLOOR(b.amount / p.price) * p.price;
+
+        SET @HistoryProgress = CONCAT(N'已建立 ', CONVERT(char(7), @HistoryMonth, 120), N' 銷售資料');
+        RAISERROR(@HistoryProgress, 10, 1) WITH NOWAIT;
+
+
+        -- 每月四批採購，含三筆包裝單位明細；本月只產生已發生的批次。
+        SET @HistoryPurchaseIndex = 0;
+        WHILE @HistoryPurchaseIndex < 4
+        BEGIN
+            SET @HistoryPurchaseDay = DATEADD(DAY, @HistoryPurchaseIndex * 7, @HistoryMonth);
+            SET @HistoryTime = DATEADD(HOUR, 9, CAST(@HistoryPurchaseDay AS datetime2));
+            IF @HistoryTime <= @NowLocal
+            BEGIN
+                INSERT INTO purchase_orders
+                    (order_number, supplier_id, status, created_by_user_id, approved_by_user_id,
+                     total, created_at, updated_at, expected_delivery_date, decision_remark)
+                SELECT CONCAT('HIST-PO-', CONVERT(char(8), @HistoryPurchaseDay, 112)),
+                    s.id, 'APPROVED', @HistoryCreator, @HistoryApprover, 0,
+                    @HistoryTime, @HistoryTime, @HistoryPurchaseDay, N'[三年假資料] 定期原料採購'
+                FROM suppliers s WHERE s.id = (SELECT MIN(id) FROM suppliers);
+                SET @HistoryPurchaseId = SCOPE_IDENTITY();
+                INSERT INTO @HistoryPurchases VALUES (@HistoryPurchaseId);
+                INSERT INTO purchase_order_items (purchase_order_id, material_id, quantity, price)
+                SELECT TOP (3) @HistoryPurchaseId, id,
+                    10 + ABS(CAST(CHECKSUM(NEWID()) AS bigint)) % 21, purchase_cost
+                FROM materials WHERE status = 'ACTIVE' AND purchase_cost > 0 ORDER BY NEWID();
+                UPDATE purchase_orders
+                SET total = (SELECT SUM(quantity * price) FROM purchase_order_items WHERE purchase_order_id = @HistoryPurchaseId)
+                WHERE id = @HistoryPurchaseId;
+            END;
+            SET @HistoryPurchaseIndex += 1;
+        END;
+        SET @HistoryMonth = @HistoryNextMonth;
+    END;
+
+    INSERT INTO workflows (document_type, document_id, status, applicant_id, approver_id, created_at)
+    SELECT 'ORDER', po.id, 'APPROVED', po.created_by_user_id, po.approved_by_user_id, po.created_at
+    FROM purchase_orders po INNER JOIN @HistoryPurchases hp ON hp.id = po.id;
+    INSERT INTO workflow_logs (workflow_id, action, operator_id, remark, created_at)
+    SELECT w.id, action_seed.action,
+        CASE WHEN action_seed.action = 'SUBMIT' THEN w.applicant_id ELSE w.approver_id END,
+        N'[三年假資料] 採購簽核', w.created_at
+    FROM workflows w INNER JOIN @HistoryPurchases hp ON hp.id = w.document_id
+    CROSS JOIN (VALUES ('SUBMIT'), ('APPROVE')) action_seed(action)
+    WHERE w.document_type = 'ORDER';
+
+
+    /* 22. 補齊銷售明細的單位成本。 */
+    UPDATE i
+    SET i.unit_cost = p.cost_price
+    FROM sales_order_items i
+    INNER JOIN products p ON p.id = i.product_id
+    WHERE i.unit_cost IS NULL;
+
+    /* ======================================================================
+       24. 依共用取號模組格式統一正式單號
+       PO-yyyyMMdd-0001 / SO-yyyyMMdd-0001；種類與日期各自累加。
+       本初始化腳本已清空兩張訂單表，故每日流水號由 1 開始。
+       歷史假資料使用建立日期；相同時間以 id 決定順序。
+       先完成舊種子鍵的明細與簽核關聯，再統一換號。
+       ====================================================================== */
+    DECLARE @DocumentNumberMap TABLE
+    (
+        document_type varchar(2) NOT NULL,
+        document_id bigint NOT NULL,
+        old_number varchar(50) NOT NULL,
+        new_number varchar(50) NOT NULL,
+        PRIMARY KEY (document_type, document_id),
+        UNIQUE (document_type, new_number)
+    );
+
+    ;WITH NumberedDocuments AS
+    (
+        SELECT 'PO' AS document_type, id AS document_id, order_number AS old_number,
+               CONVERT(char(8), created_at, 112) AS date_text,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY CAST(created_at AS date)
+                   ORDER BY created_at, id
+               ) AS sequence_no
+        FROM purchase_orders
+        UNION ALL
+        SELECT 'SO', id, order_number,
+               CONVERT(char(8), created_at, 112),
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY CAST(created_at AS date)
+                   ORDER BY created_at, id
+               )
+        FROM sales_orders
+    )
+    INSERT INTO @DocumentNumberMap
+        (document_type, document_id, old_number, new_number)
+    SELECT document_type, document_id, old_number,
+           CONCAT(document_type, '-', date_text, '-',
+               CASE WHEN sequence_no < 10000
+                    THEN RIGHT('0000' + CONVERT(varchar(20), sequence_no), 4)
+                    ELSE CONVERT(varchar(20), sequence_no)
+               END)
+    FROM NumberedDocuments;
+
+    UPDATE ce
+    SET ce.related_ref = nm.new_number
+    FROM calendar_events ce
+    INNER JOIN @DocumentNumberMap nm ON nm.old_number = ce.related_ref
+    WHERE nm.document_type = 'PO';
+
+    UPDATE pos
+    SET pos.order_no = nm.new_number
+    FROM @PurchaseOrderSeed pos
+    INNER JOIN @DocumentNumberMap nm ON nm.old_number = pos.order_no
+    WHERE nm.document_type = 'PO';
+
+    UPDATE po
+    SET po.order_number = nm.new_number
+    FROM purchase_orders po
+    INNER JOIN @DocumentNumberMap nm ON nm.document_id = po.id
+    WHERE nm.document_type = 'PO';
+
+    UPDATE so
+    SET so.order_number = nm.new_number
+    FROM sales_orders so
+    INNER JOIN @DocumentNumberMap nm ON nm.document_id = so.id
+    WHERE nm.document_type = 'SO';
+
+    /* 25. 一次彙總所有明細，避免對每張訂單重複掃描明細表。 */
+    DECLARE @SalesTotals TABLE (order_id bigint PRIMARY KEY, total decimal(18,2));
+    INSERT INTO @SalesTotals (order_id, total)
+    SELECT sales_order_id, SUM(subtotal)
+    FROM sales_order_items GROUP BY sales_order_id;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM sales_orders so
+        LEFT JOIN @SalesTotals totals ON totals.order_id = so.id
+        WHERE so.status = 'COMPLETED' AND totals.order_id IS NULL
+    ) THROW 50015, N'已完成訂單缺少明細。', 1;
+
+    UPDATE so SET so.total_amount = totals.total
+    FROM sales_orders so INNER JOIN @SalesTotals totals ON totals.order_id = so.id
+    WHERE so.status = 'COMPLETED';
+
+    -- 月營收以 COMPLETED 計算，不含作廢單，且須等於全部明細加總。
+    IF EXISTS
+    (
+        SELECT 1 FROM @HistoryTargets ht
+        CROSS APPLY
+        (
+            SELECT COALESCE(SUM(so.total_amount), 0) AS total
+            FROM sales_orders so WHERE so.status = 'COMPLETED'
+              AND so.created_at >= ht.month_start
+              AND so.created_at < DATEADD(MONTH, 1, ht.month_start)
+        ) actual
+        WHERE actual.total <> ht.target
+    ) THROW 50011, N'月銷售收入與目標不一致。', 1;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM sales_orders so
+        INNER JOIN @SalesTotals actual ON actual.order_id = so.id
+        WHERE so.status = 'COMPLETED' AND so.total_amount <> actual.total
+    ) THROW 50012, N'銷售總額與明細不一致。', 1;
+
+    IF EXISTS (SELECT 1 FROM sales_orders WHERE created_at > @NowLocal)
+       OR EXISTS (SELECT 1 FROM purchase_orders WHERE created_at > @NowLocal)
+        THROW 50013, N'交易建立時間不可超過現在。', 1;
+
     COMMIT TRANSACTION;
 
     PRINT N'ERP 假資料建立完成。';
+    SELECT ht.month_start, ht.target AS target_revenue,
+           SUM(so.total_amount) AS actual_revenue, COUNT(so.id) AS order_count
+    FROM @HistoryTargets ht
+    LEFT JOIN sales_orders so ON so.status = 'COMPLETED'
+        AND so.created_at >= ht.month_start AND so.created_at < DATEADD(MONTH, 1, ht.month_start)
+    GROUP BY ht.month_start, ht.target
+    ORDER BY ht.month_start;
+
+
 
     /* 執行完成後回傳本腳本建立的主要資料筆數。 */
     SELECT
@@ -1656,8 +2040,8 @@ BEGIN TRY
         (SELECT COUNT(*) FROM materials m INNER JOIN @MaterialSeed ms ON ms.code = m.code) AS materials_count,
         (SELECT COUNT(*) FROM products p INNER JOIN @ProductSeed ps ON ps.sku = p.sku) AS products_count,
         (SELECT COUNT(*) FROM suppliers s INNER JOIN @SupplierSeed ss ON ss.email = s.email) AS suppliers_count,
-        (SELECT COUNT(*) FROM purchase_orders po INNER JOIN @PurchaseOrderSeed pos ON pos.order_no = po.order_number) AS purchase_orders_count,
-        (SELECT COUNT(*) FROM sales_orders so WHERE so.order_number LIKE 'DEMO-SO-%') AS sales_orders_count,
+        (SELECT COUNT(*) FROM purchase_orders) AS purchase_orders_count,
+        (SELECT COUNT(*) FROM sales_orders so INNER JOIN @DocumentNumberMap nm ON nm.document_id = so.id AND nm.document_type = 'SO') AS sales_orders_count,
         (SELECT COUNT(*) FROM leave_requests lr INNER JOIN @LeaveSeed ls ON ls.reason = lr.reason) AS leave_requests_count,
         (SELECT COUNT(*) FROM calendar_events ce INNER JOIN @CalendarEventSeed ces ON ces.event_id = ce.id) AS calendar_events_count;
 END TRY
