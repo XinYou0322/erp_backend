@@ -1,5 +1,8 @@
 package com.example.demo.users;
 
+import java.math.BigDecimal;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,6 +33,10 @@ public class UserRegisterDTO {
 
     @NotNull(message = "角色等級不能為空")
     private Integer roleLevel;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "薪資不能為負數")
+    @Digits(integer = 8, fraction = 2, message = "薪資格式不正確")
+    private BigDecimal salary;
 
     private String avatar;
 

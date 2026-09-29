@@ -8,5 +8,6 @@ public interface UserMapper {
 
     @Mapping(source = "roleLevel", target = "roleLevel")
     @Mapping(source = "avatar", target = "avatar")
+    @Mapping(source = "salary", target = "salary")
     UserResponseDTO toDto(User user);
 }

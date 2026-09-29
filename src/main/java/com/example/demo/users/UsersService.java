@@ -57,6 +57,20 @@ public class UsersService {
         // user.setDepartmentId(dto.getDepartmentId());
         user.setStatus(UserStatus.ACTIVE);
 
+        // 限制最高權限才能設定薪資 (ROLE_ADMIN)
+        if (dto.getSalary() != null) {
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            boolean isAdmin = auth != null && auth.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+
+            if (isAdmin) {
+                user.setSalary(dto.getSalary());
+            } else {
+                user.setSalary(null);
+            }
+        }
+
         User savedUser = userRepository.save(user);
         return userMapper.toDto(savedUser);
     }

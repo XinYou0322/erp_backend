@@ -17,8 +17,11 @@ public class UserResponseDTO {
     private String status;
     private Instant createdAt;
 
+    // 薪資資訊
+    private java.math.BigDecimal salary;
+
     // 透過DTO只曝露前端需要的關聯資訊，避免直接曝露整個Role/Department
-    private Integer roleLevel;;
+    private Integer roleLevel;
     private DepartmentInfo department;
 
     @Getter
