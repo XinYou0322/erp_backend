@@ -163,7 +163,11 @@ public class WorkflowService {
 
         Workflow workflow = getWorkflowOrThrow(workflowId);
         User approver = getApproverOrThrow(request.getApproverId());
-
+        
+        System.out.println("workflowApprover = " + workflow.getApprover().getId());
+        System.out.println("requestApprover = " + request.getApproverId());
+        System.out.println("loginUser? = " + approver.getId());
+        System.out.println("documentType = " + workflow.getDocumentType());
         validateApprover(workflow, approver);
         // 【新增】處理待簽核期間停權、降級等變更；層級 1 自簽仍沿用簽核紀錄。
         if (workflow.getDocumentType() == DocumentType.ORDER) {

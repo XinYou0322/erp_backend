@@ -19,4 +19,7 @@ public class DashboardResponse {
     private List<TopRevenueResponse> recentTopRevenueProducts;
     private List<HourlySalesResponse> hourlySales;
     private List<MaterialConsumptionResponse> materialConsumption;
+    private BigDecimal todayCost;
+    private Double costChangeRate;       
+    private long todayMissingCostCount;
 }

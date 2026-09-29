@@ -251,4 +251,17 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrders, Long> {
 	List<Object[]> getRevenueGroupedByYear(@Param("start") LocalDateTime start,
 			@Param("end") LocalDateTime end);
 
+	@Query(value = "SELECT total_amount FROM sales_orders " +
+               "WHERE status = 'COMPLETED' AND created_at >= :start AND created_at < :end",
+       nativeQuery = true)
+	List<BigDecimal> findOrderAmountsBetween(@Param("start") LocalDateTime start,
+											@Param("end") LocalDateTime end);
+
+	@Query(value = "SELECT payment_method, AVG(total_amount) AS avg_amount, COUNT(id) AS order_count " +
+				"FROM sales_orders " +
+				"WHERE status = 'COMPLETED' AND created_at >= :start AND created_at < :end " +
+				"GROUP BY payment_method",
+		nativeQuery = true)
+	List<Object[]> findPaymentMethodStats(@Param("start") LocalDateTime start,
+										@Param("end") LocalDateTime end);
 }

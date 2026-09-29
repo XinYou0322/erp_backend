@@ -2,8 +2,10 @@ package com.example.demo.leave.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import com.example.demo.leave.LeaveRequest;
+import com.example.demo.leave.enums.LeaveDurationType;
 import com.example.demo.leave.enums.LeaveStatus;
 import com.example.demo.leave.enums.LeaveType;
 
@@ -19,6 +21,10 @@ public class LeaveRequestResponse {
     private LeaveType leaveType;
     private LocalDate startDate;
     private LocalDate endDate;
+
+    private LeaveDurationType leaveDurationType;
+    private LocalTime startTime;
+    private LocalTime endTime;
 
     private String reason;
     private LeaveStatus status;
@@ -36,6 +42,10 @@ public class LeaveRequestResponse {
         res.leaveType = leave.getLeaveType();
         res.startDate = leave.getStartDate();
         res.endDate = leave.getEndDate();
+
+        res.startTime=leave.getStartTime();
+        res.endTime=leave.getEndTime();
+        res.leaveDurationType=leave.getLeaveDurationType();
 
         res.reason = leave.getReason();
         res.status = leave.getStatus();

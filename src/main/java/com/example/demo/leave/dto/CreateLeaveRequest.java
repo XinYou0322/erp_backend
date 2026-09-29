@@ -1,7 +1,9 @@
 package com.example.demo.leave.dto;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
+import com.example.demo.leave.enums.LeaveDurationType;
 import com.example.demo.leave.enums.LeaveType;
 
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +23,10 @@ public class CreateLeaveRequest {
 
     @NotNull
     private LocalDate endDate;
+
+    private LeaveDurationType leaveDurationType;
+    private LocalTime startTime;
+    private LocalTime endTime;
 
     // private Long approverId;
 
