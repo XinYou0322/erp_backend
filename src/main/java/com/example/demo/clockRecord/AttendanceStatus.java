@@ -3,6 +3,8 @@ package com.example.demo.clockRecord;
 public enum AttendanceStatus {
 
     NORMAL("正常出勤"),
+    // Codex 修改：已核准全天請假不列為缺勤。
+    LEAVE("已核准請假"),
     LATE("遲到"),
     EARLY_LEAVE("早退"),
     LATE_AND_EARLY_LEAVE("遲到/早退"),
