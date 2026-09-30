@@ -35,6 +35,8 @@ public class UserRegisterDTO {
     private Integer roleLevel;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "薪資不能為負數")
+    // Codex 修改：新增帳號與編輯帳號採用相同薪資上限。
+    @jakarta.validation.constraints.DecimalMax(value = "99999999.99", message = "薪資不可超過 99,999,999.99 元")
     @Digits(integer = 8, fraction = 2, message = "薪資格式不正確")
     private BigDecimal salary;
 

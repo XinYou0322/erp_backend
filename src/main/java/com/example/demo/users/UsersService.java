@@ -182,7 +182,18 @@ public class UsersService {
             dbUser.setAvatar(dto.getAvatar());
         }
         // dbUser.setDepartmentId(dto.getDepartmentId());
-        dbUser.setStatus(dto.getStatus());
+        // Codex 修改：將表單資料實際保存；未提供的欄位保留原值。
+        if (dto.getPhone() != null) dbUser.setPhone(dto.getPhone());
+        if (dto.getDepartment() != null) dbUser.setDepartmentName(dto.getDepartment());
+        if (dto.getStatus() != null) dbUser.setStatus(dto.getStatus());
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+            dbUser.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+        var authentication = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (isAdmin && dto.getSalary() != null) dbUser.setSalary(dto.getSalary());
         dbUser.setRoleLevel(dto.getRoleLevel());
 
         User saved = userRepository.save(dbUser);

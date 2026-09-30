@@ -25,10 +25,22 @@ public class UserUpdateDTO {
 
     private String avatar;
 
+    // Codex 修改：接收編輯表單的電話、部門、薪資與選填的新密碼。
+    @Size(max = 50)
+    private String phone;
+    @Size(max = 100)
+    private String department;
+    // Codex 修改：後端同步阻擋負數、超過兩位小數及超出資料庫範圍的薪資。
+    @jakarta.validation.constraints.DecimalMin(value = "0", message = "薪資不能為負數")
+    @jakarta.validation.constraints.DecimalMax(value = "99999999.99", message = "薪資不可超過 99,999,999.99 元")
+    @jakarta.validation.constraints.Digits(integer = 8, fraction = 2, message = "薪資最多八位整數及兩位小數")
+    private java.math.BigDecimal salary;
+    private String password;
+
     // @NotNull(message = "部門 ID 不能為空")
     // private Long departmentId;
 
-    @NotNull(message = "使用者狀態不能為空")
+    // Codex 修改：編輯個人資料未傳狀態時，保留原帳號狀態。
     private UserStatus status;
 
 }

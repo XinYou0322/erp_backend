@@ -99,7 +99,14 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
         (N'店長', N'系統管理員 (Admin)', 1),
         (N'經理', N'營運經理 / 店長 (Manager)', 2),
         (N'正職', N'現場員工 / 收銀員 (Employee)', 3),
-        (N'訪客', N'訪客 / 外部審計 (Guest)', 4);
+        (N'訪客', N'訪客 / 外部審計 (Guest)', 4),
+        -- Codex 修改：新增六個職務角色，等級與前端共用角色定義一致。
+        (N'採購專員', N'維護供應商與開立採購單', 5),
+        (N'倉儲專員', N'查閱物料與進貨紀錄', 6),
+        (N'配方研發專員', N'建立與編修產品配方', 7),
+        (N'財務分析專員', N'檢視營運數據與匯出分析報告', 8),
+        (N'人資專員', N'追蹤假單與簽核申請', 9),
+        (N'營運督導', N'檢視跨店營運與門市流程', 10);
 
     INSERT INTO roles (name, description, role_level)
     SELECT rs.role_name, rs.description, rs.role_level
