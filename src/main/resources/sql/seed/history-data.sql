@@ -109,6 +109,7 @@ DECLARE @HistoryMonth date = @StartMonth;
 DECLARE @NextMonth date;
 DECLARE @MonthCutoff datetime2;
 DECLARE @AvailableSeconds int;
+DECLARE @OrdersForMonth int;
 DECLARE @HistoryPurchaseIndex int;
 DECLARE @HistoryPurchaseDay date;
 DECLARE @HistoryPurchaseTime datetime2;
@@ -123,12 +124,24 @@ BEGIN
         BEGIN TRANSACTION;
 
         SET @NextMonth = DATEADD(MONTH, 1, @HistoryMonth);
+        /*
+           歷史分析資料最多只建立到昨天，避免當月資料被算進「今日銷售」。
+           當月訂單數依已完成天數按比例縮減；每月 1 日時當月為 0 筆。
+        */
         SET @MonthCutoff = CASE
             WHEN @NextMonth <= CAST(@NowLocal AS date) THEN CAST(@NextMonth AS datetime2)
-            ELSE @NowLocal
+            ELSE CAST(CAST(@NowLocal AS date) AS datetime2)
         END;
         SET @AvailableSeconds = DATEDIFF(SECOND, CAST(@HistoryMonth AS datetime2), @MonthCutoff);
         IF @AvailableSeconds < 1 SET @AvailableSeconds = 1;
+        SET @OrdersForMonth = CASE
+            WHEN @NextMonth <= CAST(@NowLocal AS date) THEN @OrdersPerMonth
+            ELSE FLOOR(
+                @OrdersPerMonth
+                * DATEDIFF(DAY, @HistoryMonth, CAST(@NowLocal AS date))
+                / CAST(DAY(EOMONTH(@HistoryMonth)) AS decimal(18,4))
+            )
+        END;
 
         DELETE FROM @MonthSales;
 
@@ -158,7 +171,8 @@ BEGIN
             END
         FROM @Numbers numbers
         INNER JOIN @HistoryProducts product
-            ON product.product_no = ((numbers.n - 1) % @HistoryProductCount) + 1;
+            ON product.product_no = ((numbers.n - 1) % @HistoryProductCount) + 1
+        WHERE numbers.n <= @OrdersForMonth;
 
         INSERT INTO sales_orders
             (order_number, status, payment_method, total_amount,
