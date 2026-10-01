@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.analytics.dto.MaterialUsageAnalysisResponse;
 import com.example.demo.analytics.dto.ReplenishmentSuggestionResponse;
+import com.example.demo.analytics.dto.DailyPreparationSuggestionResponse;
 import com.example.demo.inventorylog.InventoryLogRepository;
 import com.example.demo.inventories.InventoryRepository;
 import com.example.demo.materials.Material;
@@ -24,6 +25,8 @@ import com.example.demo.materials.MaterialRepository;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItemsRepository;
 import com.example.demo.salesOrder.SalesOrderItemRepository;
 import com.example.demo.salesOrder.SalesOrderStatus;
+import com.example.demo.materialsettlement.DailyMaterialSettlementRepository;
+import com.example.demo.materialsettlement.SettlementStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,6 +43,75 @@ public class OperationsAnalyticsService {
     private final InventoryLogRepository inventoryLogRepository;
     private final SalesOrderItemRepository salesOrderItemRepository;
     private final PurchaseOrderItemsRepository purchaseOrderItemsRepository;
+    private final DailyMaterialSettlementRepository settlementRepository;
+
+    public List<DailyPreparationSuggestionResponse> getDailyPreparationSuggestions(LocalDate date) {
+        LocalDate targetDate = date == null ? LocalDate.now(TAIPEI) : date;
+
+        Map<Long, BigDecimal> usage7Days = quantitiesByMaterial(
+                salesOrderItemRepository.sumMaterialUsageBySales(
+                        SalesOrderStatus.COMPLETED,
+                        targetDate.minusDays(7).atStartOfDay(),
+                        targetDate.atStartOfDay()));
+        Map<Long, BigDecimal> usage30Days = quantitiesByMaterial(
+                salesOrderItemRepository.sumMaterialUsageBySales(
+                        SalesOrderStatus.COMPLETED,
+                        targetDate.minusDays(30).atStartOfDay(),
+                        targetDate.atStartOfDay()));
+
+        Map<Long, BigDecimal> availableByMaterial = new HashMap<>();
+        for (Object[] row : inventoryRepository.sumAvailableAndExpiredByMaterial(targetDate)) {
+            availableByMaterial.put(asLong(row[0]), decimal(row[1]));
+        }
+
+        Map<Long, BigDecimal> carryoverByMaterial = new HashMap<>();
+        settlementRepository
+                .findFirstByStatusAndSettlementDateBeforeOrderBySettlementDateDesc(
+                        SettlementStatus.COMPLETED, targetDate)
+                .ifPresent(previous -> previous.getItems().forEach(item -> {
+                    if (item.getWorkspaceCarryoverQuantity() != null
+                            && item.getWorkspaceCarryoverQuantity().signum() > 0) {
+                        carryoverByMaterial.put(
+                                item.getMaterial().getId(), item.getWorkspaceCarryoverQuantity());
+                    }
+                }));
+
+        List<DailyPreparationSuggestionResponse> result = new ArrayList<>();
+        for (Material material : materialRepository.findByStatus("ACTIVE")) {
+            BigDecimal average7 = usage7Days.getOrDefault(material.getId(), BigDecimal.ZERO)
+                    .divide(BigDecimal.valueOf(7), 4, RoundingMode.HALF_UP);
+            BigDecimal average30 = usage30Days.getOrDefault(material.getId(), BigDecimal.ZERO)
+                    .divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
+            BigDecimal estimated = weightedDailyUsage(average7, average30);
+            BigDecimal carryover = carryoverByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
+            BigDecimal buffer = estimated.multiply(BigDecimal.valueOf(0.10))
+                    .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal rawSuggestion = estimated.add(buffer).subtract(carryover)
+                    .max(BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal issueStep = issueStep(material.getUnit());
+            BigDecimal suggested = roundUpToStep(rawSuggestion, issueStep);
+            BigDecimal available = availableByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
+            BigDecimal executable = suggested.min(available).max(BigDecimal.ZERO);
+            BigDecimal shortage = suggested.subtract(available).max(BigDecimal.ZERO);
+            String status = preparationStatus(estimated, suggested, shortage);
+
+            result.add(new DailyPreparationSuggestionResponse(
+                    material.getId(), material.getCode(), material.getName(), material.getUnit(),
+                    average7, average30, estimated, carryover, buffer, rawSuggestion,
+                    issueStep, suggested, available, executable, shortage, status,
+                    preparationRecommendation(material, carryover, suggested, available, shortage, status)));
+        }
+
+        result.sort((left, right) -> {
+            int byStatus = Integer.compare(
+                    preparationStatusRank(left.getStatus()),
+                    preparationStatusRank(right.getStatus()));
+            return byStatus != 0
+                    ? byStatus
+                    : left.getMaterialCode().compareTo(right.getMaterialCode());
+        });
+        return result;
+    }
 
     public List<ReplenishmentSuggestionResponse> getReplenishmentSuggestions(
             LocalDate date, int historyDays, int forecastDays) {
@@ -79,7 +151,7 @@ public class OperationsAnalyticsService {
                     BigDecimal.valueOf(historyDays), 4, RoundingMode.HALF_UP);
             BigDecimal forecastUsage = averageDailyUsage
                     .multiply(BigDecimal.valueOf(forecastDays)).setScale(4, RoundingMode.HALF_UP);
-            BigDecimal pending = pendingByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
+            BigDecimal pendingPackages = pendingByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
             BigDecimal usage7Days = usage7DaysByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
             BigDecimal average7Days = usage7Days.divide(BigDecimal.valueOf(7), 4, RoundingMode.HALF_UP);
             BigDecimal usage30Days = usage30DaysByMaterial.getOrDefault(material.getId(), BigDecimal.ZERO);
@@ -92,6 +164,8 @@ public class OperationsAnalyticsService {
                     || material.getPurchasePackQuantity().signum() <= 0
                             ? BigDecimal.ONE
                             : material.getPurchasePackQuantity();
+            BigDecimal pending = pendingPackages.multiply(packQuantity)
+                    .setScale(4, RoundingMode.UNNECESSARY);
             BigDecimal rawSuggestion = leadTimeDemand.add(safetyStock)
                     .subtract(stock.available()).subtract(pending).max(BigDecimal.ZERO);
             BigDecimal suggestedPackages = rawSuggestion.signum() == 0
@@ -110,6 +184,7 @@ public class OperationsAnalyticsService {
                     inventoryStatus(stock.available(), safetyStock), risk,
                     usage7Days, average7Days, usage30Days, average30Days, selectedAverage,
                     leadTimeDays, leadTimeDemand, packQuantity, suggestedPackages,
+                    pendingPackages, material.getPurchaseUnit(),
                     replenishmentRecommendation(material, stock.available(), daysRemaining,
                             leadTimeDays, suggestedPackages, suggested, risk)));
         }
@@ -235,11 +310,15 @@ public class OperationsAnalyticsService {
             return material.getName() + "最近 30 天沒有銷售耗用，暫不建議依銷售量補貨。";
         }
         if (packages.signum() > 0) {
+            String purchaseUnit = material.getPurchaseUnit() == null
+                    || material.getPurchaseUnit().isBlank()
+                            ? "個包裝"
+                            : material.getPurchaseUnit();
             return material.getName() + "目前可用庫存 " + available.stripTrailingZeros().toPlainString()
                     + " " + material.getUnit() + "，預估可使用 "
                     + (days == null ? "—" : days.stripTrailingZeros().toPlainString())
                     + " 天，交期為 " + leadTimeDays + " 天；建議採購 "
-                    + packages.toPlainString() + " 個包裝，共 "
+                    + packages.toPlainString() + " " + purchaseUnit + "，共 "
                     + suggested.stripTrailingZeros().toPlainString() + " " + material.getUnit() + "。";
         }
         return material.getName() + "目前庫存與已核准未到貨量足以涵蓋交期需求，暫不需要補貨。";
@@ -282,6 +361,74 @@ public class OperationsAnalyticsService {
         if (absolute.compareTo(BigDecimal.valueOf(20)) >= 0) return "HIGH";
         if (absolute.compareTo(BigDecimal.valueOf(10)) >= 0) return "ATTENTION";
         return "NORMAL";
+    }
+
+    private BigDecimal weightedDailyUsage(BigDecimal average7, BigDecimal average30) {
+        boolean has7Days = average7.signum() > 0;
+        boolean has30Days = average30.signum() > 0;
+        if (has7Days && has30Days) {
+            return average7.multiply(BigDecimal.valueOf(0.70))
+                    .add(average30.multiply(BigDecimal.valueOf(0.30)))
+                    .setScale(4, RoundingMode.HALF_UP);
+        }
+        return (has7Days ? average7 : average30).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal issueStep(String unit) {
+        if (unit == null) return BigDecimal.ONE;
+        return switch (unit.trim()) {
+            case "g" -> BigDecimal.valueOf(50);
+            case "ml" -> BigDecimal.valueOf(100);
+            case "個", "支", "張" -> BigDecimal.TEN;
+            default -> BigDecimal.ONE;
+        };
+    }
+
+    private BigDecimal roundUpToStep(BigDecimal quantity, BigDecimal step) {
+        if (quantity == null || quantity.signum() <= 0) return BigDecimal.ZERO;
+        return quantity.divide(step, 0, RoundingMode.CEILING).multiply(step);
+    }
+
+    private String preparationStatus(
+            BigDecimal estimated, BigDecimal suggested, BigDecimal shortage) {
+        if (estimated.signum() == 0) return "NO_USAGE_DATA";
+        if (suggested.signum() == 0) return "NO_ACTION";
+        if (shortage.signum() > 0) return "INSUFFICIENT_STOCK";
+        return "READY";
+    }
+
+    private int preparationStatusRank(String status) {
+        return switch (status) {
+            case "INSUFFICIENT_STOCK" -> 0;
+            case "READY" -> 1;
+            case "NO_ACTION" -> 2;
+            default -> 3;
+        };
+    }
+
+    private String preparationRecommendation(
+            Material material,
+            BigDecimal carryover,
+            BigDecimal suggested,
+            BigDecimal available,
+            BigDecimal shortage,
+            String status) {
+        String unit = material.getUnit() == null ? "" : " " + material.getUnit();
+        return switch (status) {
+            case "NO_USAGE_DATA" -> material.getName()
+                    + "最近 30 天沒有銷售耗用，暫不提供備料建議。";
+            case "NO_ACTION" -> material.getName() + "前次工作區留存 "
+                    + display(carryover) + unit + " 已足以支撐今日預估需求，暫時不需再領料。";
+            case "INSUFFICIENT_STOCK" -> material.getName() + "建議領取 "
+                    + display(suggested) + unit + "，但倉庫可用庫存只有 "
+                    + display(available) + unit + "，仍缺少 " + display(shortage) + unit + "。";
+            default -> material.getName() + "建議今日領取 "
+                    + display(suggested) + unit + "，目前倉庫庫存足夠。";
+        };
+    }
+
+    private String display(BigDecimal value) {
+        return decimal(value).stripTrailingZeros().toPlainString();
     }
 
     private record StockAmount(BigDecimal available, BigDecimal expired) {

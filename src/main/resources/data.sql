@@ -25,6 +25,64 @@ IF OBJECT_ID(N'dbo.bom_version_items', N'U') IS NOT NULL
 IF OBJECT_ID(N'dbo.bom_versions', N'U') IS NOT NULL
     DROP TABLE dbo.bom_versions;
 
+/*
+   當日領料結算資料表。
+   Spring Boot 正常啟動時會由 Entity 建立；這裡補上 IF NOT EXISTS，
+   讓開發環境直接執行整份 data.sql 時也能安全建立，不會重複建表。
+*/
+IF OBJECT_ID(N'dbo.daily_material_settlements', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.daily_material_settlements
+    (
+        id bigint IDENTITY(1,1) NOT NULL,
+        settlement_date date NOT NULL,
+        status varchar(20) NOT NULL,
+        created_by_user_id bigint NOT NULL,
+        note varchar(500) NULL,
+        created_at datetime2(6) NOT NULL,
+        completed_at datetime2(6) NULL,
+        CONSTRAINT pk_daily_material_settlements PRIMARY KEY (id),
+        CONSTRAINT uk_daily_material_settlement_date UNIQUE (settlement_date),
+        CONSTRAINT fk_daily_material_settlement_user
+            FOREIGN KEY (created_by_user_id) REFERENCES dbo.users(id)
+    );
+END;
+
+IF OBJECT_ID(N'dbo.daily_material_settlement_items', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.daily_material_settlement_items
+    (
+        id bigint IDENTITY(1,1) NOT NULL,
+        settlement_id bigint NOT NULL,
+        material_id bigint NOT NULL,
+        previous_carryover_quantity decimal(18,4) NOT NULL,
+        manual_issue_quantity decimal(18,4) NOT NULL,
+        theoretical_usage_quantity decimal(18,4) NOT NULL,
+        waste_quantity decimal(18,4) NOT NULL,
+        unrecorded_usage_quantity decimal(18,4) NOT NULL,
+        unrecorded_reason varchar(40) NULL,
+        unrecorded_note varchar(500) NULL,
+        workspace_carryover_quantity decimal(18,4) NOT NULL,
+        returned_quantity decimal(18,4) NOT NULL,
+        returned_expiry_date date NULL,
+        created_at datetime2(6) NOT NULL,
+        updated_at datetime2(6) NOT NULL,
+        CONSTRAINT pk_daily_material_settlement_items PRIMARY KEY (id),
+        CONSTRAINT uk_settlement_material UNIQUE (settlement_id, material_id),
+        CONSTRAINT fk_settlement_item_settlement
+            FOREIGN KEY (settlement_id) REFERENCES dbo.daily_material_settlements(id),
+        CONSTRAINT fk_settlement_item_material
+            FOREIGN KEY (material_id) REFERENCES dbo.materials(id)
+    );
+END;
+
+IF COL_LENGTH(N'dbo.daily_material_settlement_items', N'previous_carryover_quantity') IS NULL
+BEGIN
+    ALTER TABLE dbo.daily_material_settlement_items
+        ADD previous_carryover_quantity decimal(18,4) NOT NULL
+            CONSTRAINT df_daily_settlement_previous_carryover DEFAULT (0);
+END;
+
 /* ---------- 1. DELETE：子表 -> 父表 ---------- */
 DELETE FROM workflow_logs;
 DELETE FROM workflows;
@@ -35,6 +93,8 @@ DELETE FROM supplier_note;
 DELETE FROM sales_order_items;
 DELETE FROM sales_orders;
 DELETE FROM notification_record;
+DELETE FROM daily_material_settlement_items;
+DELETE FROM daily_material_settlements;
 DELETE FROM inventory_logs;
 DELETE FROM inventories;
 DELETE FROM bom;
@@ -55,6 +115,8 @@ DBCC CHECKIDENT ('supplier_note', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('sales_order_items', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('sales_orders', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('notification_record', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('daily_material_settlement_items', RESEED, 0) WITH NO_INFOMSGS;
+DBCC CHECKIDENT ('daily_material_settlements', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('inventory_logs', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('inventories', RESEED, 0) WITH NO_INFOMSGS;
 DBCC CHECKIDENT ('bom', RESEED, 0) WITH NO_INFOMSGS;
@@ -565,22 +627,26 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
         ('MAT002',1, 9000.0000,120,18), ('MAT002',2,3000.0000, 45, 6),
         ('MAT003',1, 6500.0000,100,17),
         ('MAT004',1, 4500.0000,110,16),
-        ('MAT005',1, 6000.0000,  5, 2), ('MAT005',2,5000.0000, 12, 1),
-        ('MAT006',1, 5000.0000,180,20),
+        /* MAT005、MAT006：可用天數略高於交期，呈現「需要注意」。 */
+        ('MAT005',1, 4500.0000,  5, 2), ('MAT005',2,3500.0000, 12, 1),
+        ('MAT006',1, 3000.0000,180,20),
         ('MAT007',1,14000.0000,240,25),
-        ('MAT008',1, 4000.0000, 60, 8),
-        /* MAT009、MAT010 的可用量不超過安全庫存 40%，啟動後會顯示為緊急／缺貨。 */
-        ('MAT009',1, 1000.0000, 75,12),
+        /* MAT008、MAT010：庫存無法支撐完整交期，呈現「高風險」。 */
+        ('MAT008',1, 2500.0000, 60, 8),
+        /* MAT009：有效批次歸零；下方只保留過期批次，呈現至少一筆「缺貨」。 */
+        ('MAT009',1,    0.0000, 75,12),
         ('MAT010',1,  900.0000, 45,10),
         ('MAT011',1,3000.0000, 10, 3), ('MAT011',2,2500.0000, 25, 1),
-        /* MAT012 保留為低庫存；MAT013 顯示為緊急／缺貨。 */
-        ('MAT012',1,3200.0000, 35, 6),
-        ('MAT013',1,1400.0000, 30, 5),
+        /* MAT012：接近到貨前需求，呈現「需要注意」；MAT013：呈現「高風險」。 */
+        ('MAT012',1, 900.0000, 35, 6),
+        ('MAT013',1, 100.0000, 30, 5),
         ('MAT014',1,3000.0000,150,15),
         ('MAT015',1,6000.0000,180,18),
-        ('MAT016',1, 900.0000,NULL,14),
+        /* MAT016：略高於 7 天交期需求，呈現「需要注意」。 */
+        ('MAT016',1, 500.0000,NULL,14),
         ('MAT017',1,1500.0000,NULL,14),
-        ('MAT018',1,1200.0000,NULL,14),
+        /* MAT018：不足以支撐 7 天交期，呈現「高風險」。 */
+        ('MAT018',1, 300.0000,NULL,14),
         ('MAT021',1,  500.0000, 90,40),
         /* 負數效期代表相對於每次啟動當天已經過期。 */
         ('MAT005',3,  700.0000, -2, 8),
@@ -878,7 +944,14 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
     SELECT
         po.id,
         m.id,
-        CAST(1 + ((pon.row_no + line.line_no) % 8) AS decimal(18,4)),
+        /* 已核准待到貨資料固定為 1 個採購包裝，讓補貨建議呈現清楚的包／桶／箱數。 */
+        CAST(
+            CASE
+                WHEN po.status = 'APPROVED' THEN 1
+                ELSE 1 + ((pon.row_no + line.line_no) % 8)
+            END
+            AS decimal(18,4)
+        ),
         mn.purchase_cost
     FROM PurchaseOrderNumbers pon
     INNER JOIN purchase_orders po
@@ -1822,6 +1895,79 @@ DECLARE @TestPasswordHash varchar(60) = '$2b$10$5XKTItquzJxaEHzpVN1a3.kijEfiZrPn
     UPDATE so SET so.total_amount = totals.total
     FROM sales_orders so INNER JOIN @SalesTotals totals ON totals.order_id = so.id
     WHERE so.status = 'COMPLETED';
+
+    /* ======================================================================
+       26. 昨日已完成的當日領料結算
+       日期永遠以本次執行 data.sql 的前一天計算，不寫死展示日期。
+       工作區留存可供今天的結算畫面顯示「前次留存／現場可用」。
+       ====================================================================== */
+    DECLARE @YesterdaySettlementId bigint;
+
+    INSERT INTO daily_material_settlements
+        (settlement_date, status, created_by_user_id, note, created_at, completed_at)
+    SELECT
+        DATEADD(day, -1, @Today),
+        'COMPLETED',
+        u.id,
+        N'[假資料] 昨日領料結算，保留部分原料於工作區供今日使用。',
+        DATEADD(day, -1, @NowUtc),
+        DATEADD(day, -1, @NowUtc)
+    FROM users u
+    WHERE u.username = 'store_manager01';
+
+    SET @YesterdaySettlementId = SCOPE_IDENTITY();
+
+    IF @YesterdaySettlementId IS NULL
+        THROW 50016, N'建立昨日領料結算失敗：找不到店長測試帳號。', 1;
+
+    DECLARE @YesterdaySettlementItemSeed TABLE
+    (
+        material_code varchar(50) PRIMARY KEY,
+        manual_issue_quantity decimal(18,4),
+        theoretical_usage_quantity decimal(18,4),
+        waste_quantity decimal(18,4),
+        workspace_carryover_quantity decimal(18,4)
+    );
+
+    INSERT INTO @YesterdaySettlementItemSeed
+        (material_code, manual_issue_quantity, theoretical_usage_quantity,
+         waste_quantity, workspace_carryover_quantity)
+    VALUES
+        ('MAT001', 2500.0000, 2100.0000,  50.0000, 350.0000),
+        ('MAT005', 4000.0000, 3400.0000, 100.0000, 500.0000),
+        ('MAT008', 1800.0000, 1300.0000, 200.0000, 300.0000),
+        ('MAT009', 1200.0000,  850.0000,  50.0000, 300.0000),
+        ('MAT016',  150.0000,  120.0000,   0.0000,  30.0000),
+        ('MAT017',  150.0000,  125.0000,   0.0000,  25.0000);
+
+    INSERT INTO daily_material_settlement_items
+        (settlement_id, material_id, previous_carryover_quantity, manual_issue_quantity,
+         theoretical_usage_quantity, waste_quantity,
+         unrecorded_usage_quantity, unrecorded_reason, unrecorded_note,
+         workspace_carryover_quantity, returned_quantity, returned_expiry_date,
+         created_at, updated_at)
+    SELECT
+        @YesterdaySettlementId,
+        m.id,
+        0,
+        seed.manual_issue_quantity,
+        seed.theoretical_usage_quantity,
+        seed.waste_quantity,
+        0,
+        NULL,
+        NULL,
+        seed.workspace_carryover_quantity,
+        0,
+        NULL,
+        DATEADD(day, -1, @NowUtc),
+        DATEADD(day, -1, @NowUtc)
+    FROM @YesterdaySettlementItemSeed seed
+    INNER JOIN materials m ON m.code = seed.material_code;
+
+    IF (SELECT COUNT(*)
+        FROM daily_material_settlement_items
+        WHERE settlement_id = @YesterdaySettlementId) <> 6
+        THROW 50017, N'昨日領料結算明細建立不完整。', 1;
 
     IF EXISTS
     (

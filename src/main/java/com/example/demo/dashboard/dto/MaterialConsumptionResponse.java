@@ -15,6 +15,7 @@ public class MaterialConsumptionResponse {
     private String materialName;
     private String unit;
     private BigDecimal manualIssueQuantity;
+    private BigDecimal previousCarryoverQuantity;
     private BigDecimal theoreticalUsageQuantity;
     private BigDecimal varianceQuantity;
 }

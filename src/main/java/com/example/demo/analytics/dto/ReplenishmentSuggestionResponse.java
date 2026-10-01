@@ -32,5 +32,7 @@ public class ReplenishmentSuggestionResponse {
     private BigDecimal leadTimeDemandQuantity;
     private BigDecimal purchasePackQuantity;
     private BigDecimal suggestedPackageCount;
+    private BigDecimal pendingPurchasePackageCount;
+    private String purchaseUnit;
     private String recommendation;
 }

@@ -427,6 +427,41 @@ public void batchInventory(
 
         return savedInventory;
     }
+
+    /**
+     * 將工作區剩餘原料退回倉庫。quantity 已是庫存單位，不套用採購包裝換算。
+     */
+    public Inventory returnFromWorkspace(
+            Material material,
+            BigDecimal quantity,
+            LocalDate expiryDate,
+            Long settlementId) {
+        if (material == null) throw new IllegalArgumentException("原物料不得為空");
+        if (quantity == null || quantity.signum() <= 0) {
+            throw new IllegalArgumentException("退料數量必須大於 0");
+        }
+        if (settlementId == null) throw new IllegalArgumentException("結算單 ID 不得為空");
+        if (inventoryLogRepository.existsByActionAndRefIdAndMaterialId(
+                "RETURN", settlementId, material.getId())) {
+            throw new IllegalStateException(material.getName() + "已完成退料入庫，不可重複執行");
+        }
+
+        Inventory inventory = new Inventory();
+        inventory.setMaterial(material);
+        inventory.setQuantity(quantity);
+        inventory.setExpiryDate(expiryDate);
+        Inventory saved = inventoryRepository.save(inventory);
+
+        InventoryLog log = new InventoryLog();
+        log.setMaterial(material);
+        log.setQuantity(quantity);
+        log.setAction("RETURN");
+        log.setRefId(settlementId);
+        log.setInventoryBatchId(saved.getId());
+        log.setNote("當日領料結算退回工作區剩餘原料");
+        inventoryLogRepository.save(log);
+        return saved;
+    }
     // 刪除一批（例如整批報廢或輸入錯誤）
     public void delete(Long id) {
         inventoryRepository.deleteById(id);

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.analytics.dto.MaterialUsageAnalysisResponse;
 import com.example.demo.analytics.dto.ReplenishmentSuggestionResponse;
+import com.example.demo.analytics.dto.DailyPreparationSuggestionResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,5 +35,12 @@ public class OperationsAnalyticsController {
     public ResponseEntity<List<MaterialUsageAnalysisResponse>> getMaterialUsageAnalysis(
             @RequestParam(required = false) LocalDate date) {
         return ResponseEntity.ok(operationsAnalyticsService.getMaterialUsageAnalysis(date));
+    }
+
+    @GetMapping("/daily-preparation-suggestions")
+    public ResponseEntity<List<DailyPreparationSuggestionResponse>> getDailyPreparationSuggestions(
+            @RequestParam(required = false) LocalDate date) {
+        return ResponseEntity.ok(
+                operationsAnalyticsService.getDailyPreparationSuggestions(date));
     }
 }
