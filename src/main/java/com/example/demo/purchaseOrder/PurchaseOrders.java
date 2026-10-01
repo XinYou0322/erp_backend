@@ -12,6 +12,7 @@ import com.example.demo.suppliers.Suppliers;
 import com.example.demo.users.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
+import com.example.demo.suppliersNotes.SupplierNotes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -108,6 +109,10 @@ public class PurchaseOrders {
     @OneToMany(mappedBy = "purchaseOrder" ,  cascade = CascadeType.ALL , orphanRemoval = true)
     //@OrderBy("id ASC") 取得明細時id 小 → 大
     private List<PurchaseOrderItems> items = new LinkedList<>();
+
+    // 【新增：供應商備註】一張採購單可累積多筆收貨／合作狀況備註。
+    @OneToMany(mappedBy = "purchaseOrder")
+    private List<SupplierNotes> supplierNotes = new LinkedList<>();
 
     //雙向關聯
     public void addItem(PurchaseOrderItems item) {

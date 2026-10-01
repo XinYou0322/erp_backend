@@ -51,6 +51,19 @@ public class PurchaseOrdersService {
     private final DocumentNumberService documentNumberService;
     // 【新增】新增與送簽共用後端資格驗證。
     private final PurchaseApproverPolicy purchaseApproverPolicy;
+
+    // 【修改：只限已到貨】備註表單不顯示待審核或尚未到貨的採購單。
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderNoteOptionDTO> findNoteOptionsBySupplier(Long supplierId) {
+        suppliersRepo.findById(supplierId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到此供應商"));
+        return purchaseOrdersRepo.findBySupplierIdAndStatusOrderByCreatedAtDescIdDesc(
+                        supplierId,
+                        PurchaseOrdersStatus.RECEIVED)
+                .stream()
+                .map(PurchaseOrderNoteOptionDTO::fromEntity)
+                .toList();
+    }
     
     //---新增---
     // 新增一張採購單

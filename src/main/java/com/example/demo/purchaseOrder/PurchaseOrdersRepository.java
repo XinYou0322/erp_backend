@@ -20,6 +20,11 @@ public interface PurchaseOrdersRepository extends JpaRepository<PurchaseOrders, 
 	
 	boolean existsBySupplierId(Long id);
 
+    // 【修改：只限已到貨】供應商備註不可關聯尚未完成收貨的採購單。
+    List<PurchaseOrders> findBySupplierIdAndStatusOrderByCreatedAtDescIdDesc(
+            Long supplierId,
+            PurchaseOrdersStatus status);
+
     @EntityGraph(attributePaths = { "supplier", "items", "items.material" })
     List<PurchaseOrders> findByExpectedDeliveryDateAndStatusInOrderByOrderNumberAsc(
             LocalDate expectedDeliveryDate,

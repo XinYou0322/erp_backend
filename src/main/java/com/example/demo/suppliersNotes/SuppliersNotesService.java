@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.demo.suppliers.Suppliers;
 import com.example.demo.suppliers.SuppliersDTO;
 import com.example.demo.suppliers.SuppliersRepository;
+import com.example.demo.purchaseOrder.PurchaseOrders;
+import com.example.demo.purchaseOrder.PurchaseOrdersRepository;
+import com.example.demo.purchaseOrder.PurchaseOrdersStatus;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
 
@@ -27,6 +30,9 @@ public class SuppliersNotesService {
 	    private final SuppliersNotesRepository suppliersNotesRepo;
 	    
 	    private final UsersRepository  usersRepo;
+
+        // 【新增：關聯採購單】後端負責驗證採購單確實屬於目前供應商。
+        private final PurchaseOrdersRepository purchaseOrdersRepo;
 	    
 	    //---新增---
 	    //單筆
@@ -54,6 +60,7 @@ public class SuppliersNotesService {
 	    note.setSupplier(supplier);
 	    note.setRemark(createDTO.getRemark().trim());
 	    note.setCreatedBy(creator);
+	    note.setPurchaseOrder(resolvePurchaseOrder(supplierId, createDTO.getPurchaseOrderId()));
 
 	    SupplierNotes savedNote = suppliersNotesRepo.save(note);
 
@@ -92,10 +99,27 @@ public class SuppliersNotesService {
 		}
 		//修改 > 儲存
 		note.setRemark(updateDTO.getRemark().trim());
+		note.setPurchaseOrder(resolvePurchaseOrder(supplierId, updateDTO.getPurchaseOrderId()));
 		SupplierNotes savedNote = suppliersNotesRepo.save(note);
 		//Entity > DTO
 		return SuppliersNotesRespoDTO.fromEntity(savedNote);
 	   }
+
+       private PurchaseOrders resolvePurchaseOrder(Long supplierId, Long purchaseOrderId) {
+           if (purchaseOrderId == null) {
+               return null;
+           }
+           PurchaseOrders purchaseOrder = purchaseOrdersRepo.findById(purchaseOrderId)
+                   .orElseThrow(() -> new IllegalArgumentException("找不到採購單"));
+           if (!purchaseOrder.getSupplier().getId().equals(supplierId)) {
+               throw new IllegalArgumentException("所選採購單不屬於此供應商");
+           }
+           // 【新增：只限已到貨】即使略過前端選單直接呼叫 API，也不能綁定未到貨訂單。
+           if (purchaseOrder.getStatus() != PurchaseOrdersStatus.RECEIVED) {
+               throw new IllegalArgumentException("供應商備註只能對應已到貨的採購單");
+           }
+           return purchaseOrder;
+       }
 	   // ---查詢---
 	   //查某供應商備註
 	   @Transactional(readOnly = true)

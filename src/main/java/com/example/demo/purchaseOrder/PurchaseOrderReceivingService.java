@@ -17,6 +17,8 @@ import com.example.demo.systemsetting.SystemSettingKey;
 import com.example.demo.systemsetting.SystemSettingService;
 import com.example.demo.users.User;
 import com.example.demo.users.UsersRepository;
+import com.example.demo.suppliersNotes.SuppliersNotesCreDTO;
+import com.example.demo.suppliersNotes.SuppliersNotesService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +33,7 @@ public class PurchaseOrderReceivingService {
     private final UsersRepository usersRepository;
     private final InventoryService inventoryService;
     private final SystemSettingService systemSettingService;
+    private final SuppliersNotesService suppliersNotesService;
 
     @Transactional(readOnly = true)
     public List<ReceivablePurchaseOrderDTO> findReceivable(LocalDate expectedDeliveryDate) {
@@ -87,7 +90,18 @@ public class PurchaseOrderReceivingService {
         purchaseOrder.setStatus(PurchaseOrdersStatus.RECEIVED);
         purchaseOrder.setReceivedBy(receiver);
         purchaseOrder.setReceivedAt(LocalDateTime.now());
-        return PurchaseOrderResponseDTO.fromEntity(purchaseOrdersRepository.save(purchaseOrder));
+        PurchaseOrders savedPurchaseOrder = purchaseOrdersRepository.save(purchaseOrder);
+
+        // 【新增】備註與收貨在同一交易中完成，任一失敗都會一起回滾。
+        String supplierRemark = request == null ? null : request.getSupplierRemark();
+        if (supplierRemark != null && !supplierRemark.trim().isEmpty()) {
+            SuppliersNotesCreDTO noteDTO = new SuppliersNotesCreDTO();
+            noteDTO.setRemark(supplierRemark.trim());
+            noteDTO.setPurchaseOrderId(savedPurchaseOrder.getId());
+            suppliersNotesService.createNote(
+                    savedPurchaseOrder.getSupplier().getId(), noteDTO, receivedByUserId);
+        }
+        return PurchaseOrderResponseDTO.fromEntity(savedPurchaseOrder);
     }
 
     private Map<Long, LocalDate> getExpiryDates(
