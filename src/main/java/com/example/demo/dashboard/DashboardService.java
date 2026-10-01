@@ -37,6 +37,8 @@ import com.example.demo.salesOrder.SalesOrderItemRepository;
 import com.example.demo.salesOrder.SalesOrderRepository;
 import com.example.demo.salesOrder.SalesOrderStatus;
 import com.example.demo.inventorylog.InventoryLogRepository;
+import com.example.demo.materialsettlement.DailyMaterialSettlementRepository;
+import com.example.demo.materialsettlement.SettlementStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -47,6 +49,7 @@ public class DashboardService {
         private final SalesOrderRepository salesRepo;
         private final SalesOrderItemRepository itemRepo;
         private final InventoryLogRepository inventoryLogRepo;
+        private final DailyMaterialSettlementRepository settlementRepository;
 
         public DashboardResponse getDashboard() {
 
@@ -164,6 +167,7 @@ public class DashboardService {
                                         (String) row[3],
                                         signedQuantity == null ? BigDecimal.ZERO : signedQuantity.abs(),
                                         BigDecimal.ZERO,
+                                        BigDecimal.ZERO,
                                         BigDecimal.ZERO);
                         result.put(item.getMaterialId(), item);
                 }
@@ -180,14 +184,36 @@ public class DashboardService {
                                                         (String) row[3],
                                                         BigDecimal.ZERO,
                                                         BigDecimal.ZERO,
+                                                        BigDecimal.ZERO,
                                                         BigDecimal.ZERO));
                         item.setTheoreticalUsageQuantity(
                                         row[4] == null ? BigDecimal.ZERO : (BigDecimal) row[4]);
                 }
 
+                settlementRepository
+                                .findFirstByStatusAndSettlementDateBeforeOrderBySettlementDateDesc(
+                                                SettlementStatus.COMPLETED, targetDate)
+                                .ifPresent(previous -> previous.getItems().forEach(previousItem -> {
+                                        if (previousItem.getWorkspaceCarryoverQuantity() == null
+                                                        || previousItem.getWorkspaceCarryoverQuantity().signum() <= 0) {
+                                                return;
+                                        }
+                                        var material = previousItem.getMaterial();
+                                        MaterialConsumptionResponse item = result.computeIfAbsent(
+                                                        material.getId(),
+                                                        ignored -> new MaterialConsumptionResponse(
+                                                                        material.getId(), material.getCode(),
+                                                                        material.getName(), material.getUnit(),
+                                                                        BigDecimal.ZERO, BigDecimal.ZERO,
+                                                                        BigDecimal.ZERO, BigDecimal.ZERO));
+                                        item.setPreviousCarryoverQuantity(
+                                                        previousItem.getWorkspaceCarryoverQuantity());
+                                }));
+
                 return result.values().stream()
                                 .peek(item -> item.setVarianceQuantity(
-                                                item.getManualIssueQuantity()
+                                                item.getPreviousCarryoverQuantity()
+                                                                .add(item.getManualIssueQuantity())
                                                                 .subtract(item.getTheoreticalUsageQuantity())))
                                 .sorted((left, right) -> left.getMaterialCode().compareTo(right.getMaterialCode()))
                                 .toList();

@@ -21,6 +21,8 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
     // 檢查同一張銷售單是否已有扣除或回補紀錄，防止重複扣庫存及重複回補。
     boolean existsByActionAndRefId(String action, Long refId);
 
+    boolean existsByActionAndRefIdAndMaterialId(String action, Long refId, Long materialId);
+
     // 【本次新增：銷售與庫存同步】
     // 依銷售單 ID 取得原始扣庫存紀錄，報廢時按照紀錄逐批回補。
     List<InventoryLog> findByActionAndRefIdOrderByIdAsc(String action, Long refId);

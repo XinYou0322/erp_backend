@@ -41,6 +41,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     
 	List<Inventory> findByMaterialIdOrderByExpiryDateAsc(Long materialId);
 
+    boolean existsByMaterialIdAndExpiryDateIsNotNull(Long materialId);
+
     /**
      * 依原物料彙總可用與過期庫存。
      * 無效期或效期為今天以後的正數庫存視為可用；早於今天則視為過期。
