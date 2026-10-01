@@ -10,6 +10,11 @@ public class SuppliersNotesRespoDTO {
     private Long id;
 	
 	private String remark;
+
+    // 【新增】讓供應商備註列表清楚顯示所對應的採購單。
+    private Long purchaseOrderId;
+    private String purchaseOrderNumber;
+    private String purchaseOrderStatus;
     
     private String createdBy;
 
@@ -25,6 +30,11 @@ public class SuppliersNotesRespoDTO {
         SuppliersNotesRespoDTO dto = new SuppliersNotesRespoDTO();
         dto.setId(supplierNote.getId());
         dto.setRemark(supplierNote.getRemark());
+        if (supplierNote.getPurchaseOrder() != null) {
+            dto.setPurchaseOrderId(supplierNote.getPurchaseOrder().getId());
+            dto.setPurchaseOrderNumber(supplierNote.getPurchaseOrder().getOrderNumber());
+            dto.setPurchaseOrderStatus(supplierNote.getPurchaseOrder().getStatus().name());
+        }
         dto.setCreatedBy(supplierNote.getCreatedBy().getName());
         dto.setCreatedByUserId(supplierNote.getCreatedBy().getId());
         dto.setCreatedAt(supplierNote.getCreatedAt());

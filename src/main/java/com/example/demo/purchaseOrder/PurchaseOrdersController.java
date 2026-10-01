@@ -45,6 +45,14 @@ public class PurchaseOrdersController {
     }
 
     private final PurchaseOrderReceivingService purchaseOrderReceivingService;
+
+    // 【新增】新增／修改供應商備註時的選填採購單清單。
+    @GetMapping("/api/purchaseOrder/supplier/{supplierId}/note-options")
+    public ResponseEntity<List<PurchaseOrderNoteOptionDTO>> findSupplierPurchaseOrderOptions(
+            @PathVariable Long supplierId) {
+        return ResponseEntity.ok(
+                purchaseOrdersService.findNoteOptionsBySupplier(supplierId));
+    }
    
 
     //---新增---

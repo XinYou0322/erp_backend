@@ -8,6 +8,7 @@ import java.util.List;
 
 import com.example.demo.purchaseOrderItem.PurchaseOrderItemResponseDTO;
 import com.example.demo.purchaseOrderItem.PurchaseOrderItems;
+import com.example.demo.suppliersNotes.SuppliersNotesRespoDTO;
 
 import lombok.Data;
 
@@ -48,6 +49,9 @@ public class PurchaseOrderResponseDTO {
     
     private List<PurchaseOrderItemResponseDTO> items;
 
+    // 【新增】採購單詳細頁顯示所有對應的供應商備註。
+    private List<SuppliersNotesRespoDTO> supplierNotes;
+
     
     public static PurchaseOrderResponseDTO fromEntity(PurchaseOrders purchaseOrder) {
         PurchaseOrderResponseDTO dto = new PurchaseOrderResponseDTO();
@@ -86,6 +90,9 @@ public class PurchaseOrderResponseDTO {
             itemDTOList.add(PurchaseOrderItemResponseDTO.fromEntity(item));
         }
         dto.setItems(itemDTOList);
+        dto.setSupplierNotes(purchaseOrder.getSupplierNotes().stream()
+                .map(SuppliersNotesRespoDTO::fromEntity)
+                .toList());
         return dto;
     }
 }

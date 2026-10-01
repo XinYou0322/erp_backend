@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.Nationalized;
 
 import com.example.demo.suppliers.Suppliers;
+import com.example.demo.purchaseOrder.PurchaseOrders;
 import com.example.demo.users.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -39,6 +40,12 @@ public class SupplierNotes {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) //一筆 SupplierNotes 一定要屬於某個 Supplier
     @JoinColumn(name = "supplier_id", nullable = false)
     private Suppliers supplier;
+
+    // 【新增：關聯採購單】選填；一筆供應商備註最多對應一張採購單。
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchase_order_id")
+    private PurchaseOrders purchaseOrder;
 
     @Nationalized
     @Column(nullable = false)
