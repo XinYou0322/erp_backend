@@ -11,6 +11,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UsersRepository extends JpaRepository<User, Long> {
+    // Codex 修改：打卡交易鎖定本人帳號，避免同時請求通過重複檢查。
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.username = :username")
+    Optional<User> findForClockUpdate(@org.springframework.data.repository.query.Param("username") String username);
 
     // 登入驗證與 JWT 簽發時使用
     Optional<User> findByUsername(String username);
