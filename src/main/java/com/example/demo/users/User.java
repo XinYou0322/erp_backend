@@ -62,6 +62,15 @@ public class User {
     @Column(length = 500)
     private String avatar;
 
+    // Codex 修改：持久保存編輯視窗的電話與部門。
+    @Setter
+    @Column(length = 50)
+    private String phone;
+
+    @Setter
+    @Column(name = "department_name", length = 100)
+    private String departmentName;
+
     // @Setter
     // @ManyToOne(fetch = FetchType.LAZY)
     // @Column(name = "department_id", nullable = false)

@@ -22,11 +22,24 @@ public final class RoleAuthorityMapper {
             case 2 -> List.of(new SimpleGrantedAuthority("ROLE_MANAGER"));
             case 3 -> List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE"));
             case 4 -> List.of(new SimpleGrantedAuthority("ROLE_GUEST"));
+            // Codex 修改：六個職務保留獨立識別，沿用員工基本存取，不授予管理員權限。
+            case 5 -> employeeAuthorities("PROCUREMENT");
+            case 6 -> employeeAuthorities("WAREHOUSE");
+            case 7 -> employeeAuthorities("RESEARCH");
+            case 8 -> employeeAuthorities("FINANCE");
+            case 9 -> employeeAuthorities("HR");
+            case 10 -> employeeAuthorities("SUPERVISOR");
             default -> List.of(); // 未知等級不給予任何權限
         };
     }
 
     private RoleAuthorityMapper() {
+    }
+
+    // Codex 修改：維持既有員工 API 的相容性並保留職務角色。
+    private static List<GrantedAuthority> employeeAuthorities(String role) {
+        return List.of(new SimpleGrantedAuthority("ROLE_EMPLOYEE"),
+                new SimpleGrantedAuthority("ROLE_" + role));
     }
 
 }

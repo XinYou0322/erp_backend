@@ -14,6 +14,8 @@ public class UserResponseDTO {
     private String name;
     private String email;
     private String avatar;
+    // Codex 修改：清單及重新開啟編輯視窗需要回傳電話。
+    private String phone;
     private String status;
     private Instant createdAt;
 

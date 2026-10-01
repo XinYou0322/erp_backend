@@ -33,6 +33,8 @@ public class CalendarEvent {
 
     @Column(nullable = false)
     private String category; // procurement, production, meeting, leave, maintenance, marketing
+    // Codex 修改：班次關聯真實員工帳號。
+    private Long employeeId;
 
     @Column(nullable = false)
     private LocalDate date; // yyyy-MM-dd

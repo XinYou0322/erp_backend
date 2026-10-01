@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CalendarEventRepository
         extends JpaRepository<CalendarEvent, String>, JpaSpecificationExecutor<CalendarEvent> {
+    // Codex 修改：查詢同日同員工班次。
+    java.util.List<CalendarEvent> findByCategoryAndEmployeeIdAndDate(String category, Long employeeId, java.time.LocalDate date);
 
     // 計算全域或特定範圍統計數據
     @Query("SELECT COUNT(e) FROM CalendarEvent e")

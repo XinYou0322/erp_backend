@@ -5,6 +5,13 @@ import java.util.Map;
 
 public class DailyAttendanceDto {
 
+    // Codex 修改：行事曆直接對應原請假單，不複製請假資料或事由。
+    public record LeaveItem(Long id, String leaveType, String status, String durationType,
+            java.time.LocalTime startTime, java.time.LocalTime endTime) {}
+    private List<LeaveItem> leaves = List.of();
+    public List<LeaveItem> getLeaves() { return leaves; }
+    public void setLeaves(List<LeaveItem> leaves) { this.leaves = leaves; }
+
     private String date; // yyyy-MM-dd
     private AttendanceStatus status;
     private String clockInTime;  // 當天最早一筆上班打卡時間，無則 null
