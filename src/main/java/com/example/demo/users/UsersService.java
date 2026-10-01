@@ -54,6 +54,8 @@ public class UsersService {
         user.setEmail(dto.getEmail());
         user.setRoleLevel(dto.getRoleLevel());
         user.setAvatar(dto.getAvatar());
+        // Codex 修改：保存申請／開立帳號選定的部門，供名冊及編輯表單讀回。
+        user.setDepartmentName(dto.getDepartment());
         // user.setDepartmentId(dto.getDepartmentId());
         user.setStatus(UserStatus.ACTIVE);
 

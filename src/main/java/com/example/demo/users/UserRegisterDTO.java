@@ -42,6 +42,10 @@ public class UserRegisterDTO {
 
     private String avatar;
 
+    // Codex 修改：申請及開立新帳號接收相同部門欄位。
+    @Size(max = 100, message = "部門名稱不能超過 100 個字元")
+    private String department;
+
     // @NotNull(message = "部門 ID 不能為空")
     // private Long departmentId;
 
