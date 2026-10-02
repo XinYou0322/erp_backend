@@ -71,6 +71,7 @@ public class MaterialsService {
 	               
 	    }
 	  public Material create(Material material) {
+		    validateAndNormalizeCreateRequest(material);
 		    applyPurchasingDefaultsAndValidate(material);
 
 		    if ("CONVERSION".equals(material.getCostMode())) {
@@ -118,6 +119,44 @@ public class MaterialsService {
 
 		    return savedMaterial;
 		}
+
+	  private void validateAndNormalizeCreateRequest(Material material) {
+		  if (material == null) {
+			  throw new IllegalArgumentException("原物料資料不得為空");
+		  }
+
+		  String code = material.getCode() == null ? "" : material.getCode().trim();
+		  String name = material.getName() == null ? "" : material.getName().trim();
+		  String unit = material.getUnit() == null ? "" : material.getUnit().trim();
+		  String costMode = material.getCostMode() == null ? "" : material.getCostMode().trim();
+
+		  if (code.isEmpty() || name.isEmpty() || unit.isEmpty()) {
+			  throw new IllegalArgumentException("原物料代碼、名稱與單位不得為空");
+		  }
+		  if (MaterialRepo.findByCode(code).isPresent()) {
+			  throw new IllegalArgumentException("原物料代碼已存在：" + code);
+		  }
+		  if (material.getSafetyStock() == null) {
+			  material.setSafetyStock(BigDecimal.ZERO);
+		  } else if (material.getSafetyStock().signum() < 0) {
+			  throw new IllegalArgumentException("安全庫存不可小於 0");
+		  }
+		  if ("DIRECT".equals(costMode)
+				  && material.getCost() != null
+				  && material.getCost().signum() < 0) {
+			  throw new IllegalArgumentException("原物料成本不可小於 0");
+		  }
+		  if ("CONVERSION".equals(costMode)
+				  && material.getPurchaseCost() != null
+				  && material.getPurchaseCost().signum() < 0) {
+			  throw new IllegalArgumentException("採購價格不可小於 0");
+		  }
+
+		  material.setCode(code);
+		  material.setName(name);
+		  material.setUnit(unit);
+		  material.setCostMode(costMode);
+	  }
 	  
 	  public Material update(Long id, Material newMaterial) {
 		  Optional<Material> m = MaterialRepo.findById(id);

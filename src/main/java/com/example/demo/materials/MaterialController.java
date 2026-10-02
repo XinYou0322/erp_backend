@@ -1,6 +1,7 @@
 package com.example.demo.materials;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -56,12 +57,12 @@ public  ResponseEntity<?> all() {
 
 @PostMapping("/api/material/add")//新增原料
 public  ResponseEntity<?> create(@RequestBody Material material) {
-    
-	
-	
-	Material m=  MtSerivce.create(material); 
-	
-	return new ResponseEntity<>(m,HttpStatus.CREATED);
+	try {
+		Material m = MtSerivce.create(material);
+		return new ResponseEntity<>(m, HttpStatus.CREATED);
+	} catch (IllegalArgumentException exception) {
+		return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+	}
 }
 // 修改原物料
 @PutMapping("/api/materialupdate/{id}")
