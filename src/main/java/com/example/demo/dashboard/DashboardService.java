@@ -66,14 +66,14 @@ public class DashboardService {
                 BigDecimal todayRevenue = salesRepo.getRevenueBetween(todayStart, todayEnd);
                 response.setTodayRevenue(todayRevenue);
 
-                // 2. 昨日至今 (Yesterday to Date): 昨日 00:00 ~ 昨日現在
+                // 2. 昨日完整一天：昨日 00:00 ~ 今日 00:00
                 LocalDateTime yesterdayStart = yesterday.atStartOfDay();
-                LocalDateTime yesterdayEnd = now.minusDays(1);
+                LocalDateTime yesterdayEnd = today.atStartOfDay();
 
-                BigDecimal yesterdaySamePeriod = salesRepo.getRevenueBetween(yesterdayStart, yesterdayEnd);
+                BigDecimal yesterdayRevenue = salesRepo.getRevenueBetween(yesterdayStart, yesterdayEnd);
 
                 // 3. 計算環比 (成長率)
-                response.setRevenueChangeRate(calcChangeRate(todayRevenue, yesterdaySamePeriod));
+                response.setRevenueChangeRate(calcChangeRate(todayRevenue, yesterdayRevenue));
 
                 // 4. 今日至今訂單數
                 response.setTodayOrders(salesRepo.countOrdersBetween(todayStart, todayEnd));
@@ -82,12 +82,12 @@ public class DashboardService {
                 Double avg = salesRepo.getAverageOrderBetween(todayStart, todayEnd);
                 response.setAverageOrderAmount(avg != null ? BigDecimal.valueOf(avg) : BigDecimal.ZERO);
 
-                // 6. 今日至今成本 + 較昨日同期（區間與營收完全一致）
+                // 6. 今日至今成本 + 較昨日完整一天
                 BigDecimal todayCost = nullToZero(itemRepo.sumCostBetween(todayStart, todayEnd));
-                BigDecimal yesterdayCostSamePeriod = nullToZero(itemRepo.sumCostBetween(yesterdayStart, yesterdayEnd));
+                BigDecimal yesterdayCost = nullToZero(itemRepo.sumCostBetween(yesterdayStart, yesterdayEnd));
 
                 response.setTodayCost(todayCost);
-                response.setCostChangeRate(calcChangeRate(todayCost, yesterdayCostSamePeriod));
+                response.setCostChangeRate(calcChangeRate(todayCost, yesterdayCost));
                 response.setTodayMissingCostCount(itemRepo.countItemsMissingCost(todayStart, todayEnd));
                 
                 LocalDateTime weekStart = today.minusDays(6).atStartOfDay(); // 包含今天共7天
@@ -233,10 +233,35 @@ public class DashboardService {
                 LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
                 // 1. 計算「上期」區間：長度與本期相同，且緊接在本期開始之前
-                long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
-                LocalDateTime prevEnd = start.minusNanos(1); // 本期開始的前一瞬間
-                LocalDateTime prevStart = prevEnd.minusDays(daysBetween).toLocalDate().atStartOfDay();
+                LocalDateTime prevStart;
+                LocalDateTime prevEnd;
 
+                if (startDate.getDayOfMonth() == 1
+                        && endDate.equals(startDate.withDayOfMonth(1).plusMonths(1).minusDays(1))) {
+
+                // 本月 → 上一個完整月份
+                YearMonth previousMonth = YearMonth.from(startDate).minusMonths(1);
+
+                prevStart = previousMonth.atDay(1).atStartOfDay();
+                prevEnd = previousMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+                } else if (startDate.equals(LocalDate.of(startDate.getYear(), 1, 1))
+                        && endDate.equals(LocalDate.of(startDate.getYear(), 12, 31))) {
+
+                // 本年 → 上一個完整年度
+                int previousYear = startDate.getYear() - 1;
+
+                prevStart = LocalDate.of(previousYear, 1, 1).atStartOfDay();
+                prevEnd = LocalDate.of(previousYear, 12, 31).atTime(LocalTime.MAX);
+
+                } else {
+
+                // 自訂區間 → 上一個相同長度的完整區間
+                long periodDays = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+
+                prevEnd = start.minusNanos(1);
+                prevStart = start.minusDays(periodDays);
+                }
                 // 2. 取得本期與上期總營收
                 BigDecimal totalRevenue = salesRepo.getRevenueBetween(start, end);
                 BigDecimal previousRevenue = salesRepo.getRevenueBetween(prevStart, prevEnd);
